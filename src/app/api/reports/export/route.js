@@ -5,6 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/db";
 import { generateCSV } from "@/lib/utils";
 import { subDays } from "date-fns";
+export const dynamic = 'force-dynamic'; // Force dynamic rendering
 
 export async function GET(request) {
   try {
