@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import MetricsCard from "@/components/dashboard/metrics-card";
+import MetricsCard from "@/components/dashboard/metrics-card.jsx";
 import StatusChart from "@/components/dashboard/status-chart";
 import RecentActivity from "@/components/dashboard/recent-activity";
 
