@@ -19,9 +19,9 @@ export default function HomePage() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900">User Page</h1>
+          <h1 className="text-4xl font-bold text-gray-900">A page</h1>
           <p className="mt-2 text-gray-600">
-            Just a page
+            This is just a a page
           </p>
         </div>
       </div>
