@@ -106,7 +106,9 @@ export default function RecentActivity({ activities = [] }) {
           </>
         );
       default:
-        return <span className="font-medium">{user.name}</span> performed an action;
+        return (
+          <span className="font-medium">{user.name}</span>
+        );
     }
   };
   
