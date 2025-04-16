@@ -3,17 +3,10 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import LoginButton from "@/components/auth/login-button";
 
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/users");
-    }
-  }, [status, router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
