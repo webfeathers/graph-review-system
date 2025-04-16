@@ -286,7 +286,6 @@ export default function ReportsPage() {
           </div>
           
           <div className="bg-gray-50 rounded-lg p-4">
-          <div className="bg-gray-50 rounded-lg p-4">
             <h3 className="text-sm font-medium text-gray-500">Avg. Response Time</h3>
             <p className="text-2xl font-bold text-gray-900">
               {responseTimeData.length > 0
