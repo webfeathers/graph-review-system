@@ -1,3 +1,4 @@
+// src/components/submissions/comment-thread.jsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -266,7 +267,7 @@ export default function CommentThread({ submissionId }) {
                       />
                     ) : (
                       <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center mr-2">
-                        <User className="h-4 w-4 text<User className="h-4 w-4 text-gray-500" />
+                        <User className="h-4 w-4 text-gray-500" />
                       </div>
                     )}
                     <span className="text-sm">{user.name}</span>
