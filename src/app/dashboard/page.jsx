@@ -6,6 +6,7 @@ import Link from "next/link";
 import MetricsCard from "@/components/dashboard/metrics-card";
 import StatusChart from "@/components/dashboard/status-chart";
 import RecentActivity from "@/components/dashboard/recent-activity";
+export const dynamic = 'force-dynamic';
 
 export default function Dashboard() {
   const { data: session, status } = useSession();
