@@ -1,8 +1,9 @@
 // pages/api/comments.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
+import { getServerSession } from 'next-auth';
 import { comments } from '../../lib/db';
 import { Comment } from '../../models/Comment';
+import { authOptions } from './auth/[...nextauth]';
 
 // Initialize with sample data if empty
 if (comments.length === 0) {
@@ -16,7 +17,7 @@ if (comments.length === 0) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getSession({ req });
+  const session = await getServerSession(req, res, authOptions);
 
   if (!session) {
     return res.status(401).json({ message: 'Unauthorized' });
@@ -40,6 +41,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     if (!content || !reviewId) {
       return res.status(400).json({ message: 'Content and review ID are required' });
+    }
+    
+    // Make sure session.user.id exists (based on our type extension)
+    if (!session.user?.id) {
+      return res.status(500).json({ message: 'User ID not found in session' });
     }
     
     const newComment: Comment = {

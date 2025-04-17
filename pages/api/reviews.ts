@@ -1,8 +1,9 @@
 // pages/api/reviews.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getSession } from 'next-auth/react';
+import { getServerSession } from 'next-auth';
 import { reviews } from '../../lib/db';
 import { Review } from '../../models/Review';
+import { authOptions } from './auth/[...nextauth]';
 
 // Initialize with some sample data if empty
 if (reviews.length === 0) {
@@ -28,7 +29,7 @@ if (reviews.length === 0) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getSession({ req });
+  const session = await getServerSession(req, res, authOptions);
 
   if (!session) {
     return res.status(401).json({ message: 'Unauthorized' });
@@ -38,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     const { userOnly } = req.query;
     
-    if (userOnly === 'true') {
+    if (userOnly === 'true' && session.user?.id) {
       // Return only the current user's reviews
       const userReviews = reviews.filter(review => review.userId === session.user.id);
       return res.status(200).json(userReviews);
@@ -54,6 +55,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     if (!title || !description) {
       return res.status(400).json({ message: 'Title and description are required' });
+    }
+    
+    // Make sure session.user.id exists (based on our type extension)
+    if (!session.user?.id) {
+      return res.status(500).json({ message: 'User ID not found in session' });
     }
     
     const newReview: Review = {
