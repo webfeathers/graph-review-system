@@ -1,9 +1,9 @@
 // pages/api/reviews.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { reviews } from '../../lib/db';
 import { Review } from '../../models/Review';
-import { authOptions } from './auth/[...nextauth]';
+import { authOptions } from '../../lib/auth';
 
 // Initialize with some sample data if empty
 if (reviews.length === 0) {

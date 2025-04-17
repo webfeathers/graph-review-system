@@ -1,8 +1,8 @@
 // pages/api/reviews/[id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth/next';
 import { reviews } from '../../../lib/db';
-import { authOptions } from '../auth/[...nextauth]';
+import { authOptions } from '../../../lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getServerSession(req, res, authOptions);
