@@ -1,10 +1,9 @@
+// pages/api/auth/login.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { serialize } from 'cookie';
-
-// Use the mock user database from register.ts
-// In a real app, this would be a database connection
+import { users } from '../../../lib/db';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {

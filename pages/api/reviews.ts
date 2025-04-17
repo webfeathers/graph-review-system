@@ -1,10 +1,12 @@
+// pages/api/reviews.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from 'next-auth/react';
+import { reviews } from '../../lib/db';
 import { Review } from '../../models/Review';
 
-// Mock review database
-const reviews: Review[] = [
-  {
+// Initialize with some sample data if empty
+if (reviews.length === 0) {
+  reviews.push({
     id: '1',
     title: 'Network Traffic Analysis',
     description: 'This graph shows the network traffic patterns over the last month.',
@@ -12,8 +14,9 @@ const reviews: Review[] = [
     userId: '123',
     createdAt: new Date(Date.now() - 7 * 86400000), // 7 days ago
     updatedAt: new Date(Date.now() - 2 * 86400000), // 2 days ago
-  },
-  {
+  });
+  
+  reviews.push({
     id: '2',
     title: 'Customer Conversion Funnel',
     description: 'Visualization of our conversion funnel from visitor to customer.',
@@ -21,8 +24,8 @@ const reviews: Review[] = [
     userId: '456',
     createdAt: new Date(Date.now() - 3 * 86400000), // 3 days ago
     updatedAt: new Date(Date.now() - 3 * 86400000), // 3 days ago
-  },
-];
+  });
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession({ req });

@@ -1,17 +1,19 @@
+// pages/api/comments.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getSession } from 'next-auth/react';
+import { comments } from '../../lib/db';
 import { Comment } from '../../models/Comment';
 
-// Mock comment database
-const comments: Comment[] = [
-  {
+// Initialize with sample data if empty
+if (comments.length === 0) {
+  comments.push({
     id: '1',
     content: 'This graph looks interesting. Can you provide more context?',
     reviewId: '1',
     userId: '456',
     createdAt: new Date(Date.now() - 86400000), // Yesterday
-  },
-];
+  });
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const session = await getSession({ req });
