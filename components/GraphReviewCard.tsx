@@ -1,6 +1,7 @@
+// components/GraphReviewCard.tsx
 import React from 'react';
 import Link from 'next/link';
-import { Review } from '../models/Review';
+import { Review } from '../types/supabase';
 import StatusBadge from './StatusBadge';
 
 interface GraphReviewCardProps {
@@ -17,10 +18,10 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review }) => {
       
       <p className="text-gray-600 mb-4">{review.description}</p>
       
-      {review.graphImageUrl && (
+      {review.graph_image_url && (
         <div className="mb-4">
           <img 
-            src={review.graphImageUrl} 
+            src={review.graph_image_url} 
             alt="Graph visualization" 
             className="w-full h-40 object-cover rounded"
           />
@@ -28,7 +29,7 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review }) => {
       )}
       
       <div className="flex justify-between items-center text-sm text-gray-500">
-        <span>Created: {new Date(review.createdAt).toLocaleDateString()}</span>
+        <span>Created: {new Date(review.created_at).toLocaleDateString()}</span>
         <Link href={`/reviews/${review.id}`} className="text-blue-500 hover:underline">
           View Discussion
         </Link>

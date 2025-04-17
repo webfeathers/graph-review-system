@@ -1,5 +1,7 @@
+// components/AuthForm.tsx
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
+import { useAuth } from './AuthProvider';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -10,33 +12,39 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      const url = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const body = mode === 'login' ? { email, password } : { name, email, password };
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-      console.log('Login response:', { status: response.status, data });
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Authentication failed');
+      if (mode === 'login') {
+        const { error } = await signIn(email, password);
+        if (error) throw error;
+        
+        // On successful login, redirect to dashboard
+        router.push('/dashboard');
+      } else {
+        // Register mode
+        if (!name) {
+          throw new Error('Name is required');
+        }
+        
+        const { error } = await signUp(email, password, name);
+        if (error) throw error;
+        
+        // On successful registration, redirect to dashboard or show confirmation
+        router.push('/dashboard');
       }
-
-      // Redirect on success
-      router.push('/dashboard');
     } catch (err: any) {
-      setError(err.message);
+      console.error('Authentication error:', err);
+      setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -95,9 +103,10 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
         
         <button
           type="submit"
-          className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+          disabled={loading}
+          className="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
         >
-          {mode === 'login' ? 'Log In' : 'Register'}
+          {loading ? 'Please wait...' : mode === 'login' ? 'Log In' : 'Register'}
         </button>
       </form>
     </div>

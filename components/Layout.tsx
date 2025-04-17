@@ -1,6 +1,8 @@
+// components/Layout.tsx
 import React, { ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useAuth } from './AuthProvider';
 
 interface LayoutProps {
   children: ReactNode;
@@ -8,11 +10,10 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter();
+  const { user, signOut } = useAuth();
   
-  const handleLogout = () => {
-    // Clear token from localStorage or use NextAuth signOut
-    localStorage.removeItem('token');
-    router.push('/login');
+  const handleLogout = async () => {
+    await signOut();
   };
   
   return (
@@ -23,20 +24,33 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             Graph Review App
           </Link>
           
-          <nav className="flex items-center space-x-4">
-            <Link href="/dashboard" className="hover:underline">
-              Dashboard
-            </Link>
-            <Link href="/reviews" className="hover:underline">
-              Reviews
-            </Link>
-            <Link href="/reviews/new" className="hover:underline">
-              New Review
-            </Link>
-            <button onClick={handleLogout} className="hover:underline">
-              Logout
-            </button>
-          </nav>
+          {user && (
+            <nav className="flex items-center space-x-4">
+              <Link href="/dashboard" className="hover:underline">
+                Dashboard
+              </Link>
+              <Link href="/reviews" className="hover:underline">
+                Reviews
+              </Link>
+              <Link href="/reviews/new" className="hover:underline">
+                New Review
+              </Link>
+              <button onClick={handleLogout} className="hover:underline">
+                Logout
+              </button>
+            </nav>
+          )}
+          
+          {!user && (
+            <nav className="flex items-center space-x-4">
+              <Link href="/login" className="hover:underline">
+                Login
+              </Link>
+              <Link href="/register" className="hover:underline">
+                Register
+              </Link>
+            </nav>
+          )}
         </div>
       </header>
       

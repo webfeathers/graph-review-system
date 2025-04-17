@@ -1,12 +1,13 @@
+// pages/_app.tsx
 import '../styles/globals.css';
 import type { AppProps } from 'next/app';
-import { SessionProvider } from 'next-auth/react';
+import { AuthProvider } from '../components/AuthProvider';
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <SessionProvider session={pageProps.session}>
+    <AuthProvider>
       <Component {...pageProps} />
-    </SessionProvider>
+    </AuthProvider>
   );
 }
 

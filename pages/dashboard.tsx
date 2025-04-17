@@ -1,29 +1,32 @@
+// pages/dashboard.tsx
 import type { NextPage } from 'next';
-import { useSession, getSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import GraphReviewCard from '../components/GraphReviewCard';
-import { Review } from '../models/Review';
+import { useAuth } from '../components/AuthProvider';
+import { getReviews } from '../lib/supabaseUtils';
+import { Review } from '../types/supabase';
 
 const Dashboard: NextPage = () => {
-  const { data: session, status } = useSession();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (authLoading) return;
+
+    // If not authenticated, redirect to login
+    if (!user) {
       router.push('/login');
       return;
     }
 
     const fetchUserReviews = async () => {
       try {
-        const response = await fetch('/api/reviews?userOnly=true');
-        if (!response.ok) throw new Error('Failed to fetch reviews');
-        const data = await response.json();
-        setReviews(data);
+        const userReviews = await getReviews(user.id);
+        setReviews(userReviews);
       } catch (error) {
         console.error('Error fetching reviews:', error);
       } finally {
@@ -31,12 +34,10 @@ const Dashboard: NextPage = () => {
       }
     };
 
-    if (status === 'authenticated') {
-      fetchUserReviews();
-    }
-  }, [status, router]);
+    fetchUserReviews();
+  }, [user, authLoading, router]);
 
-  if (status === 'loading' || loading) {
+  if (authLoading || loading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
@@ -44,7 +45,7 @@ const Dashboard: NextPage = () => {
     <Layout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {session?.user?.name}!</p>
+        <p className="text-gray-600">Welcome back, {user?.user_metadata?.name || user?.email}!</p>
       </div>
 
       <div className="mb-8">
@@ -71,7 +72,19 @@ const Dashboard: NextPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {reviews.map((review) => (
-              <GraphReviewCard key={review.id} review={review} />
+              <GraphReviewCard 
+                key={review.id} 
+                review={{
+                  id: review.id,
+                  title: review.title,
+                  description: review.description,
+                  graphImageUrl: review.graph_image_url,
+                  status: review.status,
+                  userId: review.user_id,
+                  createdAt: review.created_at,
+                  updatedAt: review.updated_at
+                }} 
+              />
             ))}
           </div>
         )}
