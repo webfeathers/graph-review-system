@@ -1,12 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  images: {
-    domains: ['lh3.googleusercontent.com'], // For Google profile images
-  },
-  experimental: {
-    serverActions: true,
-  }
+  swcMinify: true,
 }
 
 module.exports = nextConfig
