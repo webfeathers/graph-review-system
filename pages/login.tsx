@@ -1,21 +1,24 @@
+// pages/login.tsx
 import type { NextPage } from 'next';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import AuthForm from '../components/AuthForm';
+import { useAuth } from '../components/AuthProvider';
 
 const Login: NextPage = () => {
-  const { data: session, status } = useSession();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (loading) return;
+    
+    if (user) {
       router.push('/dashboard');
     }
-  }, [status, router]);
+  }, [user, loading, router]);
 
-  if (status === 'loading') {
+  if (loading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 

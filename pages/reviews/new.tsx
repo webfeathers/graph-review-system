@@ -1,11 +1,14 @@
+// pages/reviews/new.tsx
 import type { NextPage } from 'next';
-import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
+import { useAuth } from '../../components/AuthProvider';
+import { createReview } from '../../lib/supabaseUtils';
+import { supabase } from '../../lib/supabase';
 
 const NewReview: NextPage = () => {
-  const { status } = useSession();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -14,10 +17,13 @@ const NewReview: NextPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  if (status === 'unauthenticated') {
-    router.push('/login');
-    return null;
-  }
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, authLoading, router]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -34,38 +40,57 @@ const NewReview: NextPage = () => {
       return;
     }
 
+    if (!user) {
+      setError('You must be logged in to submit a review');
+      return;
+    }
+
     setIsSubmitting(true);
     setError('');
 
     try {
-      // In a real app, you would upload the image to a storage service
-      // and get back a URL to store in the database
-      // For this example, we'll just pretend we have a URL if an image was selected
-      const imageUrl = graphImage ? `/uploads/${graphImage.name}` : undefined;
-
-      const response = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          description,
-          graphImageUrl: imageUrl,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to create review');
+      let imageUrl = undefined;
+      
+      // If there's an image, upload it to Supabase Storage
+      if (graphImage) {
+        const fileName = `${Date.now()}_${graphImage.name}`;
+        const { data, error } = await supabase.storage
+          .from('graph-images')
+          .upload(fileName, graphImage);
+          
+        if (error) throw error;
+        
+        // Get the public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('graph-images')
+          .getPublicUrl(fileName);
+          
+        imageUrl = publicUrl;
       }
+
+      await createReview({
+        title,
+        description,
+        graph_image_url: imageUrl,
+        status: 'Submitted',
+        user_id: user.id,
+      });
 
       // Redirect to the reviews page on success
       router.push('/reviews');
     } catch (err: any) {
-      setError(err.message);
+      console.error('Error creating review:', err);
+      setError(err.message || 'Failed to create review');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (authLoading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  }
+
+  if (!user) return null;
 
   return (
     <Layout>

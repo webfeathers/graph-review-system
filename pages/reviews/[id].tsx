@@ -1,88 +1,138 @@
-// pages/api/reviews/[id].ts
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+// pages/reviews/[id].tsx
+import type { NextPage } from 'next';
+import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
+import Layout from '../../components/Layout';
+import StatusBadge from '../../components/StatusBadge';
+import CommentSection from '../../components/CommentSection';
+import { useAuth } from '../../components/AuthProvider';
+import { getReviewById, updateReviewStatus, getCommentsByReviewId } from '../../lib/supabaseUtils';
+import { Review, Comment, Profile } from '../../types/supabase';
 
-// Initialize Supabase client with API route runtime env variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const ReviewPage: NextPage = () => {
+  const router = useRouter();
+  const { id } = router.query;
+  const { user, loading: authLoading } = useAuth();
+  const [review, setReview] = useState<Review & { profiles: Profile }>();
+  const [comments, setComments] = useState<(Comment & { profiles: Profile })[]>([]);
+  const [isAuthor, setIsAuthor] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState<Review['status']>();
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Get user from request
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Unauthorized' });
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (!id) return;
+
+    const fetchData = async () => {
+      try {
+        const reviewData = await getReviewById(id as string);
+        setReview(reviewData);
+        setCurrentStatus(reviewData.status);
+        setIsAuthor(reviewData.user_id === user.id);
+
+        const commentsData = await getCommentsByReviewId(id as string);
+        setComments(commentsData);
+      } catch (error) {
+        console.error('Error fetching review data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id, user, authLoading, router]);
+
+  const handleStatusChange = async (newStatus: Review['status']) => {
+    if (!user || !review || newStatus === currentStatus) return;
+    
+    setIsUpdating(true);
+    try {
+      await updateReviewStatus(review.id, newStatus, user.id);
+      setCurrentStatus(newStatus);
+    } catch (error) {
+      console.error('Error updating status:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  if (authLoading || loading || !review) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
-  const token = authHeader.substring(7);
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  
-  if (authError || !user) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
+  return (
+    <Layout>
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <div className="flex justify-between items-start mb-2">
+            <h1 className="text-3xl font-bold">{review.title}</h1>
+            <StatusBadge status={currentStatus || review.status} />
+          </div>
+          
+          <div className="text-sm text-gray-500 mb-4">
+            <p>Submitted by {review.profiles.name} on {new Date(review.created_at).toLocaleDateString()}</p>
+            <p>Last updated: {new Date(review.updated_at).toLocaleDateString()}</p>
+          </div>
+          
+          <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+            <p className="mb-6">{review.description}</p>
+            
+            {review.graph_image_url && (
+              <div className="mt-4">
+                <img 
+                  src={review.graph_image_url} 
+                  alt="Graph visualization" 
+                  className="max-w-full rounded"
+                />
+              </div>
+            )}
+          </div>
+          
+          {isAuthor && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+              <h3 className="text-lg font-medium mb-3">Update Status</h3>
+              <div className="flex flex-wrap gap-2">
+                {(['Submitted', 'In Review', 'Needs Work', 'Approved'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleStatusChange(status)}
+                    disabled={status === currentStatus || isUpdating}
+                    className={`px-4 py-2 rounded ${
+                      status === currentStatus
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    } disabled:opacity-50`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <CommentSection comments={comments.map(c => ({
+            id: c.id,
+            content: c.content,
+            reviewId: c.review_id,
+            userId: c.user_id,
+            createdAt: new Date(c.created_at),
+            user: {
+              id: c.profiles.id,
+              name: c.profiles.name,
+              email: c.profiles.email,
+              password: '',
+              createdAt: new Date(c.profiles.created_at)
+            }
+          }))} reviewId={review.id} />
+        </div>
+      </div>
+    </Layout>
+  );
+};
 
-  const { id } = req.query;
-  
-  // GET /api/reviews/[id]
-  if (req.method === 'GET') {
-    const { data, error } = await supabase
-      .from('reviews')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          email,
-          created_at
-        )
-      `)
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
-    
-    return res.status(200).json(data);
-  }
-  
-  // PATCH /api/reviews/[id]
-  if (req.method === 'PATCH') {
-    // Check if the user is the owner of the review
-    const { data: review, error: reviewError } = await supabase
-      .from('reviews')
-      .select('user_id')
-      .eq('id', id)
-      .single();
-
-    if (reviewError || !review) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
-    
-    // Only the author can update the review
-    if (review.user_id !== user.id) {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
-    
-    const { status } = req.body;
-    
-    if (!status) {
-      return res.status(400).json({ message: 'Status is required' });
-    }
-    
-    const { data, error } = await supabase
-      .from('reviews')
-      .update({ status })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ message: 'Error updating review', error });
-    }
-    
-    return res.status(200).json(data);
-  }
-  
-  return res.status(405).json({ message: 'Method not allowed' });
-}
+export default ReviewPage;
