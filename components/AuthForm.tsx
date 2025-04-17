@@ -27,6 +27,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
       });
 
       const data = await response.json();
+      console.log('Login response:', { status: response.status, data });
 
       if (!response.ok) {
         throw new Error(data.message || 'Authentication failed');
