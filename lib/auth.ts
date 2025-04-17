@@ -1,62 +1,30 @@
 // lib/auth.ts
-import { NextAuthOptions } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import bcrypt from 'bcryptjs';
-import { users } from './db';
+import { createClient } from '@supabase/supabase-js';
 
-export const authOptions: NextAuthOptions = {
-  providers: [
-    CredentialsProvider({
-      name: 'Credentials',
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
-        
-        const user = users.find(user => user.email === credentials.email);
-        
-        if (!user) {
-          return null;
-        }
-        
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
-        
-        if (!isPasswordValid) {
-          return null;
-        }
-        
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email
-        };
-      }
-    })
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      // Add user id to token when signing in
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      // Add user id from token to session
-      if (session.user) {
-        session.user.id = token.id as string;
-      }
-      return session;
-    }
-  },
-  pages: {
-    signIn: '/login',
-  },
-  session: {
-    strategy: 'jwt',
+// Create a Supabase client for server-side operations
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+// This client should only be used server-side as it has admin privileges
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+// Helper functions for authentication
+export async function getUser(accessToken: string) {
+  const { data, error } = await supabaseAdmin.auth.getUser(accessToken);
+  
+  if (error) {
+    throw error;
   }
-};
+  
+  return data.user;
+}
+
+export async function getUserById(userId: string) {
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+  
+  if (error) {
+    throw error;
+  }
+  
+  return data.user;
+}

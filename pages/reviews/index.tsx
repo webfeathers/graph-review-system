@@ -1,85 +1,82 @@
-import type { NextPage } from 'next';
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
-import Layout from '../../components/Layout';
-import GraphReviewCard from '../../components/GraphReviewCard';
-import { Review } from '../../models/Review';
+// pages/api/reviews/index.ts
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@supabase/supabase-js';
 
-const Reviews: NextPage = () => {
-  const { status } = useSession();
-  const router = useRouter();
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<string>('All');
+// Initialize Supabase client with API route runtime env variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-      return;
-    }
-
-    const fetchReviews = async () => {
-      try {
-        const response = await fetch('/api/reviews');
-        if (!response.ok) throw new Error('Failed to fetch reviews');
-        const data = await response.json();
-        setReviews(data);
-      } catch (error) {
-        console.error('Error fetching reviews:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (status === 'authenticated') {
-      fetchReviews();
-    }
-  }, [status, router]);
-
-  const filteredReviews = filter === 'All' 
-    ? reviews 
-    : reviews.filter(review => review.status === filter);
-
-  if (status === 'loading' || loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Get user from request
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  return (
-    <Layout>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-6">All Graph Reviews</h1>
-        
-        <div className="flex flex-wrap gap-2 mb-6">
-          {['All', 'Submitted', 'In Review', 'Needs Work', 'Approved'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded ${
-                filter === status
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
+  const token = authHeader.substring(7);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  
+  if (authError || !user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
 
-        {filteredReviews.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">No reviews found with the selected status.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredReviews.map((review) => (
-              <GraphReviewCard key={review.id} review={review} />
-            ))}
-          </div>
-        )}
-      </div>
-    </Layout>
-  );
-};
+  // GET /api/reviews
+  if (req.method === 'GET') {
+    const { userOnly } = req.query;
+    
+    let query = supabase
+      .from('reviews')
+      .select(`
+        *,
+        profiles:user_id (
+          id,
+          name,
+          email,
+          created_at
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-export default Reviews;
+    if (userOnly === 'true') {
+      query = query.eq('user_id', user.id);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      return res.status(500).json({ message: 'Error fetching reviews', error });
+    }
+
+    return res.status(200).json(data);
+  }
+  
+  // POST /api/reviews
+  if (req.method === 'POST') {
+    const { title, description, graphImageUrl } = req.body;
+    
+    if (!title || !description) {
+      return res.status(400).json({ message: 'Title and description are required' });
+    }
+    
+    const { data, error } = await supabase
+      .from('reviews')
+      .insert({
+        title,
+        description,
+        graph_image_url: graphImageUrl,
+        status: 'Submitted',
+        user_id: user.id,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ message: 'Error creating review', error });
+    }
+
+    return res.status(201).json(data);
+  }
+  
+  return res.status(405).json({ message: 'Method not allowed' });
+}

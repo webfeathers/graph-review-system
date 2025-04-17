@@ -1,4 +1,4 @@
-// pages/api/reviews/[id].ts
+// pages/api/comments/index.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
 
@@ -21,12 +21,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  const { id } = req.query;
-  
-  // GET /api/reviews/[id]
+  // GET /api/comments?reviewId=[reviewId]
   if (req.method === 'GET') {
+    const { reviewId } = req.query;
+    
+    if (!reviewId) {
+      return res.status(400).json({ message: 'Review ID is required' });
+    }
+    
     const { data, error } = await supabase
-      .from('reviews')
+      .from('comments')
       .select(`
         *,
         profiles:user_id (
@@ -36,52 +40,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           created_at
         )
       `)
-      .eq('id', id)
-      .single();
+      .eq('review_id', reviewId)
+      .order('created_at', { ascending: true });
 
     if (error) {
-      return res.status(404).json({ message: 'Review not found' });
+      return res.status(500).json({ message: 'Error fetching comments', error });
     }
     
     return res.status(200).json(data);
   }
   
-  // PATCH /api/reviews/[id]
-  if (req.method === 'PATCH') {
-    // Check if the user is the owner of the review
-    const { data: review, error: reviewError } = await supabase
-      .from('reviews')
-      .select('user_id')
-      .eq('id', id)
-      .single();
-
-    if (reviewError || !review) {
-      return res.status(404).json({ message: 'Review not found' });
-    }
+  // POST /api/comments
+  if (req.method === 'POST') {
+    const { content, reviewId } = req.body;
     
-    // Only the author can update the review
-    if (review.user_id !== user.id) {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
-    
-    const { status } = req.body;
-    
-    if (!status) {
-      return res.status(400).json({ message: 'Status is required' });
+    if (!content || !reviewId) {
+      return res.status(400).json({ message: 'Content and review ID are required' });
     }
     
     const { data, error } = await supabase
-      .from('reviews')
-      .update({ status })
-      .eq('id', id)
+      .from('comments')
+      .insert({
+        content,
+        review_id: reviewId,
+        user_id: user.id,
+      })
       .select()
       .single();
 
     if (error) {
-      return res.status(500).json({ message: 'Error updating review', error });
+      return res.status(500).json({ message: 'Error creating comment', error });
     }
     
-    return res.status(200).json(data);
+    return res.status(201).json(data);
   }
   
   return res.status(405).json({ message: 'Method not allowed' });
