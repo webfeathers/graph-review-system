@@ -1,9 +1,11 @@
 // pages/api/auth/register.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { serialize } from 'cookie';
-import { users } from '../../../lib/db';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -16,48 +18,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'Missing required fields' });
   }
 
-  // Check if user already exists
-  if (users.find(user => user.email === email)) {
-    return res.status(400).json({ message: 'User already exists' });
-  }
-
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Create user
-  const newUser = {
-    id: Date.now().toString(),
-    name,
+  // Use Supabase Auth to sign up
+  const { data, error } = await supabase.auth.signUp({
     email,
-    password: hashedPassword,
-  };
-
-  users.push(newUser);
-
-  // Create token
-  const token = jwt.sign(
-    { userId: newUser.id, email: newUser.email },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '1d' }
-  );
-
-  // Set cookie
-  const cookie = serialize('token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 86400,
-    path: '/',
+    password,
+    options: {
+      data: {
+        name
+      }
+    }
   });
 
-  res.setHeader('Set-Cookie', cookie);
-  
+  if (error) {
+    return res.status(400).json({ message: error.message });
+  }
+
+  // Create a profile for the user
+  if (data.user) {
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: data.user.id,
+        name,
+        email
+      });
+
+    if (profileError) {
+      console.error('Error creating profile:', profileError);
+    }
+  }
+
   return res.status(201).json({
     message: 'User created successfully',
     user: {
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
+      id: data.user?.id,
+      name,
+      email,
     },
+    session: data.session
   });
 }

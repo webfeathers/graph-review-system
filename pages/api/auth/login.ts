@@ -1,9 +1,11 @@
 // pages/api/auth/login.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { serialize } from 'cookie';
-import { users } from '../../../lib/db';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -16,44 +18,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ message: 'Missing required fields' });
   }
 
-  // Find user
-  const user = users.find(user => user.email === email);
-
-  if (!user) {
-    return res.status(401).json({ message: 'Invalid credentials' });
-  }
-
-  // Verify password
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-
-  if (!isPasswordValid) {
-    return res.status(401).json({ message: 'Invalid credentials' });
-  }
-
-  // Create token
-  const token = jwt.sign(
-    { userId: user.id, email: user.email },
-    process.env.JWT_SECRET || 'your-secret-key',
-    { expiresIn: '1d' }
-  );
-
-  // Set cookie
-  const cookie = serialize('token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 86400,
-    path: '/',
+  // Use Supabase Auth to sign in
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
   });
 
-  res.setHeader('Set-Cookie', cookie);
-  
+  if (error) {
+    return res.status(401).json({ message: error.message });
+  }
+
   return res.status(200).json({
     message: 'Login successful',
     user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
+      id: data.user.id,
+      name: data.user.user_metadata.name || data.user.email,
+      email: data.user.email,
     },
+    session: data.session
   });
 }
