@@ -1,47 +1,27 @@
-// pages/login.tsx
+// pages/login.tsx (extremely simplified)
 import type { NextPage } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import AuthForm from '../components/AuthForm';
 import { useAuth } from '../components/AuthProvider';
 
 const Login: NextPage = () => {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Handle redirects in a more controlled way
+  // Very simple redirect - only triggers once when component mounts and auth is loaded
   useEffect(() => {
-    // Only proceed if auth loading is complete
-    if (loading) return;
-    
-    // If user is authenticated and we're not already redirecting
-    if (user && !isRedirecting) {
-      setIsRedirecting(true);
-      
-      // Use setTimeout to ensure state updates before redirect
-      setTimeout(() => {
-        // Check if we have a redirectedFrom query param
-        const redirectTarget = router.query.redirectedFrom 
-          ? String(router.query.redirectedFrom)
-          : '/dashboard';
-          
-        // Use window.location for a hard navigation instead of Next.js router
-        // This helps avoid the "Abort fetching component" error
-        window.location.href = redirectTarget;
-      }, 100);
+    // Only check after auth is loaded
+    if (!loading && user) {
+      // Redirect to dashboard if already logged in
+      router.push('/dashboard');
     }
-  }, [user, loading, router.query, isRedirecting]);
+  }, [loading]); // Only run on initial load and when loading changes
 
   // Show loading state
-  if (loading || isRedirecting) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 ml-3">{isRedirecting ? 'Redirecting...' : 'Loading...'}</p>
-      </div>
-    );
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
   // Show login form for unauthenticated users

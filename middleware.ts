@@ -1,4 +1,4 @@
-// middleware.ts (simplified)
+// middleware.ts (extremely simplified)
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -17,34 +17,13 @@ export async function middleware(req: NextRequest) {
   // Get the current URL path
   const path = req.nextUrl.pathname;
 
-  // Define protected routes that require authentication
-  const isProtectedRoute = 
-    path === '/dashboard' || 
-    path === '/reviews/new' || 
-    (path.startsWith('/reviews/') && !path.endsWith('/reviews'));
-
-  // Define auth routes (login/register) where we redirect away if already authenticated
-  const isAuthRoute = path === '/login' || path === '/register';
-
-  // If trying to access a protected route without a session, redirect to login
-  if (isProtectedRoute && !session) {
-    const redirectUrl = new URL('/login', req.url);
-    redirectUrl.searchParams.set('redirectedFrom', path);
-    return NextResponse.redirect(redirectUrl);
+  // Very simple protection for dashboard only
+  if (path === '/dashboard' && !session) {
+    return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // If trying to access login/register while already authenticated, redirect to dashboard
-  if (isAuthRoute && session) {
-    // Check if there's a redirectedFrom in query and use it
-    const { searchParams } = req.nextUrl;
-    const redirectedFrom = searchParams.get('redirectedFrom');
-    
-    if (redirectedFrom) {
-      // Redirect to the original requested page
-      return NextResponse.redirect(new URL(redirectedFrom, req.url));
-    }
-    
-    // Default to dashboard
+  // If user is logged in and tries to access login page, redirect to dashboard
+  if ((path === '/login' || path === '/register') && session) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
@@ -57,7 +36,6 @@ export const config = {
   matcher: [
     '/',
     '/dashboard',
-    '/reviews/:path*',
     '/login',
     '/register',
   ],
