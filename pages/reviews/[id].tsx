@@ -7,16 +7,16 @@ import StatusBadge from '../../components/StatusBadge';
 import CommentSection from '../../components/CommentSection';
 import { useAuth } from '../../components/AuthProvider';
 import { getReviewById, updateReviewStatus, getCommentsByReviewId } from '../../lib/supabaseUtils';
-import { Review, Comment, Profile } from '../../types/supabase';
+import { ReviewWithProfile, CommentWithProfile } from '../../types/supabase';
 
 const ReviewPage: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
   const { user, loading: authLoading } = useAuth();
-  const [review, setReview] = useState<Review & { user?: Profile }>();
-  const [comments, setComments] = useState<(Comment & { user?: Profile })[]>([]);
+  const [review, setReview] = useState<ReviewWithProfile | null>(null);
+  const [comments, setComments] = useState<CommentWithProfile[]>([]);
   const [isAuthor, setIsAuthor] = useState(false);
-  const [currentStatus, setCurrentStatus] = useState<Review['status']>();
+  const [currentStatus, setCurrentStatus] = useState<ReviewWithProfile['status']>();
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -30,13 +30,11 @@ const ReviewPage: NextPage = () => {
 
     const fetchData = async () => {
       try {
-        // getReviewById now handles conversion from snake_case to camelCase
         const reviewData = await getReviewById(id as string);
         setReview(reviewData);
         setCurrentStatus(reviewData.status);
         setIsAuthor(reviewData.userId === user.id);
 
-        // getCommentsByReviewId now handles conversion from snake_case to camelCase
         const commentsData = await getCommentsByReviewId(id as string);
         setComments(commentsData);
       } catch (error) {
@@ -49,7 +47,7 @@ const ReviewPage: NextPage = () => {
     fetchData();
   }, [id, user, authLoading, router]);
 
-  const handleStatusChange = async (newStatus: Review['status']) => {
+  const handleStatusChange = async (newStatus: ReviewWithProfile['status']) => {
     if (!user || !review || newStatus === currentStatus) return;
     
     setIsUpdating(true);
@@ -77,9 +75,7 @@ const ReviewPage: NextPage = () => {
           </div>
           
           <div className="text-sm text-gray-500 mb-4">
-            {review.user && (
-              <p>Submitted by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</p>
-            )}
+            <p>Submitted by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</p>
             <p>Last updated: {new Date(review.updatedAt).toLocaleDateString()}</p>
           </div>
           
@@ -126,13 +122,13 @@ const ReviewPage: NextPage = () => {
               reviewId: c.reviewId,
               userId: c.userId,
               createdAt: new Date(c.createdAt),
-              user: c.user ? {
+              user: {
                 id: c.user.id,
                 name: c.user.name,
                 email: c.user.email,
                 password: '',
                 createdAt: new Date(c.user.createdAt)
-              } : undefined
+              }
             }))} 
             reviewId={review.id} 
           />

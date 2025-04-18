@@ -16,6 +16,8 @@ export type DbReview = {
   user_id: string;
   created_at: string;
   updated_at: string;
+  // For joined data
+  profiles?: DbProfile;
 }
 
 export type DbComment = {
@@ -24,6 +26,8 @@ export type DbComment = {
   review_id: string;
   user_id: string;
   created_at: string;
+  // For joined data
+  profiles?: DbProfile;
 }
 
 // Frontend types (using camelCase)
@@ -53,11 +57,12 @@ export type Comment = {
   createdAt: string;
 }
 
-export type ReviewWithUser = Review & {
+// With joined relationships
+export type ReviewWithProfile = Review & {
   user: Profile;
 }
 
-export type CommentWithUser = Comment & {
+export type CommentWithProfile = Comment & {
   user: Profile;
 }
 
@@ -72,6 +77,19 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     userId: dbReview.user_id,
     createdAt: dbReview.created_at,
     updatedAt: dbReview.updated_at
+  };
+}
+
+export function dbToFrontendReviewWithProfile(dbReview: DbReview & { profiles?: DbProfile }): ReviewWithProfile {
+  const review = dbToFrontendReview(dbReview);
+  
+  if (!dbReview.profiles) {
+    throw new Error('Profile data is missing from the database result');
+  }
+  
+  return {
+    ...review,
+    user: dbToFrontendProfile(dbReview.profiles)
   };
 }
 
@@ -95,6 +113,19 @@ export function dbToFrontendComment(dbComment: DbComment): Comment {
     reviewId: dbComment.review_id,
     userId: dbComment.user_id,
     createdAt: dbComment.created_at
+  };
+}
+
+export function dbToFrontendCommentWithProfile(dbComment: DbComment & { profiles?: DbProfile }): CommentWithProfile {
+  const comment = dbToFrontendComment(dbComment);
+  
+  if (!dbComment.profiles) {
+    throw new Error('Profile data is missing from the database result');
+  }
+  
+  return {
+    ...comment,
+    user: dbToFrontendProfile(dbComment.profiles)
   };
 }
 

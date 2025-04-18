@@ -6,12 +6,12 @@ import Layout from '../components/Layout';
 import GraphReviewCard from '../components/GraphReviewCard';
 import { useAuth } from '../components/AuthProvider';
 import { getReviews } from '../lib/supabaseUtils';
-import { Review } from '../types/supabase';
+import { ReviewWithProfile } from '../types/supabase';
 
 const Dashboard: NextPage = () => {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,7 +25,6 @@ const Dashboard: NextPage = () => {
 
     const fetchUserReviews = async () => {
       try {
-        // The getReviews function now handles conversion from snake_case to camelCase
         const userReviews = await getReviews(user.id);
         setReviews(userReviews);
       } catch (error) {
@@ -72,9 +71,11 @@ const Dashboard: NextPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reviews.map((review) => (
-              <GraphReviewCard key={review.id} review={review} />
-            ))}
+            {reviews.map((reviewWithProfile) => {
+              // Extract just the Review part for the GraphReviewCard
+              const { user, ...review } = reviewWithProfile;
+              return <GraphReviewCard key={review.id} review={review} />;
+            })}
           </div>
         )}
       </div>

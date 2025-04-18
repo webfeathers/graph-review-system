@@ -1,0 +1,51 @@
+// lib/env.ts
+/**
+ * Environment configuration with validation
+ */
+
+/**
+ * Application environment
+ */
+export const NODE_ENV = process.env.NODE_ENV || 'development';
+export const IS_DEV = NODE_ENV === 'development';
+export const IS_PROD = NODE_ENV === 'production';
+export const IS_TEST = NODE_ENV === 'test';
+
+/**
+ * Supabase configuration
+ */
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+export const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+/**
+ * Application URLs
+ */
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (IS_DEV ? 'http://localhost:3000' : '');
+
+/**
+ * Validate required environment variables
+ */
+export function validateEnvironment(): void {
+  const requiredVars = [
+    { name: 'NEXT_PUBLIC_SUPABASE_URL', value: SUPABASE_URL },
+    { name: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: SUPABASE_ANON_KEY },
+  ];
+
+  const missingVars = requiredVars.filter(v => !v.value);
+
+  if (missingVars.length > 0) {
+    const missingVarNames = missingVars.map(v => v.name).join(', ');
+    const errorMessage = `Missing required environment variables: ${missingVarNames}`;
+    
+    if (IS_DEV) {
+      // In development, show a clear error in the console
+      console.error('⚠️ ENVIRONMENT ERROR ⚠️');
+      console.error(errorMessage);
+      console.error('Please check your .env file and ensure all required variables are set.');
+    } else {
+      // In production, throw an error to prevent the app from starting with missing config
+      throw new Error(errorMessage);
+    }
+  }
+}

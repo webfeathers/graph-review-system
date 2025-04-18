@@ -1,9 +1,10 @@
 // lib/supabaseUtils.ts
 import { supabase } from './supabase';
 import { 
-  Review, Comment, Profile, 
+  Review, Comment, Profile, ReviewWithProfile, CommentWithProfile,
   DbReview, DbComment, DbProfile,
-  dbToFrontendReview, dbToFrontendComment, dbToFrontendProfile 
+  dbToFrontendReview, dbToFrontendComment, dbToFrontendProfile,
+  dbToFrontendReviewWithProfile, dbToFrontendCommentWithProfile
 } from '../types/supabase';
 
 // Reviews
@@ -32,14 +33,31 @@ export async function getReviews(userId?: string) {
     throw error;
   }
 
-  // Convert the data from snake_case to camelCase
-  return data.map((review: any) => {
-    const frontendReview = dbToFrontendReview(review);
-    if (review.profiles) {
-      frontendReview.user = dbToFrontendProfile(review.profiles);
+  // Transform the data to the frontend format
+  const frontendReviews: ReviewWithProfile[] = [];
+  
+  for (const review of data) {
+    try {
+      // Convert directly to ReviewWithProfile which includes the user property
+      const frontendReview = dbToFrontendReviewWithProfile(review);
+      frontendReviews.push(frontendReview);
+    } catch (error) {
+      console.error('Error converting review with profile:', error);
+      // Fall back to just the review without profile
+      const frontendReview = dbToFrontendReview(review);
+      frontendReviews.push({
+        ...frontendReview,
+        user: {
+          id: 'unknown',
+          name: 'Unknown User',
+          email: '',
+          createdAt: frontendReview.createdAt
+        }
+      });
     }
-    return frontendReview;
-  });
+  }
+  
+  return frontendReviews;
 }
 
 export async function getReviewById(id: string) {
@@ -62,13 +80,8 @@ export async function getReviewById(id: string) {
     throw error;
   }
 
-  // Convert the data from snake_case to camelCase
-  const review = dbToFrontendReview(data);
-  if (data.profiles) {
-    review.user = dbToFrontendProfile(data.profiles);
-  }
-  
-  return review;
+  // Convert directly to ReviewWithProfile
+  return dbToFrontendReviewWithProfile(data);
 }
 
 export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) {
@@ -143,14 +156,31 @@ export async function getCommentsByReviewId(reviewId: string) {
     throw error;
   }
 
-  // Convert the data from snake_case to camelCase
-  return data.map((comment: any) => {
-    const frontendComment = dbToFrontendComment(comment);
-    if (comment.profiles) {
-      frontendComment.user = dbToFrontendProfile(comment.profiles);
+  // Transform the data to the frontend format
+  const frontendComments: CommentWithProfile[] = [];
+  
+  for (const comment of data) {
+    try {
+      // Convert directly to CommentWithProfile
+      const frontendComment = dbToFrontendCommentWithProfile(comment);
+      frontendComments.push(frontendComment);
+    } catch (error) {
+      console.error('Error converting comment with profile:', error);
+      // Fall back to just the comment without profile
+      const frontendComment = dbToFrontendComment(comment);
+      frontendComments.push({
+        ...frontendComment,
+        user: {
+          id: 'unknown',
+          name: 'Unknown User',
+          email: '',
+          createdAt: frontendComment.createdAt
+        }
+      });
     }
-    return frontendComment;
-  });
+  }
+  
+  return frontendComments;
 }
 
 export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt'>) {

@@ -1,11 +1,21 @@
-// lib/supabase.ts
+// lib/supabase.ts (updated)
+/*
 import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, validateEnvironment, IS_DEV } from './env';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Validate environment on initialization
+validateEnvironment();
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables');
+export const supabase = createClient(
+  SUPABASE_URL || '',  // Fallback to empty string to prevent runtime errors
+  SUPABASE_ANON_KEY || ''
+);
+
+// Add a console warning in development if using without proper setup
+if (IS_DEV && (!SUPABASE_URL || !SUPABASE_ANON_KEY)) {
+  console.warn(
+    'Supabase client initialized with missing credentials. ' +
+    'API calls will fail. Check your environment variables.'
+  );
 }
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+*/

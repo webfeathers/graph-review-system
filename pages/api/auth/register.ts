@@ -1,60 +1,75 @@
-// pages/api/auth/register.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// pages/api/auth/register.ts (improved)
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { createUserWithProfile } from '../../../lib/serverAuth';
+import { validateEmail, validatePassword } from '../../../lib/validation';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
+    return res.status(405).json({ 
+      success: false, 
+      message: 'Method not allowed' 
+    });
   }
 
   const { name, email, password } = req.body;
 
+  // Validate inputs
   if (!name || !email || !password) {
-    return res.status(400).json({ message: 'Missing required fields' });
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Missing required fields' 
+    });
   }
 
-  // Use Supabase Auth to sign up
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        name
-      }
-    }
-  });
-
-  if (error) {
-    return res.status(400).json({ message: error.message });
+  // Validate email format
+  const emailError = validateEmail(email);
+  if (emailError) {
+    return res.status(400).json({ 
+      success: false, 
+      message: emailError 
+    });
   }
 
-  // Create a profile for the user
-  if (data.user) {
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: data.user.id,
-        name,
-        email
-      });
-
-    if (profileError) {
-      console.error('Error creating profile:', profileError);
-    }
+  // Validate password
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return res.status(400).json({ 
+      success: false, 
+      message: passwordError 
+    });
   }
 
-  return res.status(201).json({
-    message: 'User created successfully',
-    user: {
-      id: data.user?.id,
-      name,
+  try {
+    // Use the transaction-like function to create user and profile
+    const { success, user, session, error } = await createUserWithProfile(
       email,
-    },
-    session: data.session
-  });
+      password,
+      name
+    );
+
+    if (!success || error) {
+      return res.status(400).json({ 
+        success: false, 
+        message: error?.message || 'Failed to create user account' 
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      user: {
+        id: user?.id,
+        name,
+        email,
+      },
+      session
+    });
+  } catch (error: any) {
+    console.error('Unexpected error during registration:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error during registration' 
+    });
+  }
 }
