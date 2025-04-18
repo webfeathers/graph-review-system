@@ -3,30 +3,26 @@ import { supabase } from './supabase';
 import { User } from '@supabase/supabase-js';
 
 /**
- * Interface for the Supabase admin listUsers response
- */
-interface ListUsersResponse {
-  users: User[];
-  aud: string;
-  total_users: number;
-  last_page: number;
-  next_page_token?: string;
-}
-
-/**
  * Synchronizes user data in case of incomplete registration
  * (Can be called periodically or when issues are detected)
  */
 export async function syncUserProfiles() {
   try {
     // Get all users from Auth
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers() as 
-      { data: ListUsersResponse | null, error: Error | null };
+    const { data, error: authError } = await supabase.auth.admin.listUsers();
     
-    if (authError || !authUsers) {
+    if (authError || !data) {
       console.error('Error fetching auth users:', authError);
       return { success: false, error: authError };
     }
+    
+    // Type safety check for the response structure
+    if (!data.users || !Array.isArray(data.users)) {
+      console.error('Unexpected response format from listUsers');
+      return { success: false, error: new Error('Unexpected response format from listUsers') };
+    }
+    
+    const authUsers = data.users as User[];
     
     // Get all profiles
     const { data: profiles, error: profilesError } = await supabase
@@ -40,12 +36,12 @@ export async function syncUserProfiles() {
     
     // Find users without profiles
     const profileIds = new Set(profiles.map(p => p.id));
-    const usersWithoutProfiles = authUsers.users.filter(
-      (user: User) => !profileIds.has(user.id)
+    const usersWithoutProfiles = authUsers.filter(
+      user => user && typeof user.id === 'string' && !profileIds.has(user.id)
     );
     
     // Create missing profiles
-    const profileCreations = usersWithoutProfiles.map(async (user: User) => {
+    const profileCreations = usersWithoutProfiles.map(async (user) => {
       const userData = user.user_metadata || {};
       
       return supabase
