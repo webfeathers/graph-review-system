@@ -1,5 +1,17 @@
 // lib/dbSync.ts - Utility to sync user data if profile is missing
 import { supabase } from './supabase';
+import { User } from '@supabase/supabase-js';
+
+/**
+ * Interface for the Supabase admin listUsers response
+ */
+interface ListUsersResponse {
+  users: User[];
+  aud: string;
+  total_users: number;
+  last_page: number;
+  next_page_token?: string;
+}
 
 /**
  * Synchronizes user data in case of incomplete registration
@@ -8,9 +20,10 @@ import { supabase } from './supabase';
 export async function syncUserProfiles() {
   try {
     // Get all users from Auth
-    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers() as 
+      { data: ListUsersResponse | null, error: Error | null };
     
-    if (authError) {
+    if (authError || !authUsers) {
       console.error('Error fetching auth users:', authError);
       return { success: false, error: authError };
     }
@@ -20,7 +33,7 @@ export async function syncUserProfiles() {
       .from('profiles')
       .select('id');
       
-    if (profilesError) {
+    if (profilesError || !profiles) {
       console.error('Error fetching profiles:', profilesError);
       return { success: false, error: profilesError };
     }
@@ -28,11 +41,11 @@ export async function syncUserProfiles() {
     // Find users without profiles
     const profileIds = new Set(profiles.map(p => p.id));
     const usersWithoutProfiles = authUsers.users.filter(
-      user => !profileIds.has(user.id)
+      (user: User) => !profileIds.has(user.id)
     );
     
     // Create missing profiles
-    const profileCreations = usersWithoutProfiles.map(async (user) => {
+    const profileCreations = usersWithoutProfiles.map(async (user: User) => {
       const userData = user.user_metadata || {};
       
       return supabase
