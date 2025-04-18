@@ -1,4 +1,6 @@
 // lib/dbSync.ts - Utility to sync user data if profile is missing
+import { supabase } from './supabase';
+
 /**
  * Synchronizes user data in case of incomplete registration
  * (Can be called periodically or when issues are detected)

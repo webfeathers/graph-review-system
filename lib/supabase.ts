@@ -1,5 +1,4 @@
-// lib/supabase.ts (updated)
-/*
+// lib/supabase.ts
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, validateEnvironment, IS_DEV } from './env';
 
@@ -18,4 +17,3 @@ if (IS_DEV && (!SUPABASE_URL || !SUPABASE_ANON_KEY)) {
     'API calls will fail. Check your environment variables.'
   );
 }
-*/
