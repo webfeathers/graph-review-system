@@ -8,17 +8,21 @@ import { createReview } from '../../lib/supabaseUtils';
 import { supabase } from '../../lib/supabase';
 
 useEffect(() => {
+  if (authLoading) return;
+  
   // Debug auth state
   console.log('Auth state in new review page:', { 
-    user: user?.id,
+    userId: user?.id,
     loading: authLoading,
-    session: !!session
+    isAuthenticated: !!user
   });
   
   // Debug middleware check
   console.log('Current path:', router.pathname);
+  console.log('Redirect info:', router.query);
 
-}, [user, authLoading, session, router.pathname]);
+}, [user, authLoading, router.pathname, router.query]);
+
 
 
 const NewReview: NextPage = () => {

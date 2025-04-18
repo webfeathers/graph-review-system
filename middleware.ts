@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
   const isProtectedRoute = 
     path === '/dashboard' || 
     path === '/reviews/new' || 
-    (path.startsWith('/reviews/') && path !== '/reviews/' && !path.endsWith('/reviews'));
+    (path.startsWith('/reviews/') && path !== '/reviews' && path !== '/reviews/');
 
   // Define auth routes (login/register) where we redirect away if already authenticated
   const isAuthRoute = path === '/login' || path === '/register';
