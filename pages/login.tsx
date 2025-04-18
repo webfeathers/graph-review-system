@@ -1,43 +1,45 @@
-// pages/login.tsx (simplified)
+// pages/login.tsx
 import type { NextPage } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import AuthForm from '../components/AuthForm';
 import { useAuth } from '../components/AuthProvider';
 
 const Login: NextPage = () => {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const { redirectedFrom } = router.query;
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // Handle redirects in a more controlled way
   useEffect(() => {
-    // Only run this effect when loading is complete
+    // Only proceed if auth loading is complete
     if (loading) return;
     
-    // If user is authenticated, redirect to the appropriate page
-    if (user) {
-      const target = redirectedFrom ? String(redirectedFrom) : '/dashboard';
-      router.replace(target);
+    // If user is authenticated and we're not already redirecting
+    if (user && !isRedirecting) {
+      setIsRedirecting(true);
+      
+      // Use setTimeout to ensure state updates before redirect
+      setTimeout(() => {
+        // Check if we have a redirectedFrom query param
+        const redirectTarget = router.query.redirectedFrom 
+          ? String(router.query.redirectedFrom)
+          : '/dashboard';
+          
+        // Use window.location for a hard navigation instead of Next.js router
+        // This helps avoid the "Abort fetching component" error
+        window.location.href = redirectTarget;
+      }, 100);
     }
-  }, [user, loading, redirectedFrom, router]);
+  }, [user, loading, router.query, isRedirecting]);
 
   // Show loading state
-  if (loading) {
+  if (loading || isRedirecting) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 ml-3">Loading...</p>
-      </div>
-    );
-  }
-
-  // If user is authenticated but redirect hasn't happened yet, show loading
-  if (user) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-600 ml-3">Redirecting...</p>
+        <p className="text-gray-600 ml-3">{isRedirecting ? 'Redirecting...' : 'Loading...'}</p>
       </div>
     );
   }
