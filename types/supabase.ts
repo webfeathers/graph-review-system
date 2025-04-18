@@ -10,11 +10,11 @@ export type Review = {
   id: string;
   title: string;
   description: string;
-  graph_image_url?: string;
+  graphImageUrl?: string; // Changed from graph_image_url
   status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
-  user_id: string;
-  created_at: string;
-  updated_at: string;
+  userId: string; // Changed from user_id
+  createdAt: string; // Changed from created_at
+  updatedAt: string; // Changed from updated_at
 }
 
 export type Comment = {
