@@ -18,10 +18,10 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review }) => {
       
       <p className="text-gray-600 mb-4">{review.description}</p>
       
-      {review.graph_image_url && (
+      {review.graphImageUrl && (
         <div className="mb-4">
           <img 
-            src={review.graph_image_url} 
+            src={review.graphImageUrl} 
             alt="Graph visualization" 
             className="w-full h-40 object-cover rounded"
           />
