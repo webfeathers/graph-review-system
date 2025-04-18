@@ -78,11 +78,11 @@ const Dashboard: NextPage = () => {
                   id: review.id,
                   title: review.title,
                   description: review.description,
-                  graphImageUrl: review.graph_image_url,
+                  graph_image_url: review.graph_image_url, // Changed from graphImageUrl
                   status: review.status,
-                  userId: review.user_id,
-                  createdAt: review.created_at,
-                  updatedAt: review.updated_at
+                  userId: review.user_id || review.userId, // Handle both naming conventions
+                  createdAt: review.created_at || review.createdAt,
+                  updatedAt: review.updated_at || review.updatedAt
                 }} 
               />
             ))}
