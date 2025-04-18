@@ -26,7 +26,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 }
 
 export default MyApp;
-
+/*
 // Server-side only import (will be excluded from client bundle)
 if (typeof window === 'undefined') {
   // This will only run on the server
@@ -46,3 +46,4 @@ function MyApp({ Component, pageProps }: AppProps) {
 }
 
 export default MyApp;
+*/
