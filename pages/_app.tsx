@@ -28,23 +28,3 @@ function MyApp({ Component, pageProps }: AppProps) {
 }
 
 export default MyApp;
-
-// Server-side only import (will be excluded from client bundle)
-if (typeof window === 'undefined') {
-  // This will only run on the server
-  require('../lib/startup').runStartupValidations();
-}
-
-function MyApp({ Component, pageProps }: AppProps) {
-  useEffect(() => {
-    // Client-side initialization here if needed
-  }, []);
-  
-  return (
-    <AuthProvider>
-      <Component {...pageProps} />
-    </AuthProvider>
-  );
-}
-
-export default MyApp;
