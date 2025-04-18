@@ -8,62 +8,73 @@ import {
 } from '../types/supabase';
 
 // Reviews
+// Fix for the getReviews function in lib/supabaseUtils.ts
 export async function getReviews(userId?: string) {
-  let query = supabase
-    .from('reviews')
-    .select(`
-      *,
-      profiles:user_id (
-        id,
-        name,
-        email,
-        created_at
-      )
-    `)
-    .order('created_at', { ascending: false });
+  try {
+    let query = supabase
+      .from('reviews')
+      .select(`
+        *,
+        profiles:user_id (
+          id,
+          name,
+          email,
+          created_at
+        )
+      `)
+      .order('created_at', { ascending: false });
 
-  if (userId) {
-    query = query.eq('user_id', userId);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Error fetching reviews:', error);
-    // Return empty array instead of throwing
-    return [];
-  }
-
-  // If no data, return empty array
-  if (!data || data.length === 0) {
-    return [];
-  }
-
-  // Transform the data to the frontend format
-  const frontendReviews: ReviewWithProfile[] = [];
-  
-  for (const review of data) {
-    try {
-      // Convert directly to ReviewWithProfile which includes the user property
-      const frontendReview = dbToFrontendReviewWithProfile(review);
-      frontendReviews.push(frontendReview);
-    } catch (error) {
-      console.error('Error converting review with profile:', error);
-      // Fall back to just the review without profile
-      const frontendReview = dbToFrontendReview(review);
-      frontendReviews.push({
-        ...frontendReview,
-        user: {
-          id: 'unknown',
-          name: 'Unknown User',
-          email: '',
-          createdAt: frontendReview.createdAt
-        }
-      });
+    if (userId) {
+      query = query.eq('user_id', userId);
     }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching reviews:', error);
+      return []; // Return empty array instead of throwing
+    }
+
+    // If no data, return empty array
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Transform the data to the frontend format
+    const frontendReviews: ReviewWithProfile[] = [];
+    
+    for (const review of data) {
+      try {
+        // Make sure profiles data exists
+        if (!review.profiles) {
+          // Skip this review or create a placeholder user
+          const frontendReview = dbToFrontendReview(review);
+          frontendReviews.push({
+            ...frontendReview,
+            user: {
+              id: review.user_id,
+              name: 'Unknown User',
+              email: '',
+              createdAt: frontendReview.createdAt
+            }
+          });
+          continue;
+        }
+        
+        // Convert to ReviewWithProfile
+        const frontendReview = dbToFrontendReviewWithProfile(review);
+        frontendReviews.push(frontendReview);
+      } catch (error) {
+        console.error('Error converting review:', error);
+        // Skip this review or add with placeholder data
+      }
+    }
+    
+    return frontendReviews;
+  } catch (err) {
+    console.error('Unexpected error in getReviews:', err);
+    return []; // Return empty array on any error
   }
-  
-  return frontendReviews;
 }
 
 export async function getReviewById(id: string) {

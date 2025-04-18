@@ -1,4 +1,4 @@
-// components/AuthProvider.tsx (fixed)
+// components/AuthProvider.tsx (simplified)
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const initializeAuth = async () => {
       try {
         // Get current session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
@@ -34,17 +34,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         
-        if (session) {
-          console.log('Session found on initial load:', session.user.id);
-          setSession(session);
-          setUser(session.user);
-        } else {
-          console.log('No session found on initial load');
+        if (data.session) {
+          setSession(data.session);
+          setUser(data.session.user);
         }
         
         setLoading(false);
       } catch (err) {
-        console.error('Unexpected error during auth initialization:', err);
+        console.error('Error during auth initialization:', err);
         setLoading(false);
       }
     };
@@ -54,7 +51,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state change event:', event);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -72,13 +68,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        console.error('Sign in error:', error);
         return { error };
       }
 
-      console.log('Sign in successful:', data.user?.id);
-      
-      // Immediately update state to prevent race conditions
+      // Immediately update state
       if (data.session) {
         setSession(data.session);
         setUser(data.user);
@@ -86,7 +79,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       return { error: null };
     } catch (err) {
-      console.error('Unexpected error during sign in:', err);
       return { error: err };
     }
   };
@@ -104,32 +96,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        console.error('Sign up error:', error);
         return { error, user: null };
       }
 
-      console.log('Sign up successful:', data.user?.id);
-
-      // After signup is successful, create the user profile
+      // Create profile
       if (data.user) {
         try {
-          const { error: profileError } = await supabase.from('profiles').insert({
+          await supabase.from('profiles').insert({
             id: data.user.id,
             name,
             email,
             created_at: new Date().toISOString(),
           });
-
-          if (profileError) {
-            console.error('Error creating profile:', profileError);
-            // We'll still proceed even if profile creation fails
-            // The user is still created in Auth
-          }
         } catch (profileErr) {
-          console.error('Unexpected error creating profile:', profileErr);
+          console.error('Error creating profile:', profileErr);
         }
         
-        // Immediately update state to prevent race conditions
         if (data.session) {
           setSession(data.session);
           setUser(data.user);
@@ -138,7 +120,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       return { error: null, user: data.user };
     } catch (err) {
-      console.error('Unexpected error during sign up:', err);
       return { error: err, user: null };
     }
   };
@@ -146,7 +127,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
-      console.log('Sign out successful');
       setSession(null);
       setUser(null);
       router.push('/login');
