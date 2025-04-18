@@ -1,4 +1,4 @@
-// components/AuthProvider.tsx (simplified)
+// components/AuthProvider.tsx
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
@@ -51,14 +51,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state change event:', event);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Redirect on sign in
+        if (event === 'SIGNED_IN' && router.pathname === '/login') {
+          console.log('Redirecting to dashboard after sign in');
+          router.push('/dashboard');
+        }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [router]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -75,6 +82,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (data.session) {
         setSession(data.session);
         setUser(data.user);
+        
+        // Manual redirect after successful sign in
+        console.log('Sign in successful, redirecting to dashboard');
+        router.push('/dashboard');
       }
       
       return { error: null };
@@ -115,6 +126,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (data.session) {
           setSession(data.session);
           setUser(data.user);
+          
+          // Redirect after signup
+          router.push('/dashboard');
         }
       }
 

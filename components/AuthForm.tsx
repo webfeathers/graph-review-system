@@ -29,8 +29,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
         const { error } = await signIn(email, password);
         if (error) throw error;
         
-        // On successful login, redirect to dashboard
-        router.push('/dashboard');
+        // Redirect happens in the AuthProvider component
+        console.log("Login successful");
       } else {
         // Register mode
         if (!name) {
@@ -60,8 +60,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
           throw new Error('Account created but unable to sign in automatically. Please try logging in.');
         }
         
-        // On successful registration, redirect to dashboard or show confirmation
-        router.push('/dashboard');
+        // Redirect happens in the AuthProvider component
+        console.log("Registration successful");
       }
     } catch (err: any) {
       console.error('Authentication error:', err);
