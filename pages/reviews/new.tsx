@@ -49,7 +49,7 @@ const NewReview: NextPage = () => {
     setError('');
 
     try {
-      let imageUrl = undefined;
+      let uploadedImageUrl = undefined;
       
       // If there's an image, upload it to Supabase Storage
       if (graphImage) {
@@ -65,15 +65,16 @@ const NewReview: NextPage = () => {
           .from('graph-images')
           .getPublicUrl(fileName);
           
-        imageUrl = publicUrl;
+        uploadedImageUrl = publicUrl;
       }
 
+      // Use camelCase for frontend and our createReview function will convert it to snake_case
       await createReview({
         title,
         description,
-        graph_image_url: imageUrl,
+        graphImageUrl: uploadedImageUrl,
         status: 'Submitted',
-        user_id: user.id,
+        userId: user.id,
       });
 
       // Redirect to the reviews page on success

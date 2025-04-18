@@ -13,8 +13,8 @@ const ReviewPage: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
   const { user, loading: authLoading } = useAuth();
-  const [review, setReview] = useState<Review & { profiles: Profile }>();
-  const [comments, setComments] = useState<(Comment & { profiles: Profile })[]>([]);
+  const [review, setReview] = useState<Review & { user?: Profile }>();
+  const [comments, setComments] = useState<(Comment & { user?: Profile })[]>([]);
   const [isAuthor, setIsAuthor] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<Review['status']>();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -30,11 +30,13 @@ const ReviewPage: NextPage = () => {
 
     const fetchData = async () => {
       try {
+        // getReviewById now handles conversion from snake_case to camelCase
         const reviewData = await getReviewById(id as string);
         setReview(reviewData);
         setCurrentStatus(reviewData.status);
-        setIsAuthor(reviewData.user_id === user.id);
+        setIsAuthor(reviewData.userId === user.id);
 
+        // getCommentsByReviewId now handles conversion from snake_case to camelCase
         const commentsData = await getCommentsByReviewId(id as string);
         setComments(commentsData);
       } catch (error) {
@@ -75,17 +77,19 @@ const ReviewPage: NextPage = () => {
           </div>
           
           <div className="text-sm text-gray-500 mb-4">
-            <p>Submitted by {review.profiles.name} on {new Date(review.created_at).toLocaleDateString()}</p>
-            <p>Last updated: {new Date(review.updated_at).toLocaleDateString()}</p>
+            {review.user && (
+              <p>Submitted by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</p>
+            )}
+            <p>Last updated: {new Date(review.updatedAt).toLocaleDateString()}</p>
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
             <p className="mb-6">{review.description}</p>
             
-            {review.graph_image_url && (
+            {review.graphImageUrl && (
               <div className="mt-4">
                 <img 
-                  src={review.graph_image_url} 
+                  src={review.graphImageUrl} 
                   alt="Graph visualization" 
                   className="max-w-full rounded"
                 />
@@ -115,20 +119,23 @@ const ReviewPage: NextPage = () => {
             </div>
           )}
           
-          <CommentSection comments={comments.map(c => ({
-            id: c.id,
-            content: c.content,
-            reviewId: c.review_id,
-            userId: c.user_id,
-            createdAt: new Date(c.created_at),
-            user: {
-              id: c.profiles.id,
-              name: c.profiles.name,
-              email: c.profiles.email,
-              password: '',
-              createdAt: new Date(c.profiles.created_at)
-            }
-          }))} reviewId={review.id} />
+          <CommentSection 
+            comments={comments.map(c => ({
+              id: c.id,
+              content: c.content,
+              reviewId: c.reviewId,
+              userId: c.userId,
+              createdAt: new Date(c.createdAt),
+              user: c.user ? {
+                id: c.user.id,
+                name: c.user.name,
+                email: c.user.email,
+                password: '',
+                createdAt: new Date(c.user.createdAt)
+              } : undefined
+            }))} 
+            reviewId={review.id} 
+          />
         </div>
       </div>
     </Layout>

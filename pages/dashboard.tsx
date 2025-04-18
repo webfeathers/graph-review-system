@@ -11,7 +11,7 @@ import { Review } from '../types/supabase';
 const Dashboard: NextPage = () => {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +25,7 @@ const Dashboard: NextPage = () => {
 
     const fetchUserReviews = async () => {
       try {
+        // The getReviews function now handles conversion from snake_case to camelCase
         const userReviews = await getReviews(user.id);
         setReviews(userReviews);
       } catch (error) {
@@ -72,19 +73,7 @@ const Dashboard: NextPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {reviews.map((review) => (
-              <GraphReviewCard 
-                key={review.id} 
-                review={{
-                  id: review.id,
-                  title: review.title,
-                  description: review.description,
-                  graph_image_url: review.graph_image_url, // Changed from graphImageUrl
-                  status: review.status,
-                  userId: review.user_id || review.userId, // Handle both naming conventions
-                  createdAt: review.created_at || review.createdAt,
-                  updatedAt: review.updated_at || review.updatedAt
-                }} 
-              />
+              <GraphReviewCard key={review.id} review={review} />
             ))}
           </div>
         )}

@@ -1,6 +1,10 @@
 // lib/supabaseUtils.ts
 import { supabase } from './supabase';
-import { Review, Comment, Profile } from '../types/supabase';
+import { 
+  Review, Comment, Profile, 
+  DbReview, DbComment, DbProfile,
+  dbToFrontendReview, dbToFrontendComment, dbToFrontendProfile 
+} from '../types/supabase';
 
 // Reviews
 export async function getReviews(userId?: string) {
@@ -28,7 +32,14 @@ export async function getReviews(userId?: string) {
     throw error;
   }
 
-  return data;
+  // Convert the data from snake_case to camelCase
+  return data.map((review: any) => {
+    const frontendReview = dbToFrontendReview(review);
+    if (review.profiles) {
+      frontendReview.user = dbToFrontendProfile(review.profiles);
+    }
+    return frontendReview;
+  });
 }
 
 export async function getReviewById(id: string) {
@@ -51,13 +62,28 @@ export async function getReviewById(id: string) {
     throw error;
   }
 
-  return data;
+  // Convert the data from snake_case to camelCase
+  const review = dbToFrontendReview(data);
+  if (data.profiles) {
+    review.user = dbToFrontendProfile(data.profiles);
+  }
+  
+  return review;
 }
 
-export async function createReview(review: Omit<Review, 'id' | 'created_at' | 'updated_at'>) {
+export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) {
+  // Convert the camelCase to snake_case for the database
+  const dbReviewData: any = {
+    title: reviewData.title,
+    description: reviewData.description,
+    graph_image_url: reviewData.graphImageUrl,
+    status: reviewData.status,
+    user_id: reviewData.userId
+  };
+
   const { data, error } = await supabase
     .from('reviews')
-    .insert(review)
+    .insert(dbReviewData)
     .select()
     .single();
 
@@ -66,7 +92,7 @@ export async function createReview(review: Omit<Review, 'id' | 'created_at' | 'u
     throw error;
   }
 
-  return data;
+  return dbToFrontendReview(data);
 }
 
 export async function updateReviewStatus(id: string, status: Review['status'], userId: string) {
@@ -93,7 +119,7 @@ export async function updateReviewStatus(id: string, status: Review['status'], u
     throw error;
   }
 
-  return data;
+  return dbToFrontendReview(data);
 }
 
 // Comments
@@ -117,13 +143,27 @@ export async function getCommentsByReviewId(reviewId: string) {
     throw error;
   }
 
-  return data;
+  // Convert the data from snake_case to camelCase
+  return data.map((comment: any) => {
+    const frontendComment = dbToFrontendComment(comment);
+    if (comment.profiles) {
+      frontendComment.user = dbToFrontendProfile(comment.profiles);
+    }
+    return frontendComment;
+  });
 }
 
-export async function createComment(comment: Omit<Comment, 'id' | 'created_at'>) {
+export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt'>) {
+  // Convert the camelCase to snake_case for the database
+  const dbCommentData: any = {
+    content: commentData.content,
+    review_id: commentData.reviewId,
+    user_id: commentData.userId
+  };
+  
   const { data, error } = await supabase
     .from('comments')
-    .insert(comment)
+    .insert(dbCommentData)
     .select()
     .single();
 
@@ -132,7 +172,7 @@ export async function createComment(comment: Omit<Comment, 'id' | 'created_at'>)
     throw error;
   }
 
-  return data;
+  return dbToFrontendComment(data);
 }
 
 // Profiles
@@ -148,14 +188,26 @@ export async function getProfileById(id: string) {
     throw error;
   }
 
-  return data;
+  return dbToFrontendProfile(data);
 }
 
-export async function updateProfile(profile: Partial<Profile>) {
+export async function updateProfile(profileData: Partial<Profile> & { id: string }) {
+  // Convert camelCase to snake_case for the database
+  const dbProfileData: any = {
+    id: profileData.id,
+    name: profileData.name,
+    email: profileData.email
+  };
+  
+  // Remove undefined fields
+  Object.keys(dbProfileData).forEach(key => 
+    dbProfileData[key] === undefined && delete dbProfileData[key]
+  );
+
   const { data, error } = await supabase
     .from('profiles')
-    .update(profile)
-    .eq('id', profile.id)
+    .update(dbProfileData)
+    .eq('id', profileData.id)
     .select()
     .single();
 
@@ -164,5 +216,5 @@ export async function updateProfile(profile: Partial<Profile>) {
     throw error;
   }
 
-  return data;
+  return dbToFrontendProfile(data);
 }
