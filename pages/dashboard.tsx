@@ -1,44 +1,34 @@
-// pages/dashboard.tsx
+// pages/dashboard.tsx - simplified
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import GraphReviewCard from '../components/GraphReviewCard';
 import { useAuth } from '../components/AuthProvider';
-import { getReviews } from '../lib/supabaseUtils';
-import { ReviewWithProfile } from '../types/supabase';
 
 const Dashboard: NextPage = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
-  const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [pageLoading, setPageLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
-
-    // If not authenticated, redirect to login
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    const fetchUserReviews = async () => {
-      try {
-        const userReviews = await getReviews(user.id);
-        setReviews(userReviews);
-      } catch (error) {
-        console.error('Error fetching reviews:', error);
-      } finally {
-        setLoading(false);
+    if (!loading) {
+      if (!user) {
+        // Redirect to login if not authenticated
+        router.push('/login');
+      } else {
+        // User is authenticated, render the page
+        setPageLoading(false);
       }
-    };
+    }
+  }, [user, loading, router]);
 
-    fetchUserReviews();
-  }, [user, authLoading, router]);
-
-  if (authLoading || loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  if (loading || pageLoading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-600 ml-3">Loading...</p>
+      </div>
+    );
   }
 
   return (
@@ -59,25 +49,15 @@ const Dashboard: NextPage = () => {
           </button>
         </div>
 
-        {reviews.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <p className="text-gray-500 mb-4">You haven't submitted any graph reviews yet.</p>
-            <button
-              onClick={() => router.push('/reviews/new')}
-              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-            >
-              Create Your First Review
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {reviews.map((reviewWithProfile) => {
-              // Extract just the Review part for the GraphReviewCard
-              const { user, ...review } = reviewWithProfile;
-              return <GraphReviewCard key={review.id} review={review} />;
-            })}
-          </div>
-        )}
+        <div className="text-center py-8 bg-gray-50 rounded-lg">
+          <p className="text-gray-500 mb-4">You haven't submitted any graph reviews yet.</p>
+          <button
+            onClick={() => router.push('/reviews/new')}
+            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+          >
+            Create Your First Review
+          </button>
+        </div>
       </div>
     </Layout>
   );
