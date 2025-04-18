@@ -7,37 +7,8 @@ import { useAuth } from '../../components/AuthProvider';
 import { createReview } from '../../lib/supabaseUtils';
 import { supabase } from '../../lib/supabase';
 
-useEffect(() => {
-  if (authLoading) return;
-  
-  // Debug auth state
-  console.log('Auth state in new review page:', { 
-    userId: user?.id,
-    loading: authLoading,
-    isAuthenticated: !!user
-  });
-  
-  // Debug middleware check
-  console.log('Current path:', router.pathname);
-  console.log('Redirect info:', router.query);
-
-}, [user, authLoading, router.pathname, router.query]);
-
-useEffect(() => {
-  // Debug authentication status
-  console.log('New Review Page - Auth Status:', { 
-    isAuthenticated: !!user,
-    loading: authLoading,
-    userId: user?.id,
-    pathname: router.pathname,
-    query: router.query
-  });
-}, [user, authLoading, router]);
-
-
-
 const NewReview: NextPage = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -47,12 +18,12 @@ const NewReview: NextPage = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (authLoading) return;
+    if (loading) return;
     
     if (!user) {
       router.push('/login');
     }
-  }, [user, authLoading, router]);
+  }, [user, loading, router]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -116,7 +87,7 @@ const NewReview: NextPage = () => {
     }
   };
 
-  if (authLoading) {
+  if (loading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
