@@ -30,7 +30,13 @@ export async function getReviews(userId?: string) {
 
   if (error) {
     console.error('Error fetching reviews:', error);
-    throw error;
+    // Return empty array instead of throwing
+    return [];
+  }
+
+  // If no data, return empty array
+  if (!data || data.length === 0) {
+    return [];
   }
 
   // Transform the data to the frontend format

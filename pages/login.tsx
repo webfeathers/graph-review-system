@@ -15,18 +15,20 @@ const Login: NextPage = () => {
   useEffect(() => {
     if (loading) return;
     
-    // Prevent redirect loops by checking if we're not already redirecting
     if (user && !isRedirecting) {
-      console.log('Login page: Redirecting to dashboard, user is authenticated');
+      console.log('Login page: User authenticated, preparing redirect');
       setIsRedirecting(true);
       
-      // If there was a redirectedFrom query param, go there, otherwise dashboard
-      const redirectPath = 
+    // Short timeout to ensure state has time to propagate
+      setTimeout(() => {
+        const redirectPath = 
         typeof redirectedFrom === 'string' && redirectedFrom
-          ? redirectedFrom
-          : '/dashboard';
-          
-      router.push(redirectPath);
+        ? redirectedFrom
+        : '/dashboard';
+        
+        console.log(`Login page: Executing redirect to ${redirectPath}`);
+        router.replace(redirectPath);
+      }, 100);
     }
   }, [user, loading, redirectedFrom, router, isRedirecting]);
 

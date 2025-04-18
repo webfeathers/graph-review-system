@@ -7,6 +7,20 @@ import { useAuth } from '../../components/AuthProvider';
 import { createReview } from '../../lib/supabaseUtils';
 import { supabase } from '../../lib/supabase';
 
+useEffect(() => {
+  // Debug auth state
+  console.log('Auth state in new review page:', { 
+    user: user?.id,
+    loading: authLoading,
+    session: !!session
+  });
+  
+  // Debug middleware check
+  console.log('Current path:', router.pathname);
+
+}, [user, authLoading, session, router.pathname]);
+
+
 const NewReview: NextPage = () => {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
