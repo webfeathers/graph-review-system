@@ -23,6 +23,17 @@ useEffect(() => {
 
 }, [user, authLoading, router.pathname, router.query]);
 
+useEffect(() => {
+  // Debug authentication status
+  console.log('New Review Page - Auth Status:', { 
+    isAuthenticated: !!user,
+    loading: authLoading,
+    userId: user?.id,
+    pathname: router.pathname,
+    query: router.query
+  });
+}, [user, authLoading, router]);
+
 
 
 const NewReview: NextPage = () => {
