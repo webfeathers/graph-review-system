@@ -1,13 +1,19 @@
 // pages/api/reviews/[id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
+import { supabase } from '../../../lib/supabase';
 import { reviews } from '../../../lib/db';
-import { authOptions } from '../../../lib/auth';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+  // Get user from Supabase auth
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
 
-  if (!session) {
+  const token = authHeader.substring(7);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  
+  if (authError || !user) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
@@ -34,13 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     
     const review = reviews[reviewIndex];
     
-    // Make sure session.user.id exists (based on our type extension)
-    if (!session.user?.id) {
-      return res.status(500).json({ message: 'User ID not found in session' });
-    }
-    
     // Only the author can update the review
-    if (review.userId !== session.user.id) {
+    if (review.userId !== user.id) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     

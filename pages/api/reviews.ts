@@ -1,9 +1,8 @@
 // pages/api/reviews.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { getServerSession } from 'next-auth/next';
+import { supabase } from '../../lib/supabase';
 import { reviews } from '../../lib/db';
 import { Review } from '../../models/Review';
-import { authOptions } from '../../lib/auth';
 
 // Initialize with some sample data if empty
 if (reviews.length === 0) {
@@ -29,9 +28,16 @@ if (reviews.length === 0) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions);
+  // Get user from Supabase auth
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
 
-  if (!session) {
+  const token = authHeader.substring(7);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  
+  if (authError || !user) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
@@ -39,9 +45,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     const { userOnly } = req.query;
     
-    if (userOnly === 'true' && session.user?.id) {
+    if (userOnly === 'true' && user?.id) {
       // Return only the current user's reviews
-      const userReviews = reviews.filter(review => review.userId === session.user.id);
+      const userReviews = reviews.filter(review => review.userId === user.id);
       return res.status(200).json(userReviews);
     }
     
@@ -57,18 +63,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Title and description are required' });
     }
     
-    // Make sure session.user.id exists (based on our type extension)
-    if (!session.user?.id) {
-      return res.status(500).json({ message: 'User ID not found in session' });
-    }
-    
     const newReview: Review = {
       id: Date.now().toString(),
       title,
       description,
       graphImageUrl,
       status: 'Submitted',
-      userId: session.user.id,
+      userId: user.id,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

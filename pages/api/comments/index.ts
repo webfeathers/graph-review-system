@@ -1,14 +1,22 @@
-// pages/api/comments/index.ts
+// pages/api/comments.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../lib/supabase';
+import { comments } from '../../lib/db';
+import { Comment } from '../../models/Comment';
 
-// Initialize Supabase client with API route runtime env variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Initialize with sample data if empty
+if (comments.length === 0) {
+  comments.push({
+    id: '1',
+    content: 'This graph looks interesting. Can you provide more context?',
+    reviewId: '1',
+    userId: '456',
+    createdAt: new Date(Date.now() - 86400000), // Yesterday
+  });
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Get user from request
+  // Get user from Supabase auth
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Unauthorized' });
@@ -29,25 +37,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Review ID is required' });
     }
     
-    const { data, error } = await supabase
-      .from('comments')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          email,
-          created_at
-        )
-      `)
-      .eq('review_id', reviewId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      return res.status(500).json({ message: 'Error fetching comments', error });
-    }
-    
-    return res.status(200).json(data);
+    const reviewComments = comments.filter(comment => comment.reviewId === reviewId);
+    return res.status(200).json(reviewComments);
   }
   
   // POST /api/comments
@@ -58,21 +49,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ message: 'Content and review ID are required' });
     }
     
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({
-        content,
-        review_id: reviewId,
-        user_id: user.id,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      return res.status(500).json({ message: 'Error creating comment', error });
-    }
+    const newComment: Comment = {
+      id: Date.now().toString(),
+      content,
+      reviewId,
+      userId: user.id,
+      createdAt: new Date(),
+    };
     
-    return res.status(201).json(data);
+    comments.push(newComment);
+    
+    return res.status(201).json(newComment);
   }
   
   return res.status(405).json({ message: 'Method not allowed' });
