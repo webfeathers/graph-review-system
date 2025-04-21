@@ -8,67 +8,84 @@ import {
 } from '../types/supabase';
 
 // Reviews
-// Fix for the getReviews function in lib/supabaseUtils.ts
 export async function getReviews(userId?: string) {
   try {
+    // Basic query to get reviews without relying on relationships
     let query = supabase
       .from('reviews')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          email,
-          created_at
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (userId) {
       query = query.eq('user_id', userId);
     }
 
-    const { data, error } = await query;
+    const { data: reviews, error } = await query;
 
     if (error) {
       console.error('Error fetching reviews:', error);
       return []; // Return empty array instead of throwing
     }
 
-    // If no data, return empty array
-    if (!data || data.length === 0) {
+    // If no reviews, return empty array
+    if (!reviews || reviews.length === 0) {
       return [];
     }
 
-    // Transform the data to the frontend format
-    const frontendReviews: ReviewWithProfile[] = [];
+    // Get unique user IDs from reviews
+    const userIds = [...new Set(reviews.map(review => review.user_id))];
     
-    for (const review of data) {
-      try {
-        // Make sure profiles data exists
-        if (!review.profiles) {
-          // Skip this review or create a placeholder user
-          const frontendReview = dbToFrontendReview(review);
-          frontendReviews.push({
-            ...frontendReview,
-            user: {
-              id: review.user_id,
-              name: 'Unknown User',
-              email: '',
-              createdAt: frontendReview.createdAt
-            }
-          });
-          continue;
-        }
-        
-        // Convert to ReviewWithProfile
-        const frontendReview = dbToFrontendReviewWithProfile(review);
-        frontendReviews.push(frontendReview);
-      } catch (error) {
-        console.error('Error converting review:', error);
-        // Skip this review or add with placeholder data
-      }
+    // Fetch profiles separately
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
+      
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
     }
+    
+    // Create frontend format reviews with profile information
+    const frontendReviews: ReviewWithProfile[] = reviews.map(review => {
+      // Find matching profile, or use fallback
+      const profile = profiles?.find(p => p.id === review.user_id);
+      
+      // Convert review to frontend format
+      const frontendReview = {
+        id: review.id,
+        title: review.title,
+        description: review.description,
+        graphImageUrl: review.graph_image_url,
+        status: review.status,
+        userId: review.user_id,
+        createdAt: review.created_at,
+        updatedAt: review.updated_at
+      };
+      
+      if (profile) {
+        // Use the found profile
+        return {
+          ...frontendReview,
+          user: {
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            createdAt: profile.created_at
+          }
+        };
+      } else {
+        // Fallback for missing profile
+        return {
+          ...frontendReview,
+          user: {
+            id: review.user_id,
+            name: 'Unknown User',
+            email: '',
+            createdAt: review.created_at
+          }
+        };
+      }
+    });
     
     return frontendReviews;
   } catch (err) {
@@ -78,27 +95,67 @@ export async function getReviews(userId?: string) {
 }
 
 export async function getReviewById(id: string) {
-  const { data, error } = await supabase
-    .from('reviews')
-    .select(`
-      *,
-      profiles:user_id (
-        id,
-        name,
-        email,
-        created_at
-      )
-    `)
-    .eq('id', id)
-    .single();
+  try {
+    // Fetch the review
+    const { data: review, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-  if (error) {
-    console.error('Error fetching review:', error);
-    throw error;
+    if (error) {
+      console.error('Error fetching review:', error);
+      throw error;
+    }
+
+    if (!review) {
+      throw new Error('Review not found');
+    }
+
+    // Fetch the user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', review.user_id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+    }
+
+    // Convert to frontend format
+    const frontendReview = {
+      id: review.id,
+      title: review.title,
+      description: review.description,
+      graphImageUrl: review.graph_image_url,
+      status: review.status,
+      userId: review.user_id,
+      createdAt: review.created_at,
+      updatedAt: review.updated_at
+    };
+
+    // Create review with profile
+    return {
+      ...frontendReview,
+      user: profile 
+        ? {
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            createdAt: profile.created_at
+          }
+        : {
+            id: review.user_id,
+            name: 'Unknown User',
+            email: '',
+            createdAt: review.created_at
+          }
+    };
+  } catch (err) {
+    console.error('Error in getReviewById:', err);
+    throw err;
   }
-
-  // Convert directly to ReviewWithProfile
-  return dbToFrontendReviewWithProfile(data);
 }
 
 export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) {
@@ -122,7 +179,16 @@ export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' |
     throw error;
   }
 
-  return dbToFrontendReview(data);
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    graphImageUrl: data.graph_image_url,
+    status: data.status,
+    userId: data.user_id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
 }
 
 export async function updateReviewStatus(id: string, status: Review['status'], userId: string) {
@@ -149,55 +215,94 @@ export async function updateReviewStatus(id: string, status: Review['status'], u
     throw error;
   }
 
-  return dbToFrontendReview(data);
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    graphImageUrl: data.graph_image_url,
+    status: data.status,
+    userId: data.user_id,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at
+  };
 }
 
 // Comments
 export async function getCommentsByReviewId(reviewId: string) {
-  const { data, error } = await supabase
-    .from('comments')
-    .select(`
-      *,
-      profiles:user_id (
-        id,
-        name,
-        email,
-        created_at
-      )
-    `)
-    .eq('review_id', reviewId)
-    .order('created_at', { ascending: true });
+  try {
+    // Fetch comments without using relationships
+    const { data: comments, error } = await supabase
+      .from('comments')
+      .select('*')
+      .eq('review_id', reviewId)
+      .order('created_at', { ascending: true });
 
-  if (error) {
-    console.error('Error fetching comments:', error);
-    throw error;
-  }
-
-  // Transform the data to the frontend format
-  const frontendComments: CommentWithProfile[] = [];
-  
-  for (const comment of data) {
-    try {
-      // Convert directly to CommentWithProfile
-      const frontendComment = dbToFrontendCommentWithProfile(comment);
-      frontendComments.push(frontendComment);
-    } catch (error) {
-      console.error('Error converting comment with profile:', error);
-      // Fall back to just the comment without profile
-      const frontendComment = dbToFrontendComment(comment);
-      frontendComments.push({
-        ...frontendComment,
-        user: {
-          id: 'unknown',
-          name: 'Unknown User',
-          email: '',
-          createdAt: frontendComment.createdAt
-        }
-      });
+    if (error) {
+      console.error('Error fetching comments:', error);
+      throw error;
     }
+
+    if (!comments || comments.length === 0) {
+      return [];
+    }
+
+    // Get unique user IDs
+    const userIds = [...new Set(comments.map(comment => comment.user_id))];
+    
+    // Fetch profiles separately
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
+      
+    if (profilesError) {
+      console.error('Error fetching profiles for comments:', profilesError);
+    }
+    
+    // Transform to frontend format
+    const frontendComments: CommentWithProfile[] = comments.map(comment => {
+      // Find matching profile, or use fallback
+      const profile = profiles?.find(p => p.id === comment.user_id);
+      
+      // Convert comment to frontend format
+      const frontendComment = {
+        id: comment.id,
+        content: comment.content,
+        reviewId: comment.review_id,
+        userId: comment.user_id,
+        createdAt: comment.created_at
+      };
+      
+      if (profile) {
+        // Use the found profile
+        return {
+          ...frontendComment,
+          user: {
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            createdAt: profile.created_at
+          }
+        };
+      } else {
+        // Fallback for missing profile
+        return {
+          ...frontendComment,
+          user: {
+            id: comment.user_id,
+            name: 'Unknown User',
+            email: '',
+            createdAt: comment.created_at
+          }
+        };
+      }
+    });
+    
+    return frontendComments;
+  } catch (err) {
+    console.error('Error in getCommentsByReviewId:', err);
+    throw err;
   }
-  
-  return frontendComments;
 }
 
 export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt'>) {
@@ -219,7 +324,13 @@ export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt
     throw error;
   }
 
-  return dbToFrontendComment(data);
+  return {
+    id: data.id,
+    content: data.content,
+    reviewId: data.review_id,
+    userId: data.user_id,
+    createdAt: data.created_at
+  };
 }
 
 // Profiles
@@ -235,7 +346,12 @@ export async function getProfileById(id: string) {
     throw error;
   }
 
-  return dbToFrontendProfile(data);
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    createdAt: data.created_at
+  };
 }
 
 export async function updateProfile(profileData: Partial<Profile> & { id: string }) {
@@ -263,5 +379,10 @@ export async function updateProfile(profileData: Partial<Profile> & { id: string
     throw error;
   }
 
-  return dbToFrontendProfile(data);
+  return {
+    id: data.id,
+    name: data.name,
+    email: data.email,
+    createdAt: data.created_at
+  };
 }
