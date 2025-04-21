@@ -18,7 +18,7 @@ type SyncResponseData = {
  * Admin API endpoint to trigger profile synchronization
  * This should be secured in production with proper admin authentication
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<SyncResponseData>) {
   // In a real application, we would add robust admin authentication here
   // For now, we'll use a simple API key check for demonstration purposes
   const apiKey = req.headers['x-api-key'];
@@ -50,10 +50,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
     
+    // Return the result with a success message
     return res.status(200).json({
-      success: true,
       message: 'Profile synchronization completed successfully',
-      ...result
+      ...result  // This already contains success: true
     });
   } catch (error: any) {
     console.error('Unexpected error during profile sync:', error);
