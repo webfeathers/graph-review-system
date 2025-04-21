@@ -5,7 +5,9 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../components/AuthProvider';
 import { createReview } from '../../lib/supabaseUtils';
-import { supabase } from '../../lib/supabase';
+import { uploadFile, validateFile } from '../../lib/storageUtils';
+import { StorageBucket } from '../../constants';
+import { ErrorDisplay } from '../../components/ErrorDisplay';
 
 const NewReview: NextPage = () => {
   const { user, loading } = useAuth();
@@ -28,15 +30,31 @@ const NewReview: NextPage = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Validate file before preview
+      const validationError = validateFile(file);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+      
       setGraphImage(file);
       setGraphImageUrl(URL.createObjectURL(file));
+      setError(''); // Clear any previous errors
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !description.trim()) {
-      setError('Title and description are required');
+    
+    // Form validation
+    if (!title.trim()) {
+      setError('Title is required');
+      return;
+    }
+    
+    if (!description.trim()) {
+      setError('Description is required');
       return;
     }
 
@@ -51,24 +69,20 @@ const NewReview: NextPage = () => {
     try {
       let uploadedImageUrl = undefined;
       
-      // If there's an image, upload it to Supabase Storage
+      // If there's an image, upload it using our utility
       if (graphImage) {
-        const fileName = `${Date.now()}_${graphImage.name}`;
-        const { data, error } = await supabase.storage
-          .from('graph-images')
-          .upload(fileName, graphImage);
-          
-        if (error) throw error;
-        
-        // Get the public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from('graph-images')
-          .getPublicUrl(fileName);
-          
-        uploadedImageUrl = publicUrl;
+        try {
+          uploadedImageUrl = await uploadFile(graphImage, StorageBucket.GRAPH_IMAGES);
+          console.log('Image uploaded successfully:', uploadedImageUrl);
+        } catch (uploadErr: any) {
+          console.error('Image upload failed:', uploadErr);
+          setError(uploadErr.message || 'Failed to upload image. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
       }
 
-      // Use camelCase for frontend and our createReview function will convert it to snake_case
+      // Create the review
       await createReview({
         title,
         description,
@@ -98,7 +112,7 @@ const NewReview: NextPage = () => {
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Submit a New Graph Review</h1>
 
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+        {error && <ErrorDisplay error={error} onDismiss={() => setError('')} />}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
