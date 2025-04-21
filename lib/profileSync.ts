@@ -42,10 +42,11 @@ export async function syncUserProfiles() {
       return { success: false, error: profilesError };
     }
     
-    console.log(`Found ${profiles.length} existing profiles`);
+    console.log(`Found ${profiles ? profiles.length : 0} existing profiles`);
     
-    // Find users without profiles
+    // Find users without profiles - using ES5 compatible approach
     const profileIds = new Set(profiles ? profiles.map(p => p.id) : []);
+    // Filter users to find those without profiles
     const usersWithoutProfiles = authUsers.filter(user => 
       user && typeof user.id === 'string' && !profileIds.has(user.id)
     );
@@ -81,15 +82,25 @@ export async function syncUserProfiles() {
       })
     );
     
-    const successful = results.filter(r => r.status === 'fulfilled' && (r.value as any).success).length;
-    const failed = results.filter(r => r.status === 'rejected' || !(r.value as any).success).length;
+    // Count successful and failed operations - using ES5 compatible filter
+    let successful = 0;
+    let failed = 0;
+    
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === 'fulfilled' && (result.value as any).success) {
+        successful++;
+      } else {
+        failed++;
+      }
+    }
     
     console.log(`Profile sync complete. Created ${successful} profiles. Failed: ${failed}`);
     
     return { 
       success: true,
       totalUsers: authUsers.length,
-      existingProfiles: profiles.length,
+      existingProfiles: profiles ? profiles.length : 0,
       missingProfiles: usersWithoutProfiles.length,
       createdProfiles: successful,
       failedCreations: failed
