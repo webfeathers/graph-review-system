@@ -5,9 +5,7 @@ import { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../components/AuthProvider';
 import { createReview } from '../../lib/supabaseUtils';
-import { uploadFile, validateFile } from '../../lib/storageUtils';
-import { StorageBucket } from '../../constants';
-import { ErrorDisplay } from '../../components/ErrorDisplay';
+import { supabase } from '../../lib/supabase';
 
 const NewReview: NextPage = () => {
   const { user, loading } = useAuth();
@@ -18,6 +16,7 @@ const NewReview: NextPage = () => {
   const [graphImageUrl, setGraphImageUrl] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -30,31 +29,35 @@ const NewReview: NextPage = () => {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      
-      // Validate file before preview
-      const validationError = validateFile(file);
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-      
       setGraphImage(file);
       setGraphImageUrl(URL.createObjectURL(file));
-      setError(''); // Clear any previous errors
+    }
+  };
+
+  // Debug function to check bucket access
+  const checkBucketAccess = async () => {
+    try {
+      const { data, error } = await supabase.storage.listBuckets();
+      
+      setDebugInfo({
+        success: !error,
+        error: error ? error.message : null,
+        buckets: data?.map(b => b.name) || [],
+        hasGraphImagesBucket: data?.some(b => b.name === 'graph-images') || false
+      });
+    } catch (err: any) {
+      setDebugInfo({
+        success: false,
+        error: err.message,
+        buckets: []
+      });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Form validation
-    if (!title.trim()) {
-      setError('Title is required');
-      return;
-    }
-    
-    if (!description.trim()) {
-      setError('Description is required');
+    if (!title.trim() || !description.trim()) {
+      setError('Title and description are required');
       return;
     }
 
@@ -69,13 +72,64 @@ const NewReview: NextPage = () => {
     try {
       let uploadedImageUrl = undefined;
       
-      // If there's an image, upload it using our utility
+      // If there's an image, upload it directly to Supabase Storage
       if (graphImage) {
         try {
-          uploadedImageUrl = await uploadFile(graphImage, StorageBucket.GRAPH_IMAGES);
+          console.log('Starting direct upload to graph-images bucket');
+          
+          // First check if the bucket exists
+          const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+          
+          if (bucketError) {
+            console.error('Error listing buckets:', bucketError);
+            throw new Error(`Failed to list storage buckets: ${bucketError.message}`);
+          }
+          
+          console.log('Available buckets:', buckets?.map(b => b.name) || []);
+          
+          // Check if our bucket exists
+          const bucketExists = buckets?.some(b => b.name === 'graph-images') || false;
+          console.log('graph-images bucket exists:', bucketExists);
+          
+          if (!bucketExists) {
+            throw new Error('Storage bucket "graph-images" not found. Please create it in your Supabase dashboard.');
+          }
+          
+          // Prepare a unique filename
+          const timestamp = Date.now();
+          const safeFileName = graphImage.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const fileName = `${timestamp}_${safeFileName}`;
+          
+          console.log('Uploading file:', fileName);
+          
+          // Try upload
+          const { data, error } = await supabase.storage
+            .from('graph-images')
+            .upload(fileName, graphImage, {
+              cacheControl: '3600',
+              upsert: false
+            });
+            
+          if (error) {
+            console.error('Error uploading image:', error);
+            throw new Error(`Upload failed: ${error.message}`);
+          }
+          
+          console.log('Upload response:', data);
+          
+          if (!data || !data.path) {
+            throw new Error('Upload succeeded but file path is missing');
+          }
+          
+          // Get the public URL
+          const { data: urlData } = supabase.storage
+            .from('graph-images')
+            .getPublicUrl(data.path);
+            
+          uploadedImageUrl = urlData.publicUrl;
           console.log('Image uploaded successfully:', uploadedImageUrl);
         } catch (uploadErr: any) {
-          console.error('Image upload failed:', uploadErr);
+          console.error('Image upload process failed:', uploadErr);
           setError(uploadErr.message || 'Failed to upload image. Please try again.');
           setIsSubmitting(false);
           return;
@@ -112,7 +166,27 @@ const NewReview: NextPage = () => {
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-6">Submit a New Graph Review</h1>
 
-        {error && <ErrorDisplay error={error} onDismiss={() => setError('')} />}
+        {error && (
+          <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>
+        )}
+        
+        <div className="mb-6">
+          <button 
+            onClick={checkBucketAccess}
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded mr-2"
+          >
+            Check Storage Access
+          </button>
+          
+          {debugInfo && (
+            <div className="mt-2 p-3 bg-gray-100 rounded text-sm">
+              <p><strong>Bucket access:</strong> {debugInfo.success ? 'Success' : 'Failed'}</p>
+              {debugInfo.error && <p><strong>Error:</strong> {debugInfo.error}</p>}
+              <p><strong>Available buckets:</strong> {debugInfo.buckets.join(', ') || 'None'}</p>
+              <p><strong>'graph-images' bucket exists:</strong> {debugInfo.hasGraphImagesBucket ? 'Yes' : 'No'}</p>
+            </div>
+          )}
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
