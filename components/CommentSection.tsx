@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Comment } from '../models/Comment';
 import { User } from '../models/User';
+import { useAuth } from './AuthProvider';
+import { supabase } from '../lib/supabase';
 
 interface CommentSectionProps {
   comments: (Comment & { user: User })[];
@@ -10,20 +12,41 @@ interface CommentSectionProps {
 const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user, session } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
+    if (!user) {
+      console.error('User not authenticated');
+      return;
+    }
     
     setIsSubmitting(true);
     try {
+      // Get current token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
       const response = await fetch('/api/comments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newComment, reviewId }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          content: newComment, 
+          reviewId 
+        }),
       });
       
       if (!response.ok) {
+        console.error('Comment post failed with status:', response.status);
+        console.error('Response:', await response.text());
         throw new Error('Failed to post comment');
       }
       
@@ -50,7 +73,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) =
         />
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || !user}
           className="mt-2 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
         >
           {isSubmitting ? 'Posting...' : 'Post Comment'}
