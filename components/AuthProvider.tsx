@@ -247,9 +247,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       console.log('Signing out');
-      await supabase.auth.signOut();
       
-      // State will be updated by the auth state change listener
+    // Clear any stored tokens
+      localStorage.removeItem('supabase.auth.token');
+      
+    // Clear any Supabase session
+      await supabase.auth.signOut({ scope: 'global' });
+      
+    // Reset state
+      setSession(null);
+      setUser(null);
+      
+    // Redirect with a small delay to ensure cleanup
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
     } catch (error) {
       console.error('Error signing out:', error);
     }
