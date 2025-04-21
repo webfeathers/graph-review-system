@@ -4,21 +4,6 @@ import Link from 'next/link';
 import AuthForm from '../components/AuthForm';
 import { useAuth } from '../components/AuthProvider';
 
-// In your Login.tsx component
-useEffect(() => {
-  // Clear any lingering auth state on login page load
-  const clearState = async () => {
-    if (typeof window !== 'undefined') {
-      // Force clear any potentially stuck auth state
-      await supabase.auth.signOut({ scope: 'global' });
-      console.log('Auth state cleared on login page load');
-    }
-  };
-  
-  clearState();
-  // Only run once on component mount
-}, []);
-
 const Login: NextPage = () => {
   const { loading } = useAuth();
 
