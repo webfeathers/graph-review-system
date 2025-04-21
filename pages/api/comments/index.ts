@@ -1,6 +1,17 @@
 // pages/api/comments/index.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '../../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Create a Supabase admin client that can bypass RLS
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+// Regular client for user authentication
+const supabase = createClient(
+  supabaseUrl,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Get user from request
@@ -38,7 +49,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
       
-      const { data, error } = await supabase
+      // Use admin client to bypass RLS
+      const { data, error } = await supabaseAdmin
         .from('comments')
         .select(`
           *,
@@ -79,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       
       // Ensure user profile exists before creating comment
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: profileError } = await supabaseAdmin
         .from('profiles')
         .select('id')
         .eq('id', user.id)
@@ -88,8 +100,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (profileError || !profile) {
         console.error('User profile not found, attempting to create it');
         
-        // Create profile if it doesn't exist
-        const { error: createProfileError } = await supabase
+        // Create profile if it doesn't exist using admin client
+        const { error: createProfileError } = await supabaseAdmin
           .from('profiles')
           .insert({
             id: user.id,
@@ -108,8 +120,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
       
-      // Create the comment
-      const { data, error } = await supabase
+      // Create the comment using admin client to bypass RLS
+      const { data, error } = await supabaseAdmin
         .from('comments')
         .insert({
           content,
