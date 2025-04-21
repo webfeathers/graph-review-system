@@ -1,6 +1,12 @@
 // lib/profileSync.ts
 import { supabase } from './supabase';
-import { User } from '@supabase/supabase-js';
+import { User, UserResponse } from '@supabase/supabase-js';
+
+// Define the type for the admin.listUsers response
+interface UserListResponse {
+  users: User[];
+  total: number;
+}
 
 /**
  * Utility to check and fix missing user profiles
@@ -11,14 +17,19 @@ export async function syncUserProfiles() {
     console.log('Starting profile synchronization...');
     
     // Get all auth users (requires service role key!)
-    const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+    const { data, error: authError } = await supabase.auth.admin.listUsers();
     
     if (authError) {
       console.error('Error fetching auth users:', authError);
       return { success: false, error: authError };
     }
     
-    const authUsers = authData.users;
+    if (!data || !Array.isArray(data.users)) {
+      console.error('No users data returned from auth.admin.listUsers');
+      return { success: false, error: new Error('No users data returned') };
+    }
+    
+    const authUsers = data.users as User[];
     console.log(`Found ${authUsers.length} users in auth system`);
     
     // Get all existing profiles
@@ -34,23 +45,29 @@ export async function syncUserProfiles() {
     console.log(`Found ${profiles.length} existing profiles`);
     
     // Find users without profiles
-    const profileIds = new Set(profiles.map(p => p.id));
-    const usersWithoutProfiles = authUsers.filter(user => !profileIds.has(user.id));
+    const profileIds = new Set(profiles ? profiles.map(p => p.id) : []);
+    const usersWithoutProfiles = authUsers.filter(user => 
+      user && typeof user.id === 'string' && !profileIds.has(user.id)
+    );
     
     console.log(`Found ${usersWithoutProfiles.length} users without profiles`);
     
     // Create missing profiles
     const results = await Promise.allSettled(
       usersWithoutProfiles.map(async (user) => {
+        if (!user || typeof user.id !== 'string') {
+          return { userId: 'unknown', success: false, error: 'Invalid user data' };
+        }
+        
         const userData = user.user_metadata || {};
-        const name = userData.name || user.email?.split('@')[0] || 'User';
+        const name = userData.name || (user.email ? user.email.split('@')[0] : 'User');
         
         const { error } = await supabase
           .from('profiles')
           .insert({
             id: user.id,
             name,
-            email: user.email,
+            email: user.email || '',
             created_at: new Date().toISOString(),
           });
           
@@ -88,8 +105,8 @@ export async function syncUserProfiles() {
  * Check and create profile for a single user if needed
  * Can be used after authentication to ensure profile exists
  */
-export async function ensureUserProfile(user: User) {
-  if (!user || !user.id) {
+export async function ensureUserProfile(user: User | null) {
+  if (!user || typeof user.id !== 'string') {
     console.error('Invalid user provided to ensureUserProfile');
     return { success: false, error: new Error('Invalid user') };
   }
@@ -109,14 +126,14 @@ export async function ensureUserProfile(user: User) {
     
     // Create new profile
     const userData = user.user_metadata || {};
-    const name = userData.name || user.email?.split('@')[0] || 'User';
+    const name = userData.name || (user.email ? user.email.split('@')[0] : 'User');
     
     const { error: createError } = await supabase
       .from('profiles')
       .insert({
         id: user.id,
         name,
-        email: user.email,
+        email: user.email || '',
         created_at: new Date().toISOString(),
       });
       

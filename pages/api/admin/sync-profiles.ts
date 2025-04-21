@@ -3,6 +3,17 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { syncUserProfiles } from '../../../lib/profileSync';
 import { supabase } from '../../../lib/supabase';
 
+type SyncResponseData = {
+  success: boolean;
+  message: string;
+  error?: any;
+  totalUsers?: number;
+  existingProfiles?: number;
+  missingProfiles?: number;
+  createdProfiles?: number;
+  failedCreations?: number;
+};
+
 /**
  * Admin API endpoint to trigger profile synchronization
  * This should be secured in production with proper admin authentication

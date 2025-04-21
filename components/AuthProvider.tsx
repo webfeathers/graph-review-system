@@ -23,8 +23,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   // Helper function to ensure profile exists when user is authenticated
-  const checkAndCreateProfile = async (currentUser: User) => {
-    if (!currentUser) return;
+  const checkAndCreateProfile = async (currentUser: User | null) => {
+    if (!currentUser || typeof currentUser.id !== 'string') return;
     
     try {
       console.log('Checking profile for user:', currentUser.id);
