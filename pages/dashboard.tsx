@@ -1,41 +1,26 @@
-// pages/dashboard.tsx
+// pages/dashboard.tsx - simplified
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { useAuth } from '../components/AuthProvider';
-import { supabase } from '../utils/supabaseClient';
 
 const Dashboard: NextPage = () => {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [pageLoading, setPageLoading] = useState(true);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
+        // Redirect to login if not authenticated
         router.push('/login');
       } else {
+        // User is authenticated, render the page
         setPageLoading(false);
-        fetchReviews();
       }
     }
   }, [user, loading, router]);
-
-  const fetchReviews = async () => {
-    const { data, error } = await supabase
-      .from('reviews')
-      .select('*')
-      .eq('user_id', user?.id);
-
-    if (error) {
-      setError('Failed to load reviews.');
-    } else {
-      setReviews(data || []);
-    }
-  };
 
   if (loading || pageLoading) {
     return (
@@ -50,9 +35,7 @@ const Dashboard: NextPage = () => {
     <Layout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-        <p className="text-gray-600">
-          Welcome back, {user?.user_metadata?.name || user?.email}!
-        </p>
+        <p className="text-gray-600">Welcome back, {user?.user_metadata?.name || user?.email}!</p>
       </div>
 
       <div className="mb-8">
@@ -60,26 +43,21 @@ const Dashboard: NextPage = () => {
           <h2 className="text-2xl font-semibold">Your Graph Reviews</h2>
           <button
             onClick={() => router.push('/reviews/new')}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
           >
             New Review
           </button>
         </div>
 
-        {error && <p className="text-red-500">{error}</p>}
-
-        {reviews.length === 0 ? (
-          <p className="text-gray-500">No reviews found.</p>
-        ) : (
-          <ul className="space-y-4">
-            {reviews.map((review) => (
-              <li key={review.id} className="p-4 border rounded shadow">
-                <h3 className="text-xl font-semibold">{review.title}</h3>
-                <p className="text-gray-600">{review.description}</p>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="text-center py-8 bg-gray-50 rounded-lg">
+          <p className="text-gray-500 mb-4">You haven't submitted any graph reviews yet.</p>
+          <button
+            onClick={() => router.push('/reviews/new')}
+            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+          >
+            Create Your First Review
+          </button>
+        </div>
       </div>
     </Layout>
   );
