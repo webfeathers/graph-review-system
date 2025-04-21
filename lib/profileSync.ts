@@ -1,12 +1,6 @@
 // lib/profileSync.ts
 import { supabase } from './supabase';
-import { User, UserResponse } from '@supabase/supabase-js';
-
-// Define the type for the admin.listUsers response
-interface UserListResponse {
-  users: User[];
-  total: number;
-}
+import { User } from '@supabase/supabase-js';
 
 /**
  * Utility to check and fix missing user profiles

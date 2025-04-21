@@ -11,6 +11,7 @@ type AuthContextType = {
   signUp: (email: string, password: string, name: string) => Promise<{ error: any, user: User | null }>;
   signOut: () => Promise<void>;
   loading: boolean;
+  ensureUserProfile: (userId?: string, userData?: any) => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -20,6 +21,81 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Function to ensure user profile exists - can be called whenever needed
+  const ensureUserProfile = async (userId?: string, userData: any = {}) => {
+    try {
+      if (!userId) {
+        // Use the current user if no userId is provided
+        if (!user) return false;
+        userId = user.id;
+      }
+      
+      console.log("Ensuring profile exists for user:", userId);
+      
+      // Check if profile exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
+        
+      if (!checkError && existingProfile) {
+        console.log("Profile already exists for user:", userId);
+        return true;
+      }
+      
+      // Get user info for profile creation
+      const email = userData.email || (user?.email || '');
+      const name = userData.name || 
+        (user?.user_metadata?.name || 
+         (email ? email.split('@')[0] : 'User'));
+      
+      console.log("Creating missing profile for user:", userId);
+      
+      // Create profile
+      const { error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          name,
+          email,
+          created_at: new Date().toISOString(),
+        });
+        
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        
+        // Try using API fallback if direct creation fails
+        try {
+          const response = await fetch('/api/auth/ensure-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`
+            },
+            body: JSON.stringify({ userId })
+          });
+          
+          const result = await response.json();
+          if (result.success) {
+            console.log("Profile created successfully via API");
+            return true;
+          }
+        } catch (apiError) {
+          console.error("API fallback failed:", apiError);
+        }
+        
+        return false;
+      }
+      
+      console.log("Profile created successfully for user:", userId);
+      return true;
+    } catch (err) {
+      console.error('Error in ensureUserProfile:', err);
+      return false;
+    }
+  };
 
   useEffect(() => {
     // Get initial session
@@ -39,6 +115,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("Session found during initialization");
           setSession(data.session);
           setUser(data.session.user);
+          
+          // Ensure profile exists for the user
+          await ensureUserProfile(data.session.user.id);
           
           // If user is on login page and already has a session, redirect to dashboard
           if (router.pathname === '/login' || router.pathname === '/register') {
@@ -61,15 +140,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log('Auth state change event:', event);
         
         if (event === 'SIGNED_IN') {
           console.log("User signed in, updating state");
           const currentUser = newSession?.user || null;
           
-          // We're temporarily skipping the profile check to prevent hanging
-          // DO NOT try to check or create profiles here
+          // Ensure profile exists when user signs in
+          if (currentUser) {
+            await ensureUserProfile(currentUser.id);
+          }
           
           setSession(newSession);
           setUser(currentUser);
@@ -117,8 +198,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('Sign in successful:', data.session ? 'Session exists' : 'No session');
       
-      // Skip profile check to prevent hanging
-      // Just update state and let auth state change handler handle the redirect
+      // Ensure profile exists after successful sign in
+      if (data.user) {
+        await ensureUserProfile(data.user.id, { email });
+      }
+      
+      // Update state and let auth state change handler handle the redirect
       if (data.session) {
         setSession(data.session);
         setUser(data.user);
@@ -153,8 +238,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('Sign up successful, user:', data.user ? 'exists' : 'null');
       
-      // Skip profile creation temporarily to prevent hanging
-      // We'll handle profiles later in a more controlled manner
+      // Ensure profile exists after successful sign up
+      if (data.user) {
+        await ensureUserProfile(data.user.id, { email, name });
+      }
       
       // Update state and let the auth state change handler handle the redirect
       if (data.session) {
@@ -191,7 +278,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, signIn, signUp, signOut, loading }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      signIn, 
+      signUp, 
+      signOut, 
+      loading,
+      ensureUserProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );

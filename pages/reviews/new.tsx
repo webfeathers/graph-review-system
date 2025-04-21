@@ -8,7 +8,7 @@ import { createReview } from '../../lib/supabaseUtils';
 import { supabase } from '../../lib/supabase';
 
 const NewReview: NextPage = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, ensureUserProfile } = useAuth();
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -49,6 +49,38 @@ const NewReview: NextPage = () => {
     setError('');
 
     try {
+      // First make sure the user profile exists
+      console.log("Ensuring user profile exists before creating review");
+      const profileExists = await ensureUserProfile();
+      
+      if (!profileExists) {
+        console.error("Failed to ensure user profile exists");
+        // Try the API endpoint directly
+        try {
+          const token = await supabase.auth.getSession()
+            .then(result => result.data.session?.access_token || '');
+          
+          if (!token) {
+            throw new Error("No auth token available");
+          }
+          
+          const profileResponse = await fetch('/api/auth/ensure-profile', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ userId: user.id })
+          });
+          
+          if (!profileResponse.ok) {
+            throw new Error("Profile creation API failed");
+          }
+        } catch (profileErr: any) {
+          throw new Error(`Profile creation failed: ${profileErr.message}`);
+        }
+      }
+      
       let uploadedImageUrl = undefined;
       
       // If there's an image, upload it directly without bucket checks
