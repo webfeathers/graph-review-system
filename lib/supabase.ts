@@ -18,9 +18,7 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-    },
-    // Enable more detailed logging in development
-    debug: IS_DEV
+    }
   }
 );
 
