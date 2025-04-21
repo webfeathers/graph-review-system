@@ -20,14 +20,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  
-  // This flag helps prevent multiple redirects
-  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     // Get initial session
     const initializeAuth = async () => {
       try {
+        console.log("Initializing auth...");
         // Get current session
         const { data, error } = await supabase.auth.getSession();
         
@@ -38,19 +36,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         if (data.session) {
+          console.log("Session found during initialization");
           setSession(data.session);
           setUser(data.session.user);
           
           // If user is on login page and already has a session, redirect to dashboard
-          if (router.pathname === '/login' && !isRedirecting) {
-            setIsRedirecting(true);
-            console.log('Redirecting to dashboard from initial session check');
-            setTimeout(() => {
-              router.push('/dashboard').finally(() => {
-                setIsRedirecting(false);
-              });
-            }, 100);
+          if (router.pathname === '/login' || router.pathname === '/register') {
+            console.log("User already logged in, redirecting to dashboard");
+            window.location.href = '/dashboard';
+            return;
           }
+        } else {
+          console.log("No session found during initialization");
         }
         
         setLoading(false);
@@ -64,42 +61,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         console.log('Auth state change event:', event);
         
-        // Update session and user state
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        
-        // Handle redirects for sign in event
-        if (event === 'SIGNED_IN' && router.pathname === '/login' && !isRedirecting) {
-          setIsRedirecting(true);
-          console.log('Redirecting to dashboard after sign in');
+        if (event === 'SIGNED_IN') {
+          console.log("User signed in, updating state");
+          setSession(newSession);
+          setUser(newSession?.user || null);
           
-          // Use a slight delay to ensure state updates have settled
-          setTimeout(() => {
-            router.push('/dashboard').finally(() => {
-              setIsRedirecting(false);
-            });
-          }, 100);
-        }
-        
-        // Handle sign out event
-        if (event === 'SIGNED_OUT') {
-          // Clear local state
+          // Direct redirect to dashboard using window.location for sign in
+          if (router.pathname === '/login' || router.pathname === '/register') {
+            console.log("Redirecting to dashboard after sign in");
+            window.location.href = '/dashboard';
+            return;
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log("User signed out, updating state");
           setSession(null);
           setUser(null);
           
-          // Redirect to login if not already there
-          if (router.pathname !== '/login' && !isRedirecting) {
-            setIsRedirecting(true);
-            console.log('Redirecting to login after sign out');
-            setTimeout(() => {
-              router.push('/login').finally(() => {
-                setIsRedirecting(false);
-              });
-            }, 100);
-          }
+          // Direct redirect to login page for sign out
+          console.log("Redirecting to login after sign out");
+          window.location.href = '/login';
+          return;
+        } else {
+          // Update state for other events
+          setSession(newSession);
+          setUser(newSession?.user || null);
         }
         
         setLoading(false);
@@ -107,7 +95,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     return () => subscription.unsubscribe();
-  }, [router.pathname, isRedirecting, router]);
+  }, [router.pathname]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -122,9 +110,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error };
       }
 
-      console.log('Sign in successful, session:', data.session ? 'exists' : 'null');
+      console.log('Sign in successful:', data.session ? 'Session exists' : 'No session');
       
-      // Update local state immediately, but let the auth listener handle redirects
+      // Update state but don't redirect here - let the auth state change handler do it
       if (data.session) {
         setSession(data.session);
         setUser(data.user);
@@ -179,7 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Exception during profile creation:', profileErr);
         }
         
-        // Update local state, but let auth listener handle redirects
+        // Update state but don't redirect here - let the auth state change handler do it
         if (data.session) {
           setSession(data.session);
           setUser(data.user);
@@ -196,18 +184,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       console.log('Signing out');
-      const { error } = await supabase.auth.signOut();
+      await supabase.auth.signOut();
       
-      if (error) {
-        console.error('Sign out error:', error);
-        return;
-      }
-      
-      // Clear local state immediately, but let auth listener handle redirect
-      setSession(null);
-      setUser(null);
+      // State will be updated by the auth state change listener
     } catch (error) {
-      console.error('Unexpected error during sign out:', error);
+      console.error('Error signing out:', error);
     }
   };
 
