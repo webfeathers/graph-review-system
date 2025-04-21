@@ -1,23 +1,11 @@
-// pages/login.tsx (extremely simplified)
+// pages/login.tsx
 import type { NextPage } from 'next';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { useEffect } from 'react';
 import AuthForm from '../components/AuthForm';
 import { useAuth } from '../components/AuthProvider';
 
 const Login: NextPage = () => {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  // Very simple redirect - only triggers once when component mounts and auth is loaded
-  useEffect(() => {
-    // Only check after auth is loaded
-    if (!loading && user) {
-      // Redirect to dashboard if already logged in
-      router.push('/dashboard');
-    }
-  }, [loading]); // Only run on initial load and when loading changes
+  const { loading } = useAuth();
 
   // Show loading state
   if (loading) {

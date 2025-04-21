@@ -20,6 +20,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  
+  // This flag helps prevent multiple redirects
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     // Get initial session
@@ -50,22 +53,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, newSession) => {
         console.log('Auth state change event:', event);
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         
-        // Redirect on sign in
-        if (event === 'SIGNED_IN' && router.pathname === '/login') {
-          console.log('Redirecting to dashboard after sign in');
-          router.push('/dashboard');
+        // Handle redirects in a controlled way to prevent race conditions
+        if (event === 'SIGNED_IN' && router.pathname === '/login' && !isRedirecting) {
+          setIsRedirecting(true);
+          console.log('Redirecting to dashboard after auth state change');
+          
+          // Use a slight delay to ensure state updates have settled
+          setTimeout(() => {
+            router.push('/dashboard').then(() => {
+              setIsRedirecting(false);
+            });
+          }, 100);
         }
+        
+        setLoading(false);
       }
     );
 
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [router, isRedirecting]);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -78,16 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error };
       }
 
-      // Immediately update state
-      if (data.session) {
-        setSession(data.session);
-        setUser(data.user);
-        
-        // Manual redirect after successful sign in
-        console.log('Sign in successful, redirecting to dashboard');
-        router.push('/dashboard');
-      }
-      
+      // Don't manually redirect here - let the auth state change listener handle it
       return { error: null };
     } catch (err) {
       return { error: err };
@@ -123,13 +125,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('Error creating profile:', profileErr);
         }
         
-        if (data.session) {
-          setSession(data.session);
-          setUser(data.user);
-          
-          // Redirect after signup
-          router.push('/dashboard');
-        }
+        // Don't manually redirect here - let the auth state change listener handle it
       }
 
       return { error: null, user: data.user };
