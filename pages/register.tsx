@@ -16,6 +16,15 @@ const Register: NextPage = () => {
     if (user) {
       router.push('/dashboard');
     }
+    
+    // Check if a clean logout occurred (just in case user lands here after logout)
+    const wasCleanLogout = localStorage.getItem('clean_logout') === 'true';
+    
+    if (wasCleanLogout) {
+      // Clear the flag
+      localStorage.removeItem('clean_logout');
+      console.log('Clean logout detected - auth state is already clear');
+    }
   }, [user, loading, router]);
 
   if (loading) {

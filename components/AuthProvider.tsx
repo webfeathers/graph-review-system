@@ -3,7 +3,6 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
-import { ensureUserProfile } from '../lib/profileSync';
 
 type AuthContextType = {
   session: Session | null;
@@ -16,37 +15,11 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-// In AuthProvider.tsx
-const checkAndCreateProfile = async (currentUser: User | null) => {
-  console.log(`Profile check bypassed for user: ${currentUser?.id}`);
-  return; // Temporarily skip the check
-};
-
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-
-  // Helper function to ensure profile exists when user is authenticated
-  const checkAndCreateProfile = async (currentUser: User | null) => {
-    if (!currentUser || typeof currentUser.id !== 'string') return;
-    
-    try {
-      console.log('Checking profile for user:', currentUser.id);
-      const result = await ensureUserProfile(currentUser);
-      
-      if (result.created) {
-        console.log('Created missing profile for user:', currentUser.id);
-      } else if (result.success) {
-        console.log('Profile already exists for user:', currentUser.id);
-      } else {
-        console.error('Failed to ensure profile exists:', result.error);
-      }
-    } catch (error) {
-      console.error('Error checking/creating profile:', error);
-    }
-  };
 
   useEffect(() => {
     // Get initial session
@@ -64,13 +37,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (data.session) {
           console.log("Session found during initialization");
-          const currentUser = data.session.user;
-          
-          // Check and create profile if necessary
-          await checkAndCreateProfile(currentUser);
-          
           setSession(data.session);
-          setUser(currentUser);
+          setUser(data.session.user);
           
           // If user is on login page and already has a session, redirect to dashboard
           if (router.pathname === '/login' || router.pathname === '/register') {
@@ -93,17 +61,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
+      (event, newSession) => {
         console.log('Auth state change event:', event);
         
         if (event === 'SIGNED_IN') {
           console.log("User signed in, updating state");
           const currentUser = newSession?.user || null;
           
-          // Check and create profile if necessary
-          if (currentUser) {
-            await checkAndCreateProfile(currentUser);
-          }
+          // We're temporarily skipping the profile check to prevent hanging
+          // DO NOT try to check or create profiles here
           
           setSession(newSession);
           setUser(currentUser);
@@ -151,12 +117,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('Sign in successful:', data.session ? 'Session exists' : 'No session');
       
-      // Ensure profile exists
-      if (data.user) {
-        await checkAndCreateProfile(data.user);
-      }
-      
-      // Update state but don't redirect here - let the auth state change handler do it
+      // Skip profile check to prevent hanging
+      // Just update state and let auth state change handler handle the redirect
       if (data.session) {
         setSession(data.session);
         setUser(data.user);
@@ -191,50 +153,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('Sign up successful, user:', data.user ? 'exists' : 'null');
       
-      // Create profile
-      if (data.user) {
-        try {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              name,
-              email,
-              created_at: new Date().toISOString(),
-            });
-            
-          if (profileError) {
-            console.error('Error creating profile:', profileError);
-            
-            // Wait a moment and try again
-            setTimeout(async () => {
-              const { error: retryError } = await supabase
-                .from('profiles')
-                .insert({
-                  id: data.user!.id,
-                  name,
-                  email,
-                  created_at: new Date().toISOString(),
-                });
-                
-              if (retryError) {
-                console.error('Retry failed, profile creation error:', retryError);
-              } else {
-                console.log('Profile created successfully on retry');
-              }
-            }, 1000);
-          } else {
-            console.log('Profile created successfully');
-          }
-        } catch (profileErr) {
-          console.error('Exception during profile creation:', profileErr);
-        }
-        
-        // Update state but don't redirect here - let the auth state change handler do it
-        if (data.session) {
-          setSession(data.session);
-          setUser(data.user);
-        }
+      // Skip profile creation temporarily to prevent hanging
+      // We'll handle profiles later in a more controlled manner
+      
+      // Update state and let the auth state change handler handle the redirect
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.user);
       }
 
       return { error: null, user: data.user };
@@ -248,20 +173,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Signing out');
       
-    // Clear any stored tokens
-      localStorage.removeItem('supabase.auth.token');
+      // Set a flag to indicate clean logout
+      localStorage.setItem('clean_logout', 'true');
       
-    // Clear any Supabase session
-      await supabase.auth.signOut({ scope: 'global' });
+      // Clear any tokens or state
+      await supabase.auth.signOut();
       
-    // Reset state
+      // Clear state
       setSession(null);
       setUser(null);
       
-    // Redirect with a small delay to ensure cleanup
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 100);
+      // Redirect
+      window.location.href = '/login';
     } catch (error) {
       console.error('Error signing out:', error);
     }

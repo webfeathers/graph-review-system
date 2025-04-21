@@ -1,29 +1,24 @@
 // pages/login.tsx
 import type { NextPage } from 'next';
 import Link from 'next/link';
-import { useEffect } from 'react'; // Add this import
+import { useEffect } from 'react';
 import AuthForm from '../components/AuthForm';
 import { useAuth } from '../components/AuthProvider';
-import { supabase } from '../lib/supabase'; // Add this import
 
 const Login: NextPage = () => {
   const { loading } = useAuth();
 
-  // Add this useEffect hook
   useEffect(() => {
-    // Clear any lingering auth state on login page load
-    const clearState = async () => {
-      try {
-        // Force clear any potentially stuck auth state
-        await supabase.auth.signOut({ scope: 'global' });
-        console.log('Auth state cleared on login page load');
-      } catch (error) {
-        console.error('Error clearing auth state:', error);
-      }
-    };
+    // Check if this was a clean logout
+    const wasCleanLogout = localStorage.getItem('clean_logout') === 'true';
     
-    clearState();
-    // Only run once on component mount
+    if (wasCleanLogout) {
+      // Clear the flag
+      localStorage.removeItem('clean_logout');
+      console.log('Clean logout detected - auth state is already clear');
+    }
+    
+    // No automatic signOut here to avoid redirect loops
   }, []);
 
   // Show loading state
