@@ -16,6 +16,12 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
+// In AuthProvider.tsx
+const checkAndCreateProfile = async (currentUser: User | null) => {
+  console.log(`Profile check bypassed for user: ${currentUser?.id}`);
+  return; // Temporarily skip the check
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
