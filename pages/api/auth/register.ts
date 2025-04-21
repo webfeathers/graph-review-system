@@ -1,5 +1,4 @@
-
-// pages/api/auth/register.ts (improved)
+// pages/api/auth/register.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createUserWithProfile } from '../../../lib/serverAuth';
 import { validateEmail, validatePassword } from '../../../lib/validation';

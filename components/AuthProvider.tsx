@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { ensureUserProfile } from '../lib/profileSync';
 
 type AuthContextType = {
   session: Session | null;
@@ -21,6 +22,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // Helper function to ensure profile exists when user is authenticated
+  const checkAndCreateProfile = async (currentUser: User) => {
+    if (!currentUser) return;
+    
+    try {
+      console.log('Checking profile for user:', currentUser.id);
+      const result = await ensureUserProfile(currentUser);
+      
+      if (result.created) {
+        console.log('Created missing profile for user:', currentUser.id);
+      } else if (result.success) {
+        console.log('Profile already exists for user:', currentUser.id);
+      } else {
+        console.error('Failed to ensure profile exists:', result.error);
+      }
+    } catch (error) {
+      console.error('Error checking/creating profile:', error);
+    }
+  };
+
   useEffect(() => {
     // Get initial session
     const initializeAuth = async () => {
@@ -37,8 +58,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (data.session) {
           console.log("Session found during initialization");
+          const currentUser = data.session.user;
+          
+          // Check and create profile if necessary
+          await checkAndCreateProfile(currentUser);
+          
           setSession(data.session);
-          setUser(data.session.user);
+          setUser(currentUser);
           
           // If user is on login page and already has a session, redirect to dashboard
           if (router.pathname === '/login' || router.pathname === '/register') {
@@ -61,13 +87,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
+      async (event, newSession) => {
         console.log('Auth state change event:', event);
         
         if (event === 'SIGNED_IN') {
           console.log("User signed in, updating state");
+          const currentUser = newSession?.user || null;
+          
+          // Check and create profile if necessary
+          if (currentUser) {
+            await checkAndCreateProfile(currentUser);
+          }
+          
           setSession(newSession);
-          setUser(newSession?.user || null);
+          setUser(currentUser);
           
           // Direct redirect to dashboard using window.location for sign in
           if (router.pathname === '/login' || router.pathname === '/register') {
@@ -112,6 +145,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('Sign in successful:', data.session ? 'Session exists' : 'No session');
       
+      // Ensure profile exists
+      if (data.user) {
+        await checkAndCreateProfile(data.user);
+      }
+      
       // Update state but don't redirect here - let the auth state change handler do it
       if (data.session) {
         setSession(data.session);
@@ -129,6 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Attempting to sign up with:', email);
       
+      // First, attempt to create the user account
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -160,6 +199,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
           if (profileError) {
             console.error('Error creating profile:', profileError);
+            
+            // Wait a moment and try again
+            setTimeout(async () => {
+              const { error: retryError } = await supabase
+                .from('profiles')
+                .insert({
+                  id: data.user!.id,
+                  name,
+                  email,
+                  created_at: new Date().toISOString(),
+                });
+                
+              if (retryError) {
+                console.error('Retry failed, profile creation error:', retryError);
+              } else {
+                console.log('Profile created successfully on retry');
+              }
+            }, 1000);
           } else {
             console.log('Profile created successfully');
           }
