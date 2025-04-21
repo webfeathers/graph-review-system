@@ -26,11 +26,22 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
 
     try {
       if (mode === 'login') {
-        const { error } = await signIn(email, password);
-        if (error) throw error;
+        // Validate email and password before submission
+        const emailError = validateEmail(email);
+        const passwordError = validatePassword(password);
         
-        // Redirect happens in the AuthProvider component
-        console.log("Login successful");
+        if (emailError || passwordError) {
+          throw new Error(emailError || passwordError);
+        }
+        
+        const { error } = await signIn(email, password);
+        if (error) {
+          console.error('Login error:', error);
+          throw new Error(error.message || 'Authentication failed');
+        }
+        
+        // Don't redirect here - let the AuthProvider handle it
+        console.log("Login attempt successful");
       } else {
         // Register mode
         if (!name) {
@@ -53,15 +64,15 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
           if (error.message?.includes('email already registered')) {
             throw new Error('This email is already registered. Please log in instead.');
           }
-          throw error;
+          throw new Error(error.message || 'Registration failed');
         }
         
         if (!user) {
           throw new Error('Account created but unable to sign in automatically. Please try logging in.');
         }
         
-        // Redirect happens in the AuthProvider component
-        console.log("Registration successful");
+        // Don't redirect here - let the AuthProvider handle it
+        console.log("Registration attempt successful");
       }
     } catch (err: any) {
       console.error('Authentication error:', err);

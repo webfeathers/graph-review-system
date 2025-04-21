@@ -40,6 +40,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (data.session) {
           setSession(data.session);
           setUser(data.session.user);
+          
+          // If user is on login page and already has a session, redirect to dashboard
+          if (router.pathname === '/login' && !isRedirecting) {
+            setIsRedirecting(true);
+            console.log('Redirecting to dashboard from initial session check');
+            setTimeout(() => {
+              router.push('/dashboard').finally(() => {
+                setIsRedirecting(false);
+              });
+            }, 100);
+          }
         }
         
         setLoading(false);
@@ -55,20 +66,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
         console.log('Auth state change event:', event);
+        
+        // Update session and user state
         setSession(newSession);
         setUser(newSession?.user ?? null);
         
-        // Handle redirects in a controlled way to prevent race conditions
+        // Handle redirects for sign in event
         if (event === 'SIGNED_IN' && router.pathname === '/login' && !isRedirecting) {
           setIsRedirecting(true);
-          console.log('Redirecting to dashboard after auth state change');
+          console.log('Redirecting to dashboard after sign in');
           
           // Use a slight delay to ensure state updates have settled
           setTimeout(() => {
-            router.push('/dashboard').then(() => {
+            router.push('/dashboard').finally(() => {
               setIsRedirecting(false);
             });
           }, 100);
+        }
+        
+        // Handle sign out event
+        if (event === 'SIGNED_OUT') {
+          // Clear local state
+          setSession(null);
+          setUser(null);
+          
+          // Redirect to login if not already there
+          if (router.pathname !== '/login' && !isRedirecting) {
+            setIsRedirecting(true);
+            console.log('Redirecting to login after sign out');
+            setTimeout(() => {
+              router.push('/login').finally(() => {
+                setIsRedirecting(false);
+              });
+            }, 100);
+          }
         }
         
         setLoading(false);
@@ -76,28 +107,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     return () => subscription.unsubscribe();
-  }, [router, isRedirecting]);
+  }, [router.pathname, isRedirecting, router]);
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('Attempting to sign in with:', email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
+        console.error('Sign in error:', error);
         return { error };
       }
 
-      // Don't manually redirect here - let the auth state change listener handle it
+      console.log('Sign in successful, session:', data.session ? 'exists' : 'null');
+      
+      // Update local state immediately, but let the auth listener handle redirects
+      if (data.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
+      
       return { error: null };
     } catch (err) {
+      console.error('Unexpected error during sign in:', err);
       return { error: err };
     }
   };
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
+      console.log('Attempting to sign up with:', email);
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -109,39 +152,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
+        console.error('Sign up error:', error);
         return { error, user: null };
       }
 
+      console.log('Sign up successful, user:', data.user ? 'exists' : 'null');
+      
       // Create profile
       if (data.user) {
         try {
-          await supabase.from('profiles').insert({
-            id: data.user.id,
-            name,
-            email,
-            created_at: new Date().toISOString(),
-          });
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: data.user.id,
+              name,
+              email,
+              created_at: new Date().toISOString(),
+            });
+            
+          if (profileError) {
+            console.error('Error creating profile:', profileError);
+          } else {
+            console.log('Profile created successfully');
+          }
         } catch (profileErr) {
-          console.error('Error creating profile:', profileErr);
+          console.error('Exception during profile creation:', profileErr);
         }
         
-        // Don't manually redirect here - let the auth state change listener handle it
+        // Update local state, but let auth listener handle redirects
+        if (data.session) {
+          setSession(data.session);
+          setUser(data.user);
+        }
       }
 
       return { error: null, user: data.user };
     } catch (err) {
+      console.error('Unexpected error during sign up:', err);
       return { error: err, user: null };
     }
   };
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      console.log('Signing out');
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Sign out error:', error);
+        return;
+      }
+      
+      // Clear local state immediately, but let auth listener handle redirect
       setSession(null);
       setUser(null);
-      router.push('/login');
     } catch (error) {
-      console.error('Error signing out:', error);
+      console.error('Unexpected error during sign out:', error);
     }
   };
 

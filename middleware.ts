@@ -1,4 +1,4 @@
-// middleware.ts (extremely simplified)
+// middleware.ts
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -18,12 +18,14 @@ export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   // Very simple protection for dashboard only
-  if (path === '/dashboard' && !session) {
+  if (path.startsWith('/dashboard') && !session) {
+    console.log('Middleware: Redirecting unauthenticated user from dashboard to login');
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
   // If user is logged in and tries to access login page, redirect to dashboard
   if ((path === '/login' || path === '/register') && session) {
+    console.log('Middleware: Redirecting authenticated user from login/register to dashboard');
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
@@ -36,6 +38,7 @@ export const config = {
   matcher: [
     '/',
     '/dashboard',
+    '/dashboard/:path*',
     '/login',
     '/register',
   ],
