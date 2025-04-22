@@ -2,9 +2,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { FormValues, FormErrors, validateForm, hasErrors } from './validationUtils';
 
+// Define the type for a validator function
+type ValidatorFn = (value: any, formValues?: any) => string | null;
+
 interface UseFormOptions<T extends FormValues> {
   initialValues: T;
-  validationSchema?: Partial<Record<keyof T, (value: any, formValues?: any) => string | null>>;
+  validationSchema?: Partial<Record<keyof T, ValidatorFn>>;
   validateOnChange?: boolean;
   validateOnBlur?: boolean;
   onSubmit?: (values: T, helpers: FormHelpers<T>) => void | Promise<void>;
@@ -84,26 +87,30 @@ export function useForm<T extends FormValues>(options: UseFormOptions<T>): UseFo
 
   // Validate a single field
   const validateField = useCallback(<K extends keyof T>(field: K): string | null => {
-    // Check if validationSchema exists and has this field
+    // Check if validationSchema exists
     if (!validationSchema) {
       return null;
     }
     
-    // Check if the field exists in the validation schema
-    const fieldName = field as string;
-    if (!Object.prototype.hasOwnProperty.call(validationSchema, fieldName)) {
+    // Safely access the validator - convert the field to string first to avoid TypeScript errors
+    const fieldKey = String(field);
+    
+    // Check if the validator exists for this field
+    if (!validationSchema.hasOwnProperty(fieldKey)) {
       return null;
     }
     
-    // Type assertion to help TypeScript understand that this is callable
-    const validatorFn = validationSchema[field] as ((value: any, formValues?: any) => string | null) | undefined;
+    // Get the validator and explicitly type it
+    const validator = validationSchema[field as keyof typeof validationSchema] as ValidatorFn | undefined;
     
-    if (typeof validatorFn !== 'function') {
+    if (!validator) {
       return null;
     }
     
-    const error = validatorFn(values[field], values);
+    // Call the validator with the field value
+    const error = validator(values[field], values);
     
+    // Update the form state with the error
     setFormState(prev => ({
       ...prev,
       errors: {
