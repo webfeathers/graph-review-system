@@ -1,11 +1,11 @@
 // components/GraphReviewCard.tsx
 import React from 'react';
 import Link from 'next/link';
-import { Review } from '../types/supabase';
+import { ReviewWithProfile } from '../types/supabase';
 import StatusBadge from './StatusBadge';
 
 interface GraphReviewCardProps {
-  review: Review;
+  review: ReviewWithProfile;
 }
 
 const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review }) => {
@@ -16,7 +16,11 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review }) => {
         <StatusBadge status={review.status} />
       </div>
       
-      <p className="text-gray-600 mb-4">{review.description}</p>
+      <p className="text-gray-600 mb-4">
+        {review.description.length > 100 
+          ? `${review.description.substring(0, 100)}...` 
+          : review.description}
+      </p>
       
       {review.graphImageUrl && (
         <div className="mb-4">
