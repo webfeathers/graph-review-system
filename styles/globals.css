@@ -25,7 +25,7 @@ a {
 /* Add custom colors */
 :root {
   --primary-color: #2db670;
-  --primary-dark: #259e5f;
-  --primary-light: #d1f0e1;
-  --secondary-color: #58595b;
+  --primary-dark: #42529e;
+  --primary-light: #00aed8;
+  --secondary-color: #c2e320;
 }
