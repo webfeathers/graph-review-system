@@ -1,4 +1,4 @@
-// components/UserManagement.tsx with improved debugging
+// components/UserManagement.tsx with comprehensive fixes
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Role } from '../types/supabase';
@@ -11,6 +11,7 @@ const UserManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Load users on component mount
   useEffect(() => {
@@ -20,34 +21,29 @@ const UserManagement: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true);
     setError('');
+    setSuccessMessage(null);
     
     try {
-      // Get token for authenticated API request
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      // Use direct Supabase query for better reliability
+      const { data, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('name');
       
-      if (!token) {
-        throw new Error('Authentication required');
+      if (fetchError) {
+        throw new Error(`Failed to fetch users: ${fetchError.message}`);
       }
       
-      // Use the API to get users to ensure proper authorization
-      const response = await fetch('/api/admin/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // Format the data to match the expected Profile type
+      const formattedUsers = data.map(profile => ({
+        id: profile.id,
+        name: profile.name || 'Unnamed User',
+        email: profile.email || '',
+        createdAt: profile.created_at,
+        role: (profile.role as Role) || 'Member'
+      }));
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch users: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to load users');
-      }
-      
-      setUsers(data.users);
+      setUsers(formattedUsers);
     } catch (err: any) {
       console.error('Error fetching users:', err);
       setError(err.message || 'Failed to load users');
@@ -58,58 +54,45 @@ const UserManagement: React.FC = () => {
 
   const updateUserRole = async (userId: string, role: Role) => {
     setError('');
+    setSuccessMessage(null);
     setSavingUserId(userId);
     
     try {
-      // Get token for authenticated API request
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-      
       console.log(`Updating user ${userId} to role ${role}`);
       
-      // Use the API to update user role
-      const response = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId, role })
-      });
+      // Direct database update using Supabase client
+      const { data, error: updateError } = await supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', userId)
+        .select()
+        .single();
       
-      console.log('API response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error(`Failed to update user role: ${response.status} - ${errorText}`);
+      if (updateError) {
+        console.error('Error updating user role:', updateError);
+        throw new Error(`Failed to update role: ${updateError.message}`);
       }
       
-      const data = await response.json();
-      console.log('API response data:', data);
-      
-      if (!data.success) {
-        throw new Error(data.message || 'Failed to update user role');
+      if (!data) {
+        throw new Error('No data returned after update');
       }
       
-      // Update local state with the new data
+      console.log('Role updated successfully:', data);
+      
+      // Update local state
       setUsers(users.map(user => 
-        user.id === userId ? { ...user, role } : user
+        user.id === userId ? { 
+          ...user, 
+          role: data.role as Role || role 
+        } : user
       ));
       
-      console.log('Role updated successfully');
+      setSuccessMessage(`User role updated to ${role} successfully`);
     } catch (err: any) {
       console.error('Error updating user role:', err);
       setError(err.message || 'Failed to update user role');
     } finally {
       setSavingUserId(null);
-      
-      // Refresh the user list to ensure we're displaying current data
-      fetchUsers();
     }
   };
 
@@ -124,6 +107,19 @@ const UserManagement: React.FC = () => {
       </div>
       
       {error && <ErrorDisplay error={error} onDismiss={() => setError('')} />}
+      
+      {successMessage && (
+        <div className="bg-green-100 text-green-700 p-4 rounded-md mb-4 relative">
+          <p>{successMessage}</p>
+          <button 
+            onClick={() => setSuccessMessage(null)}
+            className="absolute top-2 right-2 text-green-700 hover:text-green-900"
+            aria-label="Dismiss success message"
+          >
+            ×
+          </button>
+        </div>
+      )}
       
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
@@ -147,10 +143,12 @@ const UserManagement: React.FC = () => {
             {users.map((user) => (
               <tr key={user.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {user.name || 'Unnamed User'}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">{user.email}</div>
+                  <div className="text-sm text-gray-500">{user.email || 'No email'}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
@@ -158,7 +156,7 @@ const UserManagement: React.FC = () => {
                       user.role === 'Admin' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                     }`}
                   >
-                    {user.role}
+                    {user.role || 'Member'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
