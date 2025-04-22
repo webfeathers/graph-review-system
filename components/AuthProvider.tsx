@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .select('role')
       .eq('id', userId)
       .single();
-      
+
       if (error) {
         console.error('Error fetching user role:', error);
         return 'Member'; // Default to Member on error
@@ -67,30 +67,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         userId = user.id;
       }
-      
+
       console.log("Ensuring profile exists for user:", userId);
-      
+
     // Check if profile exists
       const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
       .select('id, role, name, email')
       .eq('id', userId)
       .single();
-      
+
       if (checkError) {
         console.error('Profile check error:', checkError);
       }
-      
+
       if (!checkError && existingProfile) {
         console.log("Profile already exists for user:", userId, "with role:", existingProfile.role);
-        
+
       // Update user role if the profile exists
         setUserRole(existingProfile.role as Role || 'Member');
-        
+
       // If the profile exists but is missing name or email, update it
         if (!existingProfile.name || !existingProfile.email) {
           console.log("Profile exists but missing name or email, updating...");
-          
+
         // Get user info for profile update
           const email = userData.email || user?.email || '';
           const name = userData.name || 
@@ -112,19 +112,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log("Profile updated with name and email");
           }
         }
-        
+
         return true;
       }
-      
+
     // Get user info for profile creation
       const email = userData.email || (user?.email || '');
       const name = userData.name || 
       (user?.user_metadata?.name || 
         user?.user_metadata?.full_name ||
         (email ? email.split('@')[0] : 'User'));
-      
+
       console.log("Creating missing profile for user:", userId, "with name:", name, "and email:", email);
-      
+
     // Create profile
       const { error: createError } = await supabase
       .from('profiles')
@@ -135,21 +135,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         created_at: new Date().toISOString(),
         role: 'Member' // Default to Member role for new users
       });
-      
+
       if (createError) {
         console.error('Error creating profile:', createError);
-        
+
       // Try using API fallback if direct creation fails
         try {
           console.log("Attempting API fallback for profile creation");
           const token = await supabase.auth.getSession()
           .then(result => result.data.session?.access_token || '');
-          
+
           if (!token) {
             console.error("No auth token available for API fallback");
             return false;
           }
-          
+
           const response = await fetch('/api/auth/ensure-profile', {
             method: 'POST',
             headers: {
@@ -162,15 +162,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               email: email || ''
             })
           });
-          
+
           if (!response.ok) {
             throw new Error(`API responded with status: ${response.status}`);
           }
-          
+
           const result = await response.json();
           if (result.success) {
             console.log("Profile created successfully via API");
-            
+
           // Set default role
             setUserRole('Member');
             return true;
@@ -182,7 +182,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return false;
         }
       }
-      
+
       console.log("Profile created successfully for user:", userId);
     // Set default role for new users
       setUserRole('Member');
@@ -197,45 +197,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const initializeAuth = async () => {
     try {
       console.log("Initializing auth... (1)");
-      
+
     // Get current session - this is likely where it's hanging
       console.log("About to call getSession...");
       const sessionResult = await supabase.auth.getSession();
       console.log("getSession completed", sessionResult.data?.session ? "with session" : "without session");
-      
+
       const { data, error } = sessionResult;
-      
+
       if (error) {
         console.error('Error getting session:', error);
         setLoading(false);
         return;
       }
-      
+
       console.log("Session check complete (2)");
-      
+
       if (data.session) {
         console.log("Session found (3)");
       // Set basic states first
         setSession(data.session);
         setUser(data.session.user);
-        
+
       // Try to get the user role, but with a safety timeout
         try {
           console.log("Fetching role with timeout...");
           const rolePromise = fetchUserRole(data.session.user.id);
-          
+
         // Create a timeout promise
           const timeoutPromise = new Promise((_, reject) => {
             setTimeout(() => reject(new Error("Role fetch timed out")), 3000);
           });
-          
+
         // Race the promises
           const role = await Promise.race([rolePromise, timeoutPromise])
           .catch(err => {
             console.warn("Role fetch failed or timed out:", err);
             return 'Member'; // Default on failure
           });
-          
+
           console.log("Role set to:", role);
           setUserRole(role as Role);
         } catch (err) {
@@ -243,7 +243,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Default to Member on any error
           setUserRole('Member');
         }
-        
+
       // If user is on login page and already has a session, redirect
         if (router.pathname === '/login' || router.pathname === '/register') {
           console.log("Redirecting from login (5)");
@@ -253,7 +253,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         console.log("No session found (5-alt)");
       }
-      
+
       console.log("Auth initialization complete (6)");
       setLoading(false);
     } catch (err) {
@@ -270,14 +270,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (event, newSession) => {
       console.log('Auth state change event:', event);
-      
+
       if (event === 'SIGNED_IN') {
         console.log("User signed in, updating state");
         const currentUser = newSession?.user || null;
-        
+
         setSession(newSession);
         setUser(currentUser);
-        
+
           // Fetch user role
         if (currentUser) {
           try {
@@ -288,7 +288,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUserRole('Member');
           }
         }
-        
+
           // Don't await profile creation to prevent blocking
         if (currentUser) {
           ensureUserProfile(currentUser.id)
@@ -299,7 +299,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error("Profile check after sign-in error:", err);
           });
         }
-        
+
           // Direct redirect to dashboard using window.location for sign in
         if (router.pathname === '/login' || router.pathname === '/register') {
           console.log("Redirecting to dashboard after sign in");
@@ -311,7 +311,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(null);
         setUser(null);
         setUserRole(null);
-        
+
           // Direct redirect to login page for sign out
         console.log("Redirecting to login after sign out");
         window.location.href = '/login';
@@ -320,7 +320,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Update state for other events
         setSession(newSession);
         setUser(newSession?.user || null);
-        
+
           // Fetch user role if user exists
         if (newSession?.user) {
           try {
@@ -334,13 +334,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUserRole(null);
         }
       }
-      
+
       setLoading(false);
     }
     );
 
   return () => subscription.unsubscribe();
-}, [router.pathname]);
+}, [router.pathname ? router.pathname : '']);
 
 const signIn = async (email: string, password: string) => {
   try {
@@ -356,12 +356,12 @@ const signIn = async (email: string, password: string) => {
     }
 
     console.log('Sign in successful:', data.session ? 'Session exists' : 'No session');
-    
+
       // Update state and let auth state change handler handle the redirect
     if (data.session) {
       setSession(data.session);
       setUser(data.user);
-      
+
         // Fetch user role
       if (data.user) {
         try {
@@ -373,7 +373,7 @@ const signIn = async (email: string, password: string) => {
         }
       }
     }
-    
+
     return { error: null };
   } catch (err) {
     console.error('Unexpected error during sign in:', err);
@@ -384,7 +384,7 @@ const signIn = async (email: string, password: string) => {
 const signInWithGoogle = async () => {
   try {
     console.log('Attempting to sign in with Google');
-    
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -399,7 +399,7 @@ const signInWithGoogle = async () => {
 
       // No immediate state update here as this will redirect the user
     console.log('Google sign in initiated:', data);
-    
+
     return { error: null };
   } catch (err) {
     console.error('Unexpected error during Google sign in:', err);
@@ -410,7 +410,7 @@ const signInWithGoogle = async () => {
 const signUp = async (email: string, password: string, name: string) => {
   try {
     console.log('Attempting to sign up with:', email);
-    
+
       // First, attempt to create the user account
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -428,12 +428,12 @@ const signUp = async (email: string, password: string, name: string) => {
     }
 
     console.log('Sign up successful, user:', data.user ? 'exists' : 'null');
-    
+
       // Update state and let the auth state change handler handle the redirect
     if (data.session) {
       setSession(data.session);
       setUser(data.user);
-      
+
         // Set default role for new users
       setUserRole('Member');
     }
@@ -448,18 +448,18 @@ const signUp = async (email: string, password: string, name: string) => {
 const signOut = async () => {
   try {
     console.log('Signing out');
-    
+
       // Set a flag to indicate clean logout
     localStorage.setItem('clean_logout', 'true');
-    
+
       // Clear any tokens or state
     await supabase.auth.signOut();
-    
+
       // Clear state
     setSession(null);
     setUser(null);
     setUserRole(null);
-    
+
       // Redirect
     window.location.href = '/login';
   } catch (error) {
