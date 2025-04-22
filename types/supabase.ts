@@ -1,10 +1,13 @@
 // types/supabase.ts
 // Database types (matching Supabase snake_case)
+export type Role = 'Member' | 'Admin';
+
 export type DbProfile = {
   id: string;
   name: string;
   email: string;
   created_at: string;
+  role: Role;
 }
 
 export type DbReview = {
@@ -36,6 +39,7 @@ export type Profile = {
   name: string;
   email: string;
   createdAt: string;
+  role: Role;
 }
 
 export type Review = {
@@ -134,6 +138,7 @@ export function dbToFrontendProfile(dbProfile: DbProfile): Profile {
     id: dbProfile.id,
     name: dbProfile.name,
     email: dbProfile.email,
-    createdAt: dbProfile.created_at
+    createdAt: dbProfile.created_at,
+    role: dbProfile.role
   };
 }

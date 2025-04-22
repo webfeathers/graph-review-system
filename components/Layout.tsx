@@ -10,7 +10,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter();
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   
   const handleLogout = async () => {
     await signOut();
@@ -39,6 +39,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Link href="/reviews/new" className="hover:underline">
                 New Review
               </Link>
+              {/* Only show Admin link for users with Admin role */}
+              {isAdmin() && (
+                <Link href="/admin" className="hover:underline text-purple-600 font-medium">
+                  Admin
+                </Link>
+              )}
               <button onClick={handleLogout} className="hover:underline">
                 Logout
               </button>

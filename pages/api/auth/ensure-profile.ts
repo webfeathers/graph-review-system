@@ -81,6 +81,7 @@ export default async function handler(
         name: name,
         email: user.email || '',
         created_at: new Date().toISOString(),
+        role: 'Member' // Default role for new users
       })
       .select()
       .single();

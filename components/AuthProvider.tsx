@@ -3,16 +3,19 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { Role } from '../types/supabase';
 
 type AuthContextType = {
   session: Session | null;
   user: User | null;
+  userRole: Role | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: any, user: User | null }>;
   signOut: () => Promise<void>;
   loading: boolean;
   ensureUserProfile: (userId?: string, userData?: any) => Promise<boolean>;
+  isAdmin: () => boolean;
 };
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -20,8 +23,35 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+
+  // Function to fetch user role
+  const fetchUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching user role:', error);
+        return null;
+      }
+      
+      return data?.role as Role || 'Member';
+    } catch (err) {
+      console.error('Error in fetchUserRole:', err);
+      return null;
+    }
+  };
+
+  // Function to check if current user is admin
+  const isAdmin = (): boolean => {
+    return userRole === 'Admin';
+  };
 
   // Function to ensure user profile exists - can be called whenever needed
   const ensureUserProfile = async (userId?: string, userData: any = {}) => {
@@ -42,7 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Check if profile exists with timeout
       const checkProfilePromise = supabase
         .from('profiles')
-        .select('id')
+        .select('id, role')
         .eq('id', userId)
         .single();
       
@@ -65,6 +95,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (!checkError && existingProfile) {
         console.log("Profile already exists for user:", userId);
+        // Update user role if the profile exists
+        setUserRole(existingProfile.role as Role || 'Member');
         return true;
       }
       
@@ -85,6 +117,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           name,
           email,
           created_at: new Date().toISOString(),
+          role: 'Member' // Default to Member role for new users
         });
       
       let createError;
@@ -140,6 +173,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const result = await response.json();
           if (result.success) {
             console.log("Profile created successfully via API");
+            
+            // Set default role
+            setUserRole('Member');
             return true;
           } else {
             throw new Error(result.message || "API failed to create profile");
@@ -151,6 +187,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       console.log("Profile created successfully for user:", userId);
+      // Set default role for new users
+      setUserRole('Member');
       return true;
     } catch (err) {
       console.error('Error in ensureUserProfile:', err);
@@ -176,6 +214,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("Session found during initialization");
           setSession(data.session);
           setUser(data.session.user);
+          
+          // Fetch user role
+          const role = await fetchUserRole(data.session.user.id);
+          if (role) {
+            setUserRole(role);
+          }
           
           // Don't await profile check to prevent blocking
           ensureUserProfile(data.session.user.id)
@@ -217,6 +261,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(newSession);
           setUser(currentUser);
           
+          // Fetch user role
+          if (currentUser) {
+            const role = await fetchUserRole(currentUser.id);
+            if (role) {
+              setUserRole(role);
+            }
+          }
+          
           // Don't await profile creation to prevent blocking
           if (currentUser) {
             ensureUserProfile(currentUser.id)
@@ -238,6 +290,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("User signed out, updating state");
           setSession(null);
           setUser(null);
+          setUserRole(null);
           
           // Direct redirect to login page for sign out
           console.log("Redirecting to login after sign out");
@@ -247,6 +300,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Update state for other events
           setSession(newSession);
           setUser(newSession?.user || null);
+          
+          // Fetch user role if user exists
+          if (newSession?.user) {
+            const role = await fetchUserRole(newSession.user.id);
+            if (role) {
+              setUserRole(role);
+            }
+          } else {
+            setUserRole(null);
+          }
         }
         
         setLoading(false);
@@ -275,6 +338,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (data.session) {
         setSession(data.session);
         setUser(data.user);
+        
+        // Fetch user role
+        if (data.user) {
+          const role = await fetchUserRole(data.user.id);
+          if (role) {
+            setUserRole(role);
+          }
+        }
         
         // Don't await profile creation to prevent blocking
         if (data.user) {
@@ -348,6 +419,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(data.session);
         setUser(data.user);
         
+        // Set default role for new users
+        setUserRole('Member');
+        
         // Don't await profile creation to prevent blocking
         if (data.user) {
           ensureUserProfile(data.user.id, { email, name })
@@ -380,6 +454,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear state
       setSession(null);
       setUser(null);
+      setUserRole(null);
       
       // Redirect
       window.location.href = '/login';
@@ -392,12 +467,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     <AuthContext.Provider value={{ 
       session, 
       user, 
+      userRole,
       signIn, 
       signInWithGoogle,
       signUp, 
       signOut, 
       loading,
-      ensureUserProfile 
+      ensureUserProfile,
+      isAdmin
     }}>
       {children}
     </AuthContext.Provider>
