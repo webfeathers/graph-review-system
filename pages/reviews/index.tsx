@@ -6,12 +6,13 @@ import Layout from '../../components/Layout';
 import GraphReviewCard from '../../components/GraphReviewCard';
 import { useAuth } from '../../components/AuthProvider';
 import { getReviews } from '../../lib/supabaseUtils';
-import { Review } from '../../types/supabase';
+import { ReviewWithProfile } from '../../types/supabase';
+import { LoadingState } from '../../components/LoadingState';
 
 const Reviews: NextPage = () => {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('All');
 
@@ -42,7 +43,7 @@ const Reviews: NextPage = () => {
     : reviews.filter(review => review.status === filter);
 
   if (authLoading || loading) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+    return <LoadingState />;
   }
 
   return (
