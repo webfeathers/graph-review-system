@@ -29,8 +29,17 @@ const Login: NextPage = () => {
 
   // Show login form for unauthenticated users
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
+    <div className="flex justify-center items-center min-h-screen bg-gray-100 font-['Montserrat',sans-serif]">
       <div className="w-full max-w-md">
+        <div className="text-center mb-6">
+          <img 
+            src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/graph-images/ld-logo.png" 
+            alt="LeanData Logo" 
+            className="h-12 mx-auto bg-[#2db670] p-2 rounded-lg" 
+          />
+          <h1 className="text-2xl font-bold mt-4 text-[#58595b]">Graph Review Login</h1>
+        </div>
+        
         <AuthForm mode="login" />
         
         <div className="mt-4 text-center">
@@ -43,9 +52,9 @@ const Login: NextPage = () => {
           <GoogleLoginButton className="mb-4" />
         </div>
         
-        <p className="mt-4 text-center">
+        <p className="mt-4 text-center text-[#58595b]">
           Don't have an account?{' '}
-          <Link href="/register" className="text-blue-500 hover:underline">
+          <Link href="/register" className="text-[#2db670] hover:underline">
             Register here
           </Link>
         </p>
