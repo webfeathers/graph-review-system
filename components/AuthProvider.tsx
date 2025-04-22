@@ -1,4 +1,4 @@
-// components/AuthProvider.tsx with fixes
+// components/AuthProvider.tsx with Google-only auth
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
@@ -9,9 +9,7 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   userRole: Role | null;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: any, user: User | null }>;
   signOut: () => Promise<void>;
   loading: boolean;
   ensureUserProfile: (userId?: string, userData?: any) => Promise<boolean>;
@@ -89,7 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return true;
       }
       
-      // Get user info for profile creation
+      // Get user info for profile creation from userData or current user
       const email = userData.email || (user?.email || '');
       const name = userData.name || 
         (user?.user_metadata?.name || 
@@ -292,50 +290,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, [router.pathname]);
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      console.log('Attempting to sign in with:', email);
-      setLoading(true);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error('Sign in error:', error);
-        setLoading(false);
-        return { error };
-      }
-
-      console.log('Sign in successful:', data.session ? 'Session exists' : 'No session');
-      
-      // Update state and let auth state change handler handle the redirect
-      if (data.session) {
-        setSession(data.session);
-        setUser(data.user);
-        
-        // Fetch user role
-        if (data.user) {
-          try {
-            const role = await fetchUserRole(data.user.id);
-            setUserRole(role);
-          } catch (roleError) {
-            console.error("Error fetching user role:", roleError);
-            setUserRole('Member');
-          }
-        }
-      }
-      
-      setLoading(false);
-      return { error: null };
-    } catch (err) {
-      console.error('Unexpected error during sign in:', err);
-      setLoading(false);
-      return { error: err };
-    }
-  };
-
   const signInWithGoogle = async () => {
     try {
       console.log('Attempting to sign in with Google');
@@ -363,51 +317,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Unexpected error during Google sign in:', err);
       setLoading(false);
       return { error: err };
-    }
-  };
-
-  const signUp = async (email: string, password: string, name: string) => {
-    try {
-      console.log('Attempting to sign up with:', email);
-      setLoading(true);
-      
-      // First, attempt to create the user account
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-          },
-        },
-      });
-
-      if (error) {
-        console.error('Sign up error:', error);
-        setLoading(false);
-        return { error, user: null };
-      }
-
-      console.log('Sign up successful, user:', data.user ? 'exists' : 'null');
-      
-      // Update state and let the auth state change handler handle the redirect
-      if (data.session) {
-        setSession(data.session);
-        setUser(data.user);
-        
-        // Set default role for new users
-        setUserRole('Member');
-        
-        // Explicitly create a profile
-        await ensureUserProfile(data.user?.id, { name, email });
-      }
-
-      setLoading(false);
-      return { error: null, user: data.user };
-    } catch (err) {
-      console.error('Unexpected error during sign up:', err);
-      setLoading(false);
-      return { error: err, user: null };
     }
   };
 
@@ -448,9 +357,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       session, 
       user, 
       userRole,
-      signIn, 
       signInWithGoogle,
-      signUp, 
       signOut, 
       loading,
       ensureUserProfile,

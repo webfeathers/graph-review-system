@@ -2,7 +2,6 @@
 import type { NextPage } from 'next';
 import Link from 'next/link';
 import { useEffect } from 'react';
-import AuthForm from '../components/AuthForm';
 import { useAuth } from '../components/AuthProvider';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 
@@ -40,23 +39,16 @@ const Login: NextPage = () => {
           <h1 className="text-2xl font-bold mt-4 text-[#58595b]">Graph Review Login</h1>
         </div>
         
-        <AuthForm mode="login" />
-        
-        <div className="mt-4 text-center">
-          <div className="flex items-center justify-center my-4">
-            <div className="flex-grow border-t border-gray-300"></div>
-            <span className="px-3 text-gray-500 text-sm">OR</span>
-            <div className="flex-grow border-t border-gray-300"></div>
-          </div>
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <p className="text-center text-gray-600 mb-6">
+            Sign in with your Google account to access the Graph Review tool
+          </p>
           
-          <GoogleLoginButton className="mb-4" />
+          <GoogleLoginButton className="w-full" />
         </div>
         
         <p className="mt-4 text-center text-[#58595b]">
-          Don't have an account?{' '}
-          <Link href="/register" className="text-[#2db670] hover:underline">
-            Register here
-          </Link>
+          By signing in, you agree to our terms of service and privacy policy.
         </p>
       </div>
     </div>

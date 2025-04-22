@@ -31,7 +31,7 @@ const GoogleLoginButton: React.FC<GoogleLoginButtonProps> = ({ className = '' })
     <button
       onClick={handleGoogleLogin}
       disabled={isLoading}
-      className={`w-full flex justify-center items-center bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded hover:bg-gray-50 ${className}`}
+      className={`flex justify-center items-center bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded hover:bg-gray-50 ${className}`}
     >
       {isLoading ? (
         <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mr-2"></div>

@@ -3,7 +3,6 @@ import type { NextPage } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect } from 'react';
-import AuthForm from '../components/AuthForm';
 import { useAuth } from '../components/AuthProvider';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 
@@ -37,23 +36,19 @@ const Register: NextPage = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <img 
-            src="https://leandata.com/wp-content/uploads/2019/12/logo-white.png" 
+            src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/graph-images/ld-logo.png" 
             alt="LeanData Logo" 
-            className="h-12 mx-auto bg-[#2db670] p-2 rounded-lg" 
+            className="h-12 mx-auto bg-[#FFFFFF] p-2 rounded-lg" 
           />
           <h1 className="text-2xl font-bold mt-4 text-[#58595b]">Create Account</h1>
         </div>
         
-        <AuthForm mode="register" />
-        
-        <div className="mt-4 text-center">
-          <div className="flex items-center justify-center my-4">
-            <div className="flex-grow border-t border-gray-300"></div>
-            <span className="px-3 text-gray-500 text-sm">OR</span>
-            <div className="flex-grow border-t border-gray-300"></div>
-          </div>
+        <div className="bg-white p-8 rounded-lg shadow-md">
+          <p className="text-center text-gray-600 mb-6">
+            Create an account using your Google account to access the Graph Review tool
+          </p>
           
-          <GoogleLoginButton className="mb-4" />
+          <GoogleLoginButton className="w-full" />
         </div>
         
         <p className="mt-4 text-center text-[#58595b]">
