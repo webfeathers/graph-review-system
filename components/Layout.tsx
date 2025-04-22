@@ -41,7 +41,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </Link>
               {/* Only show Admin link for users with Admin role */}
               {isAdmin() && (
-                <Link href="/admin" className="hover:underline text-purple-600 font-medium">
+                <Link href="/admin" className="hover:underline">
                   Admin
                 </Link>
               )}
