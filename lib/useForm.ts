@@ -66,7 +66,7 @@ export function useForm<T extends FormValues>(options: UseFormOptions<T>): UseFo
 
   // Validate the entire form
   const validateFormValues = useCallback((): FormErrors<T> => {
-    if (!validationSchema) {
+    if (!validationSchema || Object.keys(validationSchema).length === 0) {
       return {};
     }
     
@@ -84,7 +84,12 @@ export function useForm<T extends FormValues>(options: UseFormOptions<T>): UseFo
 
   // Validate a single field
   const validateField = useCallback(<K extends keyof T>(field: K): string | null => {
-    const validator = validationSchema[field];
+    // Check if validationSchema exists and has this field
+    if (!validationSchema || !(field in validationSchema)) {
+      return null;
+    }
+    
+    const validator = validationSchema[field as keyof typeof validationSchema];
     if (!validator) {
       return null;
     }
