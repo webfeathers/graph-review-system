@@ -1,4 +1,4 @@
-// components/UserManagement.tsx
+// components/UserManagement.tsx with improved debugging
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Role } from '../types/supabase';
@@ -69,6 +69,8 @@ const UserManagement: React.FC = () => {
         throw new Error('Authentication required');
       }
       
+      console.log(`Updating user ${userId} to role ${role}`);
+      
       // Use the API to update user role
       const response = await fetch('/api/admin/users', {
         method: 'PATCH',
@@ -79,25 +81,35 @@ const UserManagement: React.FC = () => {
         body: JSON.stringify({ userId, role })
       });
       
+      console.log('API response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error(`Failed to update user role: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`Failed to update user role: ${response.status} - ${errorText}`);
       }
       
       const data = await response.json();
+      console.log('API response data:', data);
       
       if (!data.success) {
         throw new Error(data.message || 'Failed to update user role');
       }
       
-      // Update local state
+      // Update local state with the new data
       setUsers(users.map(user => 
         user.id === userId ? { ...user, role } : user
       ));
+      
+      console.log('Role updated successfully');
     } catch (err: any) {
       console.error('Error updating user role:', err);
       setError(err.message || 'Failed to update user role');
     } finally {
       setSavingUserId(null);
+      
+      // Refresh the user list to ensure we're displaying current data
+      fetchUsers();
     }
   };
 

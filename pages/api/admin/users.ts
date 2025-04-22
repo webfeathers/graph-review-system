@@ -51,6 +51,7 @@ async function userHandler(
     
     // Handle PATCH request - Update user role
     if (req.method === 'PATCH') {
+      console.log('PATCH request received:', req.body);
       const { userId, role } = req.body;
       
       if (!userId || !role) {
@@ -77,7 +78,7 @@ async function userHandler(
       // Check if user exists
       const { data: userExists, error: userCheckError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, role')
         .eq('id', userId)
         .single();
         
@@ -89,56 +90,53 @@ async function userHandler(
         });
       }
       
-      // Update the user's role - using a simplified approach
-      try {
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ role })
-          .eq('id', userId);
-          
-        if (updateError) {
-          console.error('Error updating user role:', updateError);
-          return res.status(500).json({ 
-            success: false, 
-            message: `Error updating user role: ${updateError.message}`,
-            error: updateError
-          });
-        }
-        
-        // Get the updated user
-        const { data: updatedUser, error: fetchError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-          
-        if (fetchError) {
-          console.error('Error fetching updated user:', fetchError);
-          return res.status(200).json({
-            success: true,
-            message: `User role updated to ${role}, but couldn't fetch updated data`,
-          });
-        }
-        
+      console.log('Current user role:', userExists.role);
+      
+      // Only update if the role is actually changing
+      if (userExists.role === role) {
+        console.log('Role is unchanged, no update needed');
         return res.status(200).json({
           success: true,
-          message: `User role updated to ${role}`,
+          message: `User already has role ${role}`,
           users: [{
-            id: updatedUser.id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            createdAt: updatedUser.created_at,
-            role: updatedUser.role || 'Member' // Ensure role has a fallback
+            id: userExists.id,
+            role: userExists.role
           }]
         });
-      } catch (error: any) {
-        console.error('Unexpected error updating role:', error);
+      }
+      
+      // Update the user's role using a direct approach
+      console.log('Updating role to:', role);
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({ role })
+        .eq('id', userId)
+        .select()
+        .single();
+        
+      if (updateError) {
+        console.error('Error updating user role:', updateError);
         return res.status(500).json({ 
           success: false, 
-          message: `Unexpected error: ${error.message}`,
-          error: error
+          message: `Error updating user role: ${updateError.message}`,
+          error: updateError
         });
       }
+      
+      console.log('Update successful, updated profile:', updatedProfile);
+      
+      // Return success with the updated user
+      return res.status(200).json({
+        success: true,
+        message: `User role updated to ${role}`,
+        users: [{
+          id: updatedProfile.id,
+          name: updatedProfile.name,
+          email: updatedProfile.email,
+          createdAt: updatedProfile.created_at,
+          role: updatedProfile.role || 'Member'
+        }]
+      });
     }
     
     // Handle unsupported methods

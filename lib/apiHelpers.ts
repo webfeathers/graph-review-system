@@ -25,10 +25,13 @@ export function withAuth(
   requiredRoles?: Role[]
 ) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
+    console.log('API request received:', req.method, req.url);
+    
     // Get the authorization header
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('No valid authorization header provided');
       return res.status(401).json({ 
         success: false, 
         message: 'Unauthorized - No valid authorization header provided' 
@@ -50,6 +53,8 @@ export function withAuth(
         });
       }
       
+      console.log('Authenticated user:', user.id);
+      
       // If role check is required, get user's role from profile
       if (requiredRoles && requiredRoles.length > 0) {
         const { data: profile, error: profileError } = await supabase
@@ -66,10 +71,12 @@ export function withAuth(
           });
         }
         
-        const userRole = profile.role as Role;
+        const userRole = profile.role as Role || 'Member';
+        console.log('User role:', userRole);
         
         // Check if the user's role is in the required roles array
         if (!requiredRoles.includes(userRole)) {
+          console.error('Insufficient permissions. Required roles:', requiredRoles, 'User role:', userRole);
           return res.status(403).json({ 
             success: false, 
             message: 'Forbidden - Insufficient permissions' 
