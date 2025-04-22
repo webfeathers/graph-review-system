@@ -193,71 +193,57 @@ const ensureUserProfile = async (userId?: string, userData: any = {}) => {
   }
 };
 
-  useEffect(() => {
-    // Get initial session
-    const initializeAuth = async () => {
-      try {
-        console.log("Initializing auth...");
-        // Get current session
-        const { data, error } = await supabase.auth.getSession();
+  // A simplified AuthProvider for debugging
+useEffect(() => {
+  // Get initial session
+  const initializeAuth = async () => {
+    try {
+      console.log("Initializing auth... (1)");
+      
+      // Get current session - this is likely where it's hanging
+      console.log("About to call getSession...");
+      const sessionResult = await supabase.auth.getSession();
+      console.log("getSession completed", sessionResult.data?.session ? "with session" : "without session");
+      
+      const { data, error } = sessionResult;
+      
+      if (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+      
+      console.log("Session check complete (2)");
+      
+      if (data.session) {
+        console.log("Session found (3)");
+        // Set basic states first
+        setSession(data.session);
+        setUser(data.session.user);
         
-        if (error) {
-          console.error('Error getting session:', error);
-          setLoading(false);
+        // Set default role immediately
+        setUserRole('Member');
+        console.log("Default role set (4)");
+        
+        // If user is on login page and already has a session, redirect
+        if (router.pathname === '/login' || router.pathname === '/register') {
+          console.log("Redirecting from login (5)");
+          window.location.href = '/dashboard';
           return;
         }
-        
-        console.log("Session check complete");
-        
-        if (data.session) {
-          console.log("Session found during initialization");
-          setSession(data.session);
-          setUser(data.session.user);
-          
-          // Fetch user role
-          console.log("Fetching user role...");
-          try {
-            const role = await fetchUserRole(data.session.user.id);
-            console.log("Role fetched successfully:", role);
-            setUserRole(role);
-          } catch (roleError) {
-            console.error("Error fetching user role:", roleError);
-            // Default to Member role on error
-            setUserRole('Member');
-          }
-          
-          // This part was using a Promise without handling it, let's handle it properly
-          console.log("Checking profile exists...");
-          ensureUserProfile(data.session.user.id)
-            .then(success => {
-              console.log("Profile check completed:", success ? "success" : "failed");
-            })
-            .catch(err => {
-              console.error("Profile check error:", err);
-            })
-            .finally(() => {
-              console.log("Profile check complete, continuing...");
-            });
-          
-          // If user is on login page and already has a session, redirect to dashboard
-          if (router.pathname === '/login' || router.pathname === '/register') {
-            console.log("User already logged in, redirecting to dashboard");
-            window.location.href = '/dashboard';
-            return;
-          }
-        } else {
-          console.log("No session found during initialization");
-        }
-        
-        console.log("Auth initialization complete");
-        setLoading(false);
-      } catch (err) {
-        console.error('Error during auth initialization:', err);
-        setLoading(false);
+      } else {
+        console.log("No session found (5-alt)");
       }
-    };
+      
+      console.log("Auth initialization complete (6)");
+      setLoading(false);
+    } catch (err) {
+      console.error('Error during auth initialization:', err);
+      setLoading(false);
+    }
+  };
 
-    initializeAuth();
+  initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
