@@ -18,7 +18,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   
   return (
     <div className="min-h-screen flex flex-col font-['Montserrat',sans-serif]">
-      <header className="bg-[#2db670] text-white shadow">
+      <header className="bg-[#FFFFFF] Xtext-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/" className="flex items-center">
             <img 
