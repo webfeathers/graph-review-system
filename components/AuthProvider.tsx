@@ -56,110 +56,142 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Function to ensure user profile exists - can be called whenever needed
-  const ensureUserProfile = async (userId?: string, userData: any = {}) => {
-    try {
-      console.log("ensureUserProfile called");
-      if (!userId) {
-        // Use the current user if no userId is provided
-        if (!user) {
-          console.log("No user available for profile check");
-          return false;
-        }
-        userId = user.id;
+const ensureUserProfile = async (userId?: string, userData: any = {}) => {
+  try {
+    console.log("ensureUserProfile called");
+    if (!userId) {
+      // Use the current user if no userId is provided
+      if (!user) {
+        console.log("No user available for profile check");
+        return false;
       }
-      
-      console.log("Ensuring profile exists for user:", userId);
-      
-      // Check if profile exists
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .eq('id', userId)
-        .single();
-      
-      if (checkError) {
-        console.error('Profile check error:', checkError);
-      }
-      
-      if (!checkError && existingProfile) {
-        console.log("Profile already exists for user:", userId, "with role:", existingProfile.role);
-        // Update user role if the profile exists
-        setUserRole(existingProfile.role as Role || 'Member');
-        return true;
-      }
-      
-      // Get user info for profile creation
-      const email = userData.email || (user?.email || '');
-      const name = userData.name || 
-        (user?.user_metadata?.name || 
-         user?.user_metadata?.full_name ||
-         (email ? email.split('@')[0] : 'User'));
-      
-      console.log("Creating missing profile for user:", userId);
-      
-      // Create profile
-      const { error: createError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          name,
-          email,
-          created_at: new Date().toISOString(),
-          role: 'Member' // Default to Member role for new users
-        });
-      
-      if (createError) {
-        console.error('Error creating profile:', createError);
-        
-        // Try using API fallback if direct creation fails
-        try {
-          console.log("Attempting API fallback for profile creation");
-          const token = await supabase.auth.getSession()
-            .then(result => result.data.session?.access_token || '');
-          
-          if (!token) {
-            console.error("No auth token available for API fallback");
-            return false;
-          }
-          
-          const response = await fetch('/api/auth/ensure-profile', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ userId })
-          });
-          
-          if (!response.ok) {
-            throw new Error(`API responded with status: ${response.status}`);
-          }
-          
-          const result = await response.json();
-          if (result.success) {
-            console.log("Profile created successfully via API");
-            
-            // Set default role
-            setUserRole('Member');
-            return true;
-          } else {
-            throw new Error(result.message || "API failed to create profile");
-          }
-        } catch (apiError) {
-          console.error("API fallback failed:", apiError);
-          return false;
-        }
-      }
-      
-      console.log("Profile created successfully for user:", userId);
-      // Set default role for new users
-      setUserRole('Member');
-      return true;
-    } catch (err) {
-      console.error('Error in ensureUserProfile:', err);
-      return false;
+      userId = user.id;
     }
-  };
+    
+    console.log("Ensuring profile exists for user:", userId);
+    
+    // Check if profile exists
+    const { data: existingProfile, error: checkError } = await supabase
+      .from('profiles')
+      .select('id, role, name, email')
+      .eq('id', userId)
+      .single();
+    
+    if (checkError) {
+      console.error('Profile check error:', checkError);
+    }
+    
+    if (!checkError && existingProfile) {
+      console.log("Profile already exists for user:", userId, "with role:", existingProfile.role);
+      
+      // Update user role if the profile exists
+      setUserRole(existingProfile.role as Role || 'Member');
+      
+      // If the profile exists but is missing name or email, update it
+      if (!existingProfile.name || !existingProfile.email) {
+        console.log("Profile exists but missing name or email, updating...");
+        
+        // Get user info for profile update
+        const email = userData.email || user?.email || '';
+        const name = userData.name || 
+          user?.user_metadata?.name || 
+          user?.user_metadata?.full_name ||
+          (email ? email.split('@')[0] : 'User');
+          
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            name: name || 'User',
+            email: email || ''
+          })
+          .eq('id', userId);
+          
+        if (updateError) {
+          console.error('Error updating profile:', updateError);
+        } else {
+          console.log("Profile updated with name and email");
+        }
+      }
+      
+      return true;
+    }
+    
+    // Get user info for profile creation
+    const email = userData.email || (user?.email || '');
+    const name = userData.name || 
+      (user?.user_metadata?.name || 
+        user?.user_metadata?.full_name ||
+        (email ? email.split('@')[0] : 'User'));
+        
+    console.log("Creating missing profile for user:", userId, "with name:", name, "and email:", email);
+    
+    // Create profile
+    const { error: createError } = await supabase
+      .from('profiles')
+      .insert({
+        id: userId,
+        name: name || 'User', // Ensure name is never empty
+        email: email || '',
+        created_at: new Date().toISOString(),
+        role: 'Member' // Default to Member role for new users
+      });
+    
+    if (createError) {
+      console.error('Error creating profile:', createError);
+      
+      // Try using API fallback if direct creation fails
+      try {
+        console.log("Attempting API fallback for profile creation");
+        const token = await supabase.auth.getSession()
+          .then(result => result.data.session?.access_token || '');
+        
+        if (!token) {
+          console.error("No auth token available for API fallback");
+          return false;
+        }
+        
+        const response = await fetch('/api/auth/ensure-profile', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            userId,
+            name: name || 'User',
+            email: email || ''
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API responded with status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        if (result.success) {
+          console.log("Profile created successfully via API");
+          
+          // Set default role
+          setUserRole('Member');
+          return true;
+        } else {
+          throw new Error(result.message || "API failed to create profile");
+        }
+      } catch (apiError) {
+        console.error("API fallback failed:", apiError);
+        return false;
+      }
+    }
+    
+    console.log("Profile created successfully for user:", userId);
+    // Set default role for new users
+    setUserRole('Member');
+    return true;
+  } catch (err) {
+    console.error('Error in ensureUserProfile:', err);
+    return false;
+  }
+};
 
   useEffect(() => {
     // Get initial session

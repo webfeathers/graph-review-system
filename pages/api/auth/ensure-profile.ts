@@ -43,26 +43,12 @@ export default async function handler(
       });
     }
 
-    // Check if profile exists
-    const { data: existingProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-      
-    if (!profileError && existingProfile) {
-      // Profile already exists
-      return res.status(200).json({
-        success: true,
-        message: 'Profile already exists',
-        profile: existingProfile
-      });
-    }
+    // Get name and email from request body or user data
+    const { name: bodyName, email: bodyEmail } = req.body;
     
-    // If profile doesn't exist or there was an error, create a new one
-    // For Google login, extract name from user_metadata
+    // Extract user info
     const userData = user.user_metadata || {};
-    let name = userData.name || userData.full_name;
+    let name = bodyName || userData.name || userData.full_name;
     
     // If no name found in metadata, try to create one from email
     if (!name && user.email) {
@@ -74,12 +60,59 @@ export default async function handler(
       name = 'User';
     }
     
+    const email = bodyEmail || user.email || '';
+
+    // Check if profile exists
+    const { data: existingProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+      
+    if (!profileError && existingProfile) {
+      // Profile already exists - check if it needs updating
+      if (!existingProfile.name || !existingProfile.email) {
+        // Update the existing profile with name and email
+        const { data: updatedProfile, error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            name: name,
+            email: email
+          })
+          .eq('id', user.id)
+          .select()
+          .single();
+          
+        if (updateError) {
+          console.error('Error updating profile:', updateError);
+          return res.status(500).json({ 
+            success: false, 
+            message: `Failed to update profile: ${updateError.message}` 
+          });
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Profile updated successfully',
+          profile: updatedProfile
+        });
+      }
+      
+      // Profile exists and is complete
+      return res.status(200).json({
+        success: true,
+        message: 'Profile already exists',
+        profile: existingProfile
+      });
+    }
+    
+    // Create a new profile
     const { data: newProfile, error: createError } = await supabase
       .from('profiles')
       .insert({
         id: user.id,
         name: name,
-        email: user.email || '',
+        email: email,
         created_at: new Date().toISOString(),
         role: 'Member' // Default role for new users
       })
