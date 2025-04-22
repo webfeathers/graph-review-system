@@ -26,7 +26,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               alt="LeanData Logo" 
               className="h-8 mr-2" 
             />
-            <span className="text-xl font-bold">Graph Review</span>
           </Link>
           
           {user && (
