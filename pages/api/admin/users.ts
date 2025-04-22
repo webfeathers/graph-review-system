@@ -40,7 +40,7 @@ async function userHandler(
         name: profile.name,
         email: profile.email,
         createdAt: profile.created_at,
-        role: profile.role as Role
+        role: profile.role as Role || 'Member' // Ensure role has a fallback
       }));
       
       return res.status(200).json({
@@ -68,6 +68,12 @@ async function userHandler(
         });
       }
       
+      console.log('Attempting to update user role:', {
+        userId,
+        role,
+        adminId // The ID of the admin making the change
+      });
+      
       // Check if user exists
       const { data: userExists, error: userCheckError } = await supabase
         .from('profiles')
@@ -76,40 +82,63 @@ async function userHandler(
         .single();
         
       if (userCheckError || !userExists) {
+        console.error('User check error:', userCheckError);
         return res.status(404).json({ 
           success: false, 
           message: 'User not found' 
         });
       }
       
-      // Update the user's role
-      const { data: updatedUser, error: updateError } = await supabase
-        .from('profiles')
-        .update({ role })
-        .eq('id', userId)
-        .select()
-        .single();
+      // Update the user's role - using a simplified approach
+      try {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ role })
+          .eq('id', userId);
+          
+        if (updateError) {
+          console.error('Error updating user role:', updateError);
+          return res.status(500).json({ 
+            success: false, 
+            message: `Error updating user role: ${updateError.message}`,
+            error: updateError
+          });
+        }
         
-      if (updateError) {
-        console.error('Error updating user role:', updateError);
+        // Get the updated user
+        const { data: updatedUser, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+          
+        if (fetchError) {
+          console.error('Error fetching updated user:', fetchError);
+          return res.status(200).json({
+            success: true,
+            message: `User role updated to ${role}, but couldn't fetch updated data`,
+          });
+        }
+        
+        return res.status(200).json({
+          success: true,
+          message: `User role updated to ${role}`,
+          users: [{
+            id: updatedUser.id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            createdAt: updatedUser.created_at,
+            role: updatedUser.role || 'Member' // Ensure role has a fallback
+          }]
+        });
+      } catch (error: any) {
+        console.error('Unexpected error updating role:', error);
         return res.status(500).json({ 
           success: false, 
-          message: 'Error updating user role',
-          error: updateError.message
+          message: `Unexpected error: ${error.message}`,
+          error: error
         });
       }
-      
-      return res.status(200).json({
-        success: true,
-        message: `User role updated to ${role}`,
-        users: [{
-          id: updatedUser.id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          createdAt: updatedUser.created_at,
-          role: updatedUser.role as Role
-        }]
-      });
     }
     
     // Handle unsupported methods
