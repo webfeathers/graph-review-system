@@ -35,7 +35,7 @@ const Login: NextPage = () => {
           <img 
             src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/graph-images/ld-logo.png" 
             alt="LeanData Logo" 
-            className="h-12 mx-auto bg-[#2db670] p-2 rounded-lg" 
+            className="h-12 mx-auto bg-[#FFFFFF] p-2 rounded-lg" 
           />
           <h1 className="text-2xl font-bold mt-4 text-[#58595b]">Graph Review Login</h1>
         </div>
