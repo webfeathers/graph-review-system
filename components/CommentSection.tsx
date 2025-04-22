@@ -1,31 +1,59 @@
+// components/commentSection.tsx
 import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 import { Comment } from '../models/Comment';
 import { User } from '../models/User';
 import { useAuth } from './AuthProvider';
 import { supabase } from '../lib/supabase';
-import { useRouter } from 'next/router';
+import { ErrorDisplay } from './ErrorDisplay';
+import { Form, TextArea, SubmitButton } from './form/FormComponents';
+import { useForm } from '../lib/useForm';
+import { createValidator, required, maxLength } from '../lib/validationUtils';
+import { FIELD_LIMITS } from '../constants';
 
 interface CommentSectionProps {
   comments: (Comment & { user: User })[];
   reviewId: string;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) => {
-  const [newComment, setNewComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const { user, session } = useAuth();
-  const router = useRouter(); // Add router to handle navigation
+interface CommentFormValues {
+  content: string;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    if (!user) {
-      console.error('User not authenticated');
-      return;
-    }
-    
-    setIsSubmitting(true);
+const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) => {
+  const { user, session } = useAuth();
+  const router = useRouter();
+  const [generalError, setGeneralError] = useState<string | null>(null);
+
+  // Define validation schema
+  const validationSchema = {
+    content: createValidator(
+      required('Comment cannot be empty'),
+      maxLength(FIELD_LIMITS.COMMENT_MAX_LENGTH, `Comment must be no more than ${FIELD_LIMITS.COMMENT_MAX_LENGTH} characters`)
+    )
+  };
+
+  // Initialize form
+  const form = useForm<CommentFormValues>({
+    initialValues: {
+      content: ''
+    },
+    validationSchema,
+    validateOnChange: false,
+    validateOnBlur: true,
+    onSubmit: handleSubmit
+  });
+
+  async function handleSubmit(values: CommentFormValues) {
     try {
+      // Clear previous errors
+      setGeneralError(null);
+      
+      if (!user) {
+        setGeneralError('User not authenticated');
+        return;
+      }
+      
       // Get current token
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -41,48 +69,72 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) =
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
-          content: newComment, 
+          content: values.content, 
           reviewId 
         }),
       });
       
       if (!response.ok) {
-        console.error('Comment post failed with status:', response.status);
-        console.error('Response:', await response.text());
-        throw new Error('Failed to post comment');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to post comment');
       }
       
-      // Instead of reloading the page, use router to refresh the current page
-      // This prevents the auth state from being partially reset
-      setNewComment(''); // Clear the comment input
-      router.replace(router.asPath); // Refresh the current page without a full reload
+      // Clear the form
+      form.resetForm();
+      
+      // Refresh the page data without a full reload
+      router.replace(router.asPath);
     } catch (error) {
       console.error('Error posting comment:', error);
-    } finally {
-      setIsSubmitting(false);
+      
+      if (error instanceof Error) {
+        setGeneralError(error.message || 'Failed to post comment');
+      } else {
+        setGeneralError('An unexpected error occurred');
+      }
+      
+      form.setSubmitting(false);
     }
-  };
+  }
 
   return (
     <div className="mt-8">
       <h3 className="text-xl font-semibold mb-4">Discussion</h3>
       
-      <form onSubmit={handleSubmit} className="mb-6">
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Add your comment..."
-          className="w-full px-3 py-2 border border-gray-300 rounded resize-none h-24"
-          disabled={isSubmitting}
+      {generalError && (
+        <ErrorDisplay 
+          error={generalError} 
+          onDismiss={() => setGeneralError(null)} 
+          variant="error"
+          className="mb-4"
         />
-        <button
-          type="submit"
-          disabled={isSubmitting || !user}
-          className="mt-2 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
-        >
-          {isSubmitting ? 'Posting...' : 'Post Comment'}
-        </button>
-      </form>
+      )}
+      
+      <Form onSubmit={form.handleSubmit} className="mb-6">
+        <TextArea
+          id="content"
+          name="content"
+          label="Add your comment"
+          placeholder="Share your thoughts on this graph review..."
+          value={form.values.content}
+          onChange={form.handleChange('content')}
+          onBlur={form.handleBlur('content')}
+          error={form.errors.content}
+          touched={form.touched.content}
+          required
+          rows={4}
+          helpText={`Maximum ${FIELD_LIMITS.COMMENT_MAX_LENGTH} characters`}
+          containerClassName="mb-4"
+        />
+        
+        <SubmitButton
+          isSubmitting={form.isSubmitting}
+          label="Post Comment"
+          submittingLabel="Posting..."
+          disabled={form.isSubmitting || !user}
+          className="w-full md:w-auto"
+        />
+      </Form>
       
       <div className="space-y-4">
         {comments.length === 0 ? (
