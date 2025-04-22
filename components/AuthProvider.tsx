@@ -1,4 +1,4 @@
-// components/AuthProvider.tsx with Google-only auth
+// components/AuthProvider.tsx with fixes for role handling
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
@@ -25,8 +25,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Function to fetch user role
-  const fetchUserRole = async (userId: string): Promise<Role> => {
+  // Function to fetch user role with better error handling and retries
+  const fetchUserRole = async (userId: string, retryCount = 0): Promise<Role> => {
     console.log("Fetching role for user:", userId);
     try {
       const { data, error } = await supabase
@@ -36,6 +36,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .single();
         
       if (error) {
+        // If profile doesn't exist and we haven't retried too many times,
+        // create the profile and then try again
+        if (error.code === 'PGRST116' && retryCount < 2) {
+          console.log("Profile not found, attempting to create it");
+          await ensureUserProfile(userId);
+          // Retry after creating profile
+          return fetchUserRole(userId, retryCount + 1);
+        }
+        
         console.error('Error fetching user role:', error);
         return 'Member'; // Default to Member on error
       }
@@ -54,7 +63,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return userRole === 'Admin';
   };
 
-  // Function to ensure user profile exists - can be called whenever needed
+  // Improved function to ensure user profile exists with better error handling
   const ensureUserProfile = async (userId?: string, userData: any = {}): Promise<boolean> => {
     try {
       console.log("ensureUserProfile called");
@@ -76,22 +85,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('id', userId)
         .single();
       
-      if (checkError) {
-        console.error('Profile check error:', checkError);
-      }
-      
       if (!checkError && existingProfile) {
         console.log("Profile already exists for user:", userId, "with role:", existingProfile.role);
-        // Update user role if the profile exists
+        // Update user role if the profile exists - doing this here ensures we set
+        // the role as soon as we confirm the profile exists
         setUserRole(existingProfile.role as Role || 'Member');
         return true;
       }
       
       // Get user info for profile creation from userData or current user
-      const email = userData.email || (user?.email || '');
+      const currentUser = user || await supabase.auth.getUser()
+        .then(result => result.data.user || null);
+      
+      const email = userData.email || (currentUser?.email || '');
       const name = userData.name || 
-        (user?.user_metadata?.name || 
-         user?.user_metadata?.full_name ||
+        (currentUser?.user_metadata?.name || 
+         currentUser?.user_metadata?.full_name ||
          (email ? email.split('@')[0] : 'User'));
       
       console.log("Creating missing profile for user:", userId);
@@ -186,6 +195,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Fetch user role - await this to ensure it completes
           console.log("Fetching user role...");
           try {
+            // Make sure to await this to ensure role is set before continuing
             const role = await fetchUserRole(data.session.user.id);
             console.log("Role fetched successfully:", role);
             setUserRole(role);
@@ -266,6 +276,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           router.replace('/login');
         } else if (newSession) {
           // Update state for other events (token refresh, etc.)
+          console.log("Session update event, refreshing state");
           setSession(newSession);
           setUser(newSession.user || null);
           

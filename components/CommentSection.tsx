@@ -3,6 +3,7 @@ import { Comment } from '../models/Comment';
 import { User } from '../models/User';
 import { useAuth } from './AuthProvider';
 import { supabase } from '../lib/supabase';
+import { useRouter } from 'next/router';
 
 interface CommentSectionProps {
   comments: (Comment & { user: User })[];
@@ -13,6 +14,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) =
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user, session } = useAuth();
+  const router = useRouter(); // Add router to handle navigation
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,8 +52,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) =
         throw new Error('Failed to post comment');
       }
       
-      // Refresh the page to show the new comment
-      window.location.reload();
+      // Instead of reloading the page, use router to refresh the current page
+      // This prevents the auth state from being partially reset
+      setNewComment(''); // Clear the comment input
+      router.replace(router.asPath); // Refresh the current page without a full reload
     } catch (error) {
       console.error('Error posting comment:', error);
     } finally {
