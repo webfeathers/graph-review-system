@@ -1,4 +1,4 @@
-// components/AuthProvider.tsx
+// components/AuthProvider.tsx with additional debugging
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Function to fetch user role
   const fetchUserRole = async (userId: string) => {
+    console.log("Fetching role for user:", userId);
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -38,13 +39,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
       if (error) {
         console.error('Error fetching user role:', error);
-        return null;
+        return 'Member'; // Default to Member on error
       }
       
+      console.log("Retrieved role:", data?.role || 'Member');
       return data?.role as Role || 'Member';
     } catch (err) {
       console.error('Error in fetchUserRole:', err);
-      return null;
+      return 'Member'; // Default to Member on error
     }
   };
 
@@ -56,45 +58,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Function to ensure user profile exists - can be called whenever needed
   const ensureUserProfile = async (userId?: string, userData: any = {}) => {
     try {
+      console.log("ensureUserProfile called");
       if (!userId) {
         // Use the current user if no userId is provided
-        if (!user) return false;
+        if (!user) {
+          console.log("No user available for profile check");
+          return false;
+        }
         userId = user.id;
       }
       
       console.log("Ensuring profile exists for user:", userId);
       
-      // Create a timeout promise
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Profile check timed out")), 5000); // 5 second timeout
-      });
-      
-      // Check if profile exists with timeout
-      const checkProfilePromise = supabase
+      // Check if profile exists
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
         .select('id, role')
         .eq('id', userId)
         .single();
       
-      // Race the database check against the timeout
-      let existingProfile;
-      let checkError;
-      
-      try {
-        const result = await Promise.race([
-          checkProfilePromise,
-          timeoutPromise
-        ]) as any;
-        
-        existingProfile = result.data;
-        checkError = result.error;
-      } catch (err) {
-        console.error('Profile check timed out or failed:', err);
-        checkError = err;
+      if (checkError) {
+        console.error('Profile check error:', checkError);
       }
       
       if (!checkError && existingProfile) {
-        console.log("Profile already exists for user:", userId);
+        console.log("Profile already exists for user:", userId, "with role:", existingProfile.role);
         // Update user role if the profile exists
         setUserRole(existingProfile.role as Role || 'Member');
         return true;
@@ -109,8 +97,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       console.log("Creating missing profile for user:", userId);
       
-      // Create profile with timeout
-      const createProfilePromise = supabase
+      // Create profile
+      const { error: createError } = await supabase
         .from('profiles')
         .insert({
           id: userId,
@@ -120,27 +108,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           role: 'Member' // Default to Member role for new users
         });
       
-      let createError;
-      
-      try {
-        const createResult = await Promise.race([
-          createProfilePromise,
-          new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Profile creation timed out")), 5000);
-          })
-        ]) as any;
-        
-        createError = createResult.error;
-      } catch (err) {
-        console.error('Profile creation timed out or failed:', err);
-        createError = err;
-      }
-      
       if (createError) {
         console.error('Error creating profile:', createError);
         
         // Try using API fallback if direct creation fails
         try {
+          console.log("Attempting API fallback for profile creation");
           const token = await supabase.auth.getSession()
             .then(result => result.data.session?.access_token || '');
           
@@ -149,22 +122,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return false;
           }
           
-          console.log("Attempting API fallback for profile creation");
-          
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          
           const response = await fetch('/api/auth/ensure-profile', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ userId }),
-            signal: controller.signal
+            body: JSON.stringify({ userId })
           });
-          
-          clearTimeout(timeoutId);
           
           if (!response.ok) {
             throw new Error(`API responded with status: ${response.status}`);
@@ -210,24 +175,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         
+        console.log("Session check complete");
+        
         if (data.session) {
           console.log("Session found during initialization");
           setSession(data.session);
           setUser(data.session.user);
           
           // Fetch user role
-          const role = await fetchUserRole(data.session.user.id);
-          if (role) {
+          console.log("Fetching user role...");
+          try {
+            const role = await fetchUserRole(data.session.user.id);
+            console.log("Role fetched successfully:", role);
             setUserRole(role);
+          } catch (roleError) {
+            console.error("Error fetching user role:", roleError);
+            // Default to Member role on error
+            setUserRole('Member');
           }
           
-          // Don't await profile check to prevent blocking
+          // This part was using a Promise without handling it, let's handle it properly
+          console.log("Checking profile exists...");
           ensureUserProfile(data.session.user.id)
             .then(success => {
               console.log("Profile check completed:", success ? "success" : "failed");
             })
             .catch(err => {
               console.error("Profile check error:", err);
+            })
+            .finally(() => {
+              console.log("Profile check complete, continuing...");
             });
           
           // If user is on login page and already has a session, redirect to dashboard
@@ -240,6 +217,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.log("No session found during initialization");
         }
         
+        console.log("Auth initialization complete");
         setLoading(false);
       } catch (err) {
         console.error('Error during auth initialization:', err);
@@ -263,9 +241,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           // Fetch user role
           if (currentUser) {
-            const role = await fetchUserRole(currentUser.id);
-            if (role) {
+            try {
+              const role = await fetchUserRole(currentUser.id);
               setUserRole(role);
+            } catch (roleError) {
+              console.error("Error fetching user role:", roleError);
+              setUserRole('Member');
             }
           }
           
@@ -303,9 +284,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           // Fetch user role if user exists
           if (newSession?.user) {
-            const role = await fetchUserRole(newSession.user.id);
-            if (role) {
+            try {
+              const role = await fetchUserRole(newSession.user.id);
               setUserRole(role);
+            } catch (roleError) {
+              console.error("Error fetching user role:", roleError);
+              setUserRole('Member');
             }
           } else {
             setUserRole(null);
@@ -341,21 +325,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Fetch user role
         if (data.user) {
-          const role = await fetchUserRole(data.user.id);
-          if (role) {
+          try {
+            const role = await fetchUserRole(data.user.id);
             setUserRole(role);
+          } catch (roleError) {
+            console.error("Error fetching user role:", roleError);
+            setUserRole('Member');
           }
-        }
-        
-        // Don't await profile creation to prevent blocking
-        if (data.user) {
-          ensureUserProfile(data.user.id, { email })
-            .then(success => {
-              console.log("Profile check after sign-in completed:", success ? "success" : "failed");
-            })
-            .catch(err => {
-              console.error("Profile check after sign-in error:", err);
-            });
         }
       }
       
@@ -421,17 +397,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Set default role for new users
         setUserRole('Member');
-        
-        // Don't await profile creation to prevent blocking
-        if (data.user) {
-          ensureUserProfile(data.user.id, { email, name })
-            .then(success => {
-              console.log("Profile check after sign-up completed:", success ? "success" : "failed");
-            })
-            .catch(err => {
-              console.error("Profile check after sign-up error:", err);
-            });
-        }
       }
 
       return { error: null, user: data.user };
@@ -462,6 +427,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Error signing out:', error);
     }
   };
+
+  console.log("Auth context current state:", { 
+    sessionExists: !!session, 
+    userExists: !!user, 
+    userRole, 
+    loading 
+  });
 
   return (
     <AuthContext.Provider value={{ 
