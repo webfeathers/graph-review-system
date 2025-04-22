@@ -1,4 +1,4 @@
-// components/AuthProvider.tsx with additional debugging
+// components/AuthProvider.tsx with fixes
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   // Function to fetch user role
-  const fetchUserRole = async (userId: string) => {
+  const fetchUserRole = async (userId: string): Promise<Role> => {
     console.log("Fetching role for user:", userId);
     try {
       const { data, error } = await supabase
@@ -42,8 +42,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return 'Member'; // Default to Member on error
       }
       
-      console.log("Retrieved role:", data?.role || 'Member');
-      return data?.role as Role || 'Member';
+      const role = data?.role as Role || 'Member';
+      console.log("Retrieved role:", role);
+      return role;
     } catch (err) {
       console.error('Error in fetchUserRole:', err);
       return 'Member'; // Default to Member on error
@@ -56,7 +57,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   // Function to ensure user profile exists - can be called whenever needed
-  const ensureUserProfile = async (userId?: string, userData: any = {}) => {
+  const ensureUserProfile = async (userId?: string, userData: any = {}): Promise<boolean> => {
     try {
       console.log("ensureUserProfile called");
       if (!userId) {
@@ -114,8 +115,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Try using API fallback if direct creation fails
         try {
           console.log("Attempting API fallback for profile creation");
-          const token = await supabase.auth.getSession()
-            .then(result => result.data.session?.access_token || '');
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token || '';
           
           if (!token) {
             console.error("No auth token available for API fallback");
@@ -166,6 +167,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const initializeAuth = async () => {
       try {
         console.log("Initializing auth...");
+        setLoading(true);
+        
         // Get current session
         const { data, error } = await supabase.auth.getSession();
         
@@ -182,7 +185,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(data.session);
           setUser(data.session.user);
           
-          // Fetch user role
+          // Fetch user role - await this to ensure it completes
           console.log("Fetching user role...");
           try {
             const role = await fetchUserRole(data.session.user.id);
@@ -194,27 +197,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUserRole('Member');
           }
           
-          // This part was using a Promise without handling it, let's handle it properly
+          // Ensure profile exists
           console.log("Checking profile exists...");
-          ensureUserProfile(data.session.user.id)
-            .then(success => {
-              console.log("Profile check completed:", success ? "success" : "failed");
-            })
-            .catch(err => {
-              console.error("Profile check error:", err);
-            })
-            .finally(() => {
-              console.log("Profile check complete, continuing...");
-            });
+          await ensureUserProfile(data.session.user.id);
+          console.log("Profile check completed");
           
           // If user is on login page and already has a session, redirect to dashboard
           if (router.pathname === '/login' || router.pathname === '/register') {
             console.log("User already logged in, redirecting to dashboard");
-            window.location.href = '/dashboard';
-            return;
+            router.replace('/dashboard');
           }
         } else {
           console.log("No session found during initialization");
+          // Reset all state if no session found
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
         }
         
         console.log("Auth initialization complete");
@@ -242,30 +240,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Fetch user role
           if (currentUser) {
             try {
+              // Wait for role fetch to complete before continuing
               const role = await fetchUserRole(currentUser.id);
               setUserRole(role);
+              
+              // Ensure profile exists
+              await ensureUserProfile(currentUser.id);
+              
+              // Redirect to dashboard
+              if (router.pathname === '/login' || router.pathname === '/register') {
+                console.log("Redirecting to dashboard after sign in");
+                router.replace('/dashboard');
+              }
             } catch (roleError) {
               console.error("Error fetching user role:", roleError);
               setUserRole('Member');
             }
-          }
-          
-          // Don't await profile creation to prevent blocking
-          if (currentUser) {
-            ensureUserProfile(currentUser.id)
-              .then(success => {
-                console.log("Profile check after sign-in completed:", success ? "success" : "failed");
-              })
-              .catch(err => {
-                console.error("Profile check after sign-in error:", err);
-              });
-          }
-          
-          // Direct redirect to dashboard using window.location for sign in
-          if (router.pathname === '/login' || router.pathname === '/register') {
-            console.log("Redirecting to dashboard after sign in");
-            window.location.href = '/dashboard';
-            return;
           }
         } else if (event === 'SIGNED_OUT') {
           console.log("User signed out, updating state");
@@ -273,17 +263,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(null);
           setUserRole(null);
           
-          // Direct redirect to login page for sign out
+          // Redirect to login page for sign out
           console.log("Redirecting to login after sign out");
-          window.location.href = '/login';
-          return;
-        } else {
-          // Update state for other events
+          router.replace('/login');
+        } else if (newSession) {
+          // Update state for other events (token refresh, etc.)
           setSession(newSession);
-          setUser(newSession?.user || null);
+          setUser(newSession.user || null);
           
           // Fetch user role if user exists
-          if (newSession?.user) {
+          if (newSession.user) {
             try {
               const role = await fetchUserRole(newSession.user.id);
               setUserRole(role);
@@ -306,6 +295,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Attempting to sign in with:', email);
+      setLoading(true);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -313,6 +304,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error('Sign in error:', error);
+        setLoading(false);
         return { error };
       }
 
@@ -335,9 +327,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
       
+      setLoading(false);
       return { error: null };
     } catch (err) {
       console.error('Unexpected error during sign in:', err);
+      setLoading(false);
       return { error: err };
     }
   };
@@ -345,6 +339,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signInWithGoogle = async () => {
     try {
       console.log('Attempting to sign in with Google');
+      setLoading(true);
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -355,15 +350,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error('Google sign in error:', error);
+        setLoading(false);
         return { error };
       }
 
       // No immediate state update here as this will redirect the user
       console.log('Google sign in initiated:', data);
       
+      // Don't set loading to false here as we're redirecting
       return { error: null };
     } catch (err) {
       console.error('Unexpected error during Google sign in:', err);
+      setLoading(false);
       return { error: err };
     }
   };
@@ -371,6 +369,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signUp = async (email: string, password: string, name: string) => {
     try {
       console.log('Attempting to sign up with:', email);
+      setLoading(true);
       
       // First, attempt to create the user account
       const { data, error } = await supabase.auth.signUp({
@@ -385,6 +384,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) {
         console.error('Sign up error:', error);
+        setLoading(false);
         return { error, user: null };
       }
 
@@ -397,11 +397,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         // Set default role for new users
         setUserRole('Member');
+        
+        // Explicitly create a profile
+        await ensureUserProfile(data.user?.id, { name, email });
       }
 
+      setLoading(false);
       return { error: null, user: data.user };
     } catch (err) {
       console.error('Unexpected error during sign up:', err);
+      setLoading(false);
       return { error: err, user: null };
     }
   };
@@ -409,6 +414,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signOut = async () => {
     try {
       console.log('Signing out');
+      setLoading(true);
       
       // Set a flag to indicate clean logout
       localStorage.setItem('clean_logout', 'true');
@@ -422,9 +428,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUserRole(null);
       
       // Redirect
-      window.location.href = '/login';
+      router.replace('/login');
+      setLoading(false);
     } catch (error) {
       console.error('Error signing out:', error);
+      setLoading(false);
     }
   };
 
