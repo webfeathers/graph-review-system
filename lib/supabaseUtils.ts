@@ -70,7 +70,8 @@ export async function getReviews(userId?: string) {
             id: profile.id,
             name: profile.name,
             email: profile.email,
-            createdAt: profile.created_at
+            createdAt: profile.created_at,
+            role: profile.role || 'Member' // Add role field with fallback to 'Member'
           }
         };
       } else {
@@ -81,7 +82,8 @@ export async function getReviews(userId?: string) {
             id: review.user_id,
             name: 'Unknown User',
             email: '',
-            createdAt: review.created_at
+            createdAt: review.created_at,
+            role: 'Member' // Set default role
           }
         };
       }
@@ -144,13 +146,15 @@ export async function getReviewById(id: string) {
             id: profile.id,
             name: profile.name,
             email: profile.email,
-            createdAt: profile.created_at
+            createdAt: profile.created_at,
+            role: profile.role || 'Member' // Add role field with fallback
           }
         : {
             id: review.user_id,
             name: 'Unknown User',
             email: '',
-            createdAt: review.created_at
+            createdAt: review.created_at,
+            role: 'Member' // Default role
           }
     };
   } catch (err) {
@@ -282,7 +286,8 @@ export async function getCommentsByReviewId(reviewId: string) {
             id: profile.id,
             name: profile.name,
             email: profile.email,
-            createdAt: profile.created_at
+            createdAt: profile.created_at,
+            role: profile.role || 'Member' // Add role field with fallback
           }
         };
       } else {
@@ -293,7 +298,8 @@ export async function getCommentsByReviewId(reviewId: string) {
             id: comment.user_id,
             name: 'Unknown User',
             email: '',
-            createdAt: comment.created_at
+            createdAt: comment.created_at,
+            role: 'Member' // Default role
           }
         };
       }
