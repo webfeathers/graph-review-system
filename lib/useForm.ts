@@ -85,16 +85,24 @@ export function useForm<T extends FormValues>(options: UseFormOptions<T>): UseFo
   // Validate a single field
   const validateField = useCallback(<K extends keyof T>(field: K): string | null => {
     // Check if validationSchema exists and has this field
-    if (!validationSchema || !(field in validationSchema)) {
+    if (!validationSchema) {
       return null;
     }
     
-    const validator = validationSchema[field as keyof typeof validationSchema];
-    if (!validator) {
+    // Check if the field exists in the validation schema
+    const fieldName = field as string;
+    if (!Object.prototype.hasOwnProperty.call(validationSchema, fieldName)) {
       return null;
     }
     
-    const error = validator(values[field], values);
+    // Type assertion to help TypeScript understand that this is callable
+    const validatorFn = validationSchema[field] as ((value: any, formValues?: any) => string | null) | undefined;
+    
+    if (typeof validatorFn !== 'function') {
+      return null;
+    }
+    
+    const error = validatorFn(values[field], values);
     
     setFormState(prev => ({
       ...prev,
