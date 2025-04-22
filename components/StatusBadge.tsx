@@ -1,3 +1,4 @@
+// components/StatusBadge.tsx
 import React from 'react';
 
 interface StatusBadgeProps {
@@ -8,15 +9,15 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const getStatusColor = () => {
     switch (status) {
       case 'Submitted':
-        return 'bg-gray-200 text-gray-800';
+        return 'bg-gray-200 text-[#58595b]';
       case 'In Review':
         return 'bg-blue-200 text-blue-800';
       case 'Needs Work':
         return 'bg-yellow-200 text-yellow-800';
       case 'Approved':
-        return 'bg-green-200 text-green-800';
+        return 'bg-[#d1f0e1] text-[#2db670]';
       default:
-        return 'bg-gray-200 text-gray-800';
+        return 'bg-gray-200 text-[#58595b]';
     }
   };
 

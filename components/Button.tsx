@@ -56,12 +56,12 @@ export const Button: React.FC<ButtonProps> = ({
     lg: 'px-6 py-3 text-lg'
   }[size];
   
-  // Variant-specific classes
+  // Variant-specific classes with updated colors
   const variantClasses = {
-    primary: 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-blue-300',
-    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400',
+    primary: 'bg-[#2db670] text-white hover:bg-[#259e5f] disabled:bg-[#93d8b7]',
+    secondary: 'bg-gray-200 text-[#58595b] hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400',
     danger: 'bg-red-500 text-white hover:bg-red-600 disabled:bg-red-300',
-    ghost: 'bg-transparent text-blue-500 hover:bg-blue-50 disabled:text-gray-300 disabled:bg-transparent'
+    ghost: 'bg-transparent text-[#2db670] hover:bg-[#ebf7f1] disabled:text-gray-300 disabled:bg-transparent'
   }[variant];
   
   // Width class

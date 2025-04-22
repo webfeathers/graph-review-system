@@ -33,8 +33,17 @@ const Register: NextPage = () => {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-100">
+    <div className="flex justify-center items-center min-h-screen bg-gray-100 font-['Montserrat',sans-serif]">
       <div className="w-full max-w-md">
+        <div className="text-center mb-6">
+          <img 
+            src="https://leandata.com/wp-content/uploads/2019/12/logo-white.png" 
+            alt="LeanData Logo" 
+            className="h-12 mx-auto bg-[#2db670] p-2 rounded-lg" 
+          />
+          <h1 className="text-2xl font-bold mt-4 text-[#58595b]">Create Account</h1>
+        </div>
+        
         <AuthForm mode="register" />
         
         <div className="mt-4 text-center">
@@ -47,9 +56,9 @@ const Register: NextPage = () => {
           <GoogleLoginButton className="mb-4" />
         </div>
         
-        <p className="mt-4 text-center">
+        <p className="mt-4 text-center text-[#58595b]">
           Already have an account?{' '}
-          <Link href="/login" className="text-blue-500 hover:underline">
+          <Link href="/login" className="text-[#2db670] hover:underline">
             Log in here
           </Link>
         </p>

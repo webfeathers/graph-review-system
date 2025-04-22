@@ -17,11 +17,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-blue-600 text-white shadow">
+    <div className="min-h-screen flex flex-col font-['Montserrat',sans-serif]">
+      <header className="bg-[#2db670] text-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link href="/" className="text-xl font-bold">
-            Graph Review App
+          <Link href="/" className="flex items-center">
+            <img 
+              src="https://leandata.com/wp-content/uploads/2019/12/logo-white.png" 
+              alt="LeanData Logo" 
+              className="h-8 mr-2" 
+            />
+            <span className="text-xl font-bold">Graph Review</span>
           </Link>
           
           {user && (
@@ -58,9 +63,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {children}
       </main>
       
-      <footer className="bg-gray-100 py-4">
-        <div className="container mx-auto px-4 text-center text-gray-600">
-          &copy; {new Date().getFullYear()} Graph Review App
+      <footer className="bg-[#58595b] text-white py-4">
+        <div className="container mx-auto px-4 text-center">
+          &copy; {new Date().getFullYear()} LeanData Graph Review
         </div>
       </footer>
     </div>
