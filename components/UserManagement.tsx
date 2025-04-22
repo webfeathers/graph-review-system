@@ -1,10 +1,10 @@
-// components/UserManagement.tsx with comprehensive fixes
+// components/UserManagement.tsx
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
 import { Profile, Role } from '../types/supabase';
 import { Button } from './Button';
 import { LoadingState } from './LoadingState';
 import { ErrorDisplay } from './ErrorDisplay';
+import { ProfileService } from '../lib/profileService';
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -24,26 +24,9 @@ const UserManagement: React.FC = () => {
     setSuccessMessage(null);
     
     try {
-      // Use direct Supabase query for better reliability
-      const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('name');
-      
-      if (fetchError) {
-        throw new Error(`Failed to fetch users: ${fetchError.message}`);
-      }
-      
-      // Format the data to match the expected Profile type
-      const formattedUsers = data.map(profile => ({
-        id: profile.id,
-        name: profile.name || 'Unnamed User',
-        email: profile.email || '',
-        createdAt: profile.created_at,
-        role: (profile.role as Role) || 'Member'
-      }));
-      
-      setUsers(formattedUsers);
+      // Use ProfileService to get all profiles
+      const profiles = await ProfileService.getAllProfiles();
+      setUsers(profiles);
     } catch (err: any) {
       console.error('Error fetching users:', err);
       setError(err.message || 'Failed to load users');
@@ -58,33 +41,16 @@ const UserManagement: React.FC = () => {
     setSavingUserId(userId);
     
     try {
-      console.log(`Updating user ${userId} to role ${role}`);
+      // Use ProfileService to update user role
+      const success = await ProfileService.updateUserRole(userId, role);
       
-      // Direct database update using Supabase client
-      const { data, error: updateError } = await supabase
-        .from('profiles')
-        .update({ role })
-        .eq('id', userId)
-        .select()
-        .single();
-      
-      if (updateError) {
-        console.error('Error updating user role:', updateError);
-        throw new Error(`Failed to update role: ${updateError.message}`);
+      if (!success) {
+        throw new Error('Failed to update user role');
       }
-      
-      if (!data) {
-        throw new Error('No data returned after update');
-      }
-      
-      console.log('Role updated successfully:', data);
       
       // Update local state
       setUsers(users.map(user => 
-        user.id === userId ? { 
-          ...user, 
-          role: data.role as Role || role 
-        } : user
+        user.id === userId ? { ...user, role } : user
       ));
       
       setSuccessMessage(`User role updated to ${role} successfully`);

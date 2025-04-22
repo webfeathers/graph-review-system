@@ -1,9 +1,10 @@
-// components/AuthProvider.tsx with fixes for role handling
+// components/AuthProvider.tsx with ProfileService integration
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import { Session, User } from '@supabase/supabase-js';
 import { Role } from '../types/supabase';
+import { ProfileService } from '../lib/profileService';
 
 type AuthContextType = {
   session: Session | null;
@@ -14,6 +15,7 @@ type AuthContextType = {
   loading: boolean;
   ensureUserProfile: (userId?: string, userData?: any) => Promise<boolean>;
   isAdmin: () => boolean;
+  refreshUserRole: () => Promise<Role | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -25,146 +27,53 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Function to fetch user role with better error handling and retries
-  const fetchUserRole = async (userId: string, retryCount = 0): Promise<Role> => {
-    console.log("Fetching role for user:", userId);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-        
-      if (error) {
-        // If profile doesn't exist and we haven't retried too many times,
-        // create the profile and then try again
-        if (error.code === 'PGRST116' && retryCount < 2) {
-          console.log("Profile not found, attempting to create it");
-          await ensureUserProfile(userId);
-          // Retry after creating profile
-          return fetchUserRole(userId, retryCount + 1);
-        }
-        
-        console.error('Error fetching user role:', error);
-        return 'Member'; // Default to Member on error
-      }
-      
-      const role = data?.role as Role || 'Member';
-      console.log("Retrieved role:", role);
-      return role;
-    } catch (err) {
-      console.error('Error in fetchUserRole:', err);
-      return 'Member'; // Default to Member on error
-    }
-  };
-
   // Function to check if current user is admin
   const isAdmin = (): boolean => {
     return userRole === 'Admin';
   };
 
-  // Improved function to ensure user profile exists with better error handling
+  // Function to refresh the user's role from the database
+  const refreshUserRole = async (): Promise<Role | null> => {
+    if (!user) return null;
+    
+    try {
+      const role = await ProfileService.getUserRole(user.id);
+      setUserRole(role);
+      return role;
+    } catch (error) {
+      console.error('Error refreshing user role:', error);
+      return null;
+    }
+  };
+
+  // Function to ensure user profile exists - now using ProfileService
   const ensureUserProfile = async (userId?: string, userData: any = {}): Promise<boolean> => {
     try {
-      console.log("ensureUserProfile called");
-      if (!userId) {
-        // Use the current user if no userId is provided
-        if (!user) {
-          console.log("No user available for profile check");
-          return false;
-        }
-        userId = user.id;
+      // If no userId specified, use current user
+      const targetUser = !userId ? user : 
+        await supabase.auth.getUser()
+          .then(({ data }) => data.user)
+          .catch(() => null);
+      
+      if (!targetUser) {
+        console.log("No user available for profile check");
+        return false;
       }
       
-      console.log("Ensuring profile exists for user:", userId);
+      // Use the ProfileService to ensure profile exists
+      const profile = await ProfileService.ensureProfile(targetUser);
       
-      // Check if profile exists
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('id, role')
-        .eq('id', userId)
-        .single();
-      
-      if (!checkError && existingProfile) {
-        console.log("Profile already exists for user:", userId, "with role:", existingProfile.role);
-        // Update user role if the profile exists - doing this here ensures we set
-        // the role as soon as we confirm the profile exists
-        setUserRole(existingProfile.role as Role || 'Member');
+      if (profile) {
+        // Update role in state if this is for the current user
+        if (targetUser.id === user?.id) {
+          setUserRole(profile.role);
+        }
         return true;
       }
       
-      // Get user info for profile creation from userData or current user
-      const currentUser = user || await supabase.auth.getUser()
-        .then(result => result.data.user || null);
-      
-      const email = userData.email || (currentUser?.email || '');
-      const name = userData.name || 
-        (currentUser?.user_metadata?.name || 
-         currentUser?.user_metadata?.full_name ||
-         (email ? email.split('@')[0] : 'User'));
-      
-      console.log("Creating missing profile for user:", userId);
-      
-      // Create profile
-      const { error: createError } = await supabase
-        .from('profiles')
-        .insert({
-          id: userId,
-          name,
-          email,
-          created_at: new Date().toISOString(),
-          role: 'Member' // Default to Member role for new users
-        });
-      
-      if (createError) {
-        console.error('Error creating profile:', createError);
-        
-        // Try using API fallback if direct creation fails
-        try {
-          console.log("Attempting API fallback for profile creation");
-          const { data } = await supabase.auth.getSession();
-          const token = data.session?.access_token || '';
-          
-          if (!token) {
-            console.error("No auth token available for API fallback");
-            return false;
-          }
-          
-          const response = await fetch('/api/auth/ensure-profile', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ userId })
-          });
-          
-          if (!response.ok) {
-            throw new Error(`API responded with status: ${response.status}`);
-          }
-          
-          const result = await response.json();
-          if (result.success) {
-            console.log("Profile created successfully via API");
-            
-            // Set default role
-            setUserRole('Member');
-            return true;
-          } else {
-            throw new Error(result.message || "API failed to create profile");
-          }
-        } catch (apiError) {
-          console.error("API fallback failed:", apiError);
-          return false;
-        }
-      }
-      
-      console.log("Profile created successfully for user:", userId);
-      // Set default role for new users
-      setUserRole('Member');
-      return true;
-    } catch (err) {
-      console.error('Error in ensureUserProfile:', err);
+      return false;
+    } catch (error) {
+      console.error('Error in ensureUserProfile:', error);
       return false;
     }
   };
@@ -185,30 +94,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
         
-        console.log("Session check complete");
-        
         if (data.session) {
           console.log("Session found during initialization");
           setSession(data.session);
           setUser(data.session.user);
           
-          // Fetch user role - await this to ensure it completes
-          console.log("Fetching user role...");
-          try {
-            // Make sure to await this to ensure role is set before continuing
-            const role = await fetchUserRole(data.session.user.id);
-            console.log("Role fetched successfully:", role);
-            setUserRole(role);
-          } catch (roleError) {
-            console.error("Error fetching user role:", roleError);
-            // Default to Member role on error
+          // Ensure profile and get role in one step
+          const profile = await ProfileService.ensureProfile(data.session.user);
+          
+          if (profile) {
+            console.log("Profile found with role:", profile.role);
+            setUserRole(profile.role);
+          } else {
+            console.warn("Could not find or create profile, defaulting to Member role");
             setUserRole('Member');
           }
-          
-          // Ensure profile exists
-          console.log("Checking profile exists...");
-          await ensureUserProfile(data.session.user.id);
-          console.log("Profile check completed");
           
           // If user is on login page and already has a session, redirect to dashboard
           if (router.pathname === '/login' || router.pathname === '/register') {
@@ -245,24 +145,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(newSession);
           setUser(currentUser);
           
-          // Fetch user role
+          // Ensure profile and get role in one step
           if (currentUser) {
-            try {
-              // Wait for role fetch to complete before continuing
-              const role = await fetchUserRole(currentUser.id);
-              setUserRole(role);
-              
-              // Ensure profile exists
-              await ensureUserProfile(currentUser.id);
-              
-              // Redirect to dashboard
-              if (router.pathname === '/login' || router.pathname === '/register') {
-                console.log("Redirecting to dashboard after sign in");
-                router.replace('/dashboard');
-              }
-            } catch (roleError) {
-              console.error("Error fetching user role:", roleError);
+            const profile = await ProfileService.ensureProfile(currentUser);
+            
+            if (profile) {
+              setUserRole(profile.role);
+            } else {
+              console.warn("Could not find or create profile after sign in, defaulting to Member role");
               setUserRole('Member');
+            }
+            
+            // Redirect to dashboard
+            if (router.pathname === '/login' || router.pathname === '/register') {
+              console.log("Redirecting to dashboard after sign in");
+              router.replace('/dashboard');
             }
           }
         } else if (event === 'SIGNED_OUT') {
@@ -274,23 +171,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Redirect to login page for sign out
           console.log("Redirecting to login after sign out");
           router.replace('/login');
-        } else if (newSession) {
-          // Update state for other events (token refresh, etc.)
-          console.log("Session update event, refreshing state");
-          setSession(newSession);
-          setUser(newSession.user || null);
+        } else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          // Update state for token refresh events
+          console.log(`${event} event received, updating session data`);
           
-          // Fetch user role if user exists
-          if (newSession.user) {
-            try {
-              const role = await fetchUserRole(newSession.user.id);
+          if (newSession) {
+            setSession(newSession);
+            setUser(newSession.user || null);
+            
+            // Only refresh role if needed
+            if (newSession.user && !userRole) {
+              const role = await ProfileService.getUserRole(newSession.user.id);
               setUserRole(role);
-            } catch (roleError) {
-              console.error("Error fetching user role:", roleError);
-              setUserRole('Member');
             }
-          } else {
-            setUserRole(null);
           }
         }
         
@@ -372,7 +265,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       signOut, 
       loading,
       ensureUserProfile,
-      isAdmin
+      isAdmin,
+      refreshUserRole
     }}>
       {children}
     </AuthContext.Provider>
