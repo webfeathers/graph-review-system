@@ -8,7 +8,9 @@ import {
   maxFileSize,
   email,
   matches,
-  pattern
+  pattern,
+  ValidationRule,
+  FieldValidator
 } from './validationUtils';
 import { 
   FIELD_LIMITS, 
@@ -16,10 +18,14 @@ import {
   MAX_FILE_SIZES
 } from '../constants';
 
+// Define schema types
+type SchemaType = 'review' | 'comment' | 'profile' | 'registration' | 'login' | 'userManagement';
+type ValidationSchema = Record<string, FieldValidator<any>>;
+
 /**
  * Validation schema for review forms
  */
-export const reviewValidationSchema = {
+export const reviewValidationSchema: ValidationSchema = {
   title: createValidator(
     required('Title is required'),
     minLength(3, 'Title must be at least 3 characters'),
@@ -43,7 +49,7 @@ export const reviewValidationSchema = {
 /**
  * Validation schema for comments
  */
-export const commentValidationSchema = {
+export const commentValidationSchema: ValidationSchema = {
   content: createValidator(
     required('Comment cannot be empty'),
     minLength(3, 'Comment must be at least 3 characters'),
@@ -54,7 +60,7 @@ export const commentValidationSchema = {
 /**
  * Validation schema for user profile
  */
-export const profileValidationSchema = {
+export const profileValidationSchema: ValidationSchema = {
   name: createValidator(
     required('Name is required'),
     minLength(2, 'Name must be at least 2 characters'),
@@ -73,7 +79,7 @@ export const profileValidationSchema = {
 /**
  * Validation schema for registration
  */
-export const registrationValidationSchema = {
+export const registrationValidationSchema: ValidationSchema = {
   name: profileValidationSchema.name,
   email: profileValidationSchema.email,
   password: createValidator(
@@ -93,7 +99,7 @@ export const registrationValidationSchema = {
 /**
  * Validation schema for login
  */
-export const loginValidationSchema = {
+export const loginValidationSchema: ValidationSchema = {
   email: profileValidationSchema.email,
   password: createValidator(
     required('Password is required')
@@ -103,7 +109,7 @@ export const loginValidationSchema = {
 /**
  * Validation schema for admin user management
  */
-export const userManagementValidationSchema = {
+export const userManagementValidationSchema: ValidationSchema = {
   role: createValidator(
     required('Role is required'),
     pattern(/^(Member|Admin)$/, 'Invalid role')
@@ -117,13 +123,13 @@ export const userManagementValidationSchema = {
  * @returns Combined validation schema
  */
 export function buildValidationSchema(fields: {
-  schema: 'review' | 'comment' | 'profile' | 'registration' | 'login' | 'userManagement';
+  schema: SchemaType;
   fields: string[];
-}[]) {
-  const result: Record<string, any> = {};
+}[]): ValidationSchema {
+  const result: ValidationSchema = {};
   
   fields.forEach(({ schema, fields }) => {
-    let sourceSchema;
+    let sourceSchema: ValidationSchema | null = null;
     
     switch (schema) {
       case 'review':
@@ -144,13 +150,17 @@ export function buildValidationSchema(fields: {
       case 'userManagement':
         sourceSchema = userManagementValidationSchema;
         break;
+      default:
+        sourceSchema = null;
     }
     
-    fields.forEach(field => {
-      if (sourceSchema && sourceSchema[field]) {
-        result[field] = sourceSchema[field];
-      }
-    });
+    if (sourceSchema) {
+      fields.forEach(field => {
+        if (sourceSchema && field in sourceSchema) {
+          result[field] = sourceSchema[field];
+        }
+      });
+    }
   });
   
   return result;
