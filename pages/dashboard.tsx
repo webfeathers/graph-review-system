@@ -73,7 +73,7 @@ const Dashboard: NextPage = () => {
                 href="/reviews/new"
                 className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 inline-block mt-2"
               >
-                Create Your First Review
+                Submit Your First Review
               </Link>
             }
           />
