@@ -60,8 +60,19 @@ export default async function handler(
     }
     
     // If profile doesn't exist or there was an error, create a new one
+    // For Google login, extract name from user_metadata
     const userData = user.user_metadata || {};
-    const name = userData.name || (user.email ? user.email.split('@')[0] : 'User');
+    let name = userData.name || userData.full_name;
+    
+    // If no name found in metadata, try to create one from email
+    if (!name && user.email) {
+      name = user.email.split('@')[0];
+    }
+    
+    // Fallback name if nothing else works
+    if (!name) {
+      name = 'User';
+    }
     
     const { data: newProfile, error: createError } = await supabase
       .from('profiles')

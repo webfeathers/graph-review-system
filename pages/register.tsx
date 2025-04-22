@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { useEffect } from 'react';
 import AuthForm from '../components/AuthForm';
 import { useAuth } from '../components/AuthProvider';
+import GoogleLoginButton from '../components/GoogleLoginButton';
 
 const Register: NextPage = () => {
   const { user, loading } = useAuth();
@@ -35,6 +36,17 @@ const Register: NextPage = () => {
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md">
         <AuthForm mode="register" />
+        
+        <div className="mt-4 text-center">
+          <div className="flex items-center justify-center my-4">
+            <div className="flex-grow border-t border-gray-300"></div>
+            <span className="px-3 text-gray-500 text-sm">OR</span>
+            <div className="flex-grow border-t border-gray-300"></div>
+          </div>
+          
+          <GoogleLoginButton className="mb-4" />
+        </div>
+        
         <p className="mt-4 text-center">
           Already have an account?{' '}
           <Link href="/login" className="text-blue-500 hover:underline">

@@ -8,6 +8,7 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithGoogle: () => Promise<{ error: any }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: any, user: User | null }>;
   signOut: () => Promise<void>;
   loading: boolean;
@@ -71,6 +72,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const email = userData.email || (user?.email || '');
       const name = userData.name || 
         (user?.user_metadata?.name || 
+         user?.user_metadata?.full_name ||
          (email ? email.split('@')[0] : 'User'));
       
       console.log("Creating missing profile for user:", userId);
@@ -293,6 +295,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const signInWithGoogle = async () => {
+    try {
+      console.log('Attempting to sign in with Google');
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin + '/dashboard'
+        }
+      });
+
+      if (error) {
+        console.error('Google sign in error:', error);
+        return { error };
+      }
+
+      // No immediate state update here as this will redirect the user
+      console.log('Google sign in initiated:', data);
+      
+      return { error: null };
+    } catch (err) {
+      console.error('Unexpected error during Google sign in:', err);
+      return { error: err };
+    }
+  };
+
   const signUp = async (email: string, password: string, name: string) => {
     try {
       console.log('Attempting to sign up with:', email);
@@ -365,6 +393,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       session, 
       user, 
       signIn, 
+      signInWithGoogle,
       signUp, 
       signOut, 
       loading,
