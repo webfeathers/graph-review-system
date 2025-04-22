@@ -17,6 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
   
   return (
+    <div className="lt-hero-unit__bg" />
     <div className="min-h-screen flex flex-col font-['Montserrat',sans-serif]">
       <header className="bg-[#2db670] text-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
