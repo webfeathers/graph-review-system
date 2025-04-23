@@ -42,6 +42,7 @@ interface ReviewFormValues {
 const EditReview: NextPage = () => {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
+  const { id } = router.query;
   
   const [review, setReview] = useState<ReviewWithProfile | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -51,9 +52,9 @@ const EditReview: NextPage = () => {
   const [graphImageTouched, setGraphImageTouched] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [dataFetched, setDataFetched] = useState(false);
+  const [formInitialized, setFormInitialized] = useState(false);
 
-  // Initialize form with empty values
+  // Initialize form with empty values first
   const form = useForm<ReviewFormValues>({
     initialValues: {
       title: '',
@@ -76,37 +77,27 @@ const EditReview: NextPage = () => {
     onSubmit: handleSubmit
   });
 
-  // Check for router readiness and fetch data
+  // Load review data and set up form
   useEffect(() => {
-    // Wait until router is ready and id is available
-    if (!router.isReady || authLoading) return;
-
-    const reviewId = router.query.id;
-    if (!reviewId || typeof reviewId !== 'string') {
-      setGeneralError('Invalid review ID');
-      setLoading(false);
+    if (authLoading) return;
+    
+    if (!user) {
+      router.push('/login');
       return;
     }
 
-    // Only fetch data once
-    if (dataFetched) return;
+    if (!id) return;
 
-    async function fetchData() {
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
+    const loadReview = async () => {
       try {
-        console.log('Fetching review data for ID:', reviewId);
+        console.log('Loading review data for ID:', id);
+        setLoading(true);
         
-        // Now reviewId is guaranteed to be a string
-        const reviewData = await getReviewById(reviewId);
+        const reviewData = await getReviewById(id as string);
         console.log('Review data loaded:', reviewData);
-        
         setReview(reviewData);
         
-        // Set the form values
+        // Set form values only once
         form.setValues({
           title: reviewData.title || '',
           description: reviewData.description || '',
@@ -119,6 +110,10 @@ const EditReview: NextPage = () => {
           customerFolder: reviewData.customerFolder || '',
           handoffLink: reviewData.handoffLink || ''
         });
+        console.log('Form values set');
+        
+        // Set form initialized
+        setFormInitialized(true);
         
         // Set the initial graph image URL if it exists
         if (reviewData.graphImageUrl) {
@@ -129,22 +124,22 @@ const EditReview: NextPage = () => {
         const isAuthor = reviewData.userId === user.id;
         const userIsAdmin = isAdmin && isAdmin();
         setIsAuthorized(isAuthor || !!userIsAdmin);
+        console.log('Authorization check:', { isAuthor, isAdmin: userIsAdmin, isAuthorized: isAuthor || !!userIsAdmin });
 
         if (!isAuthor && !userIsAdmin) {
           setGeneralError('You are not authorized to edit this review');
         }
-        
-        setDataFetched(true);
+
+        setLoading(false);
       } catch (error) {
         console.error('Error loading review:', error);
         setGeneralError('Failed to load review');
-      } finally {
         setLoading(false);
       }
-    }
+    };
 
-    fetchData();
-  }, [router.isReady, router.query.id, authLoading, user, router, isAdmin, dataFetched]);
+    loadReview();
+  }, [id, user, authLoading, router, isAdmin]); // Don't include form in dependencies
 
   // Handle image change
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,53 +297,40 @@ const EditReview: NextPage = () => {
     }
   }
 
-  if (!router.isReady || authLoading || loading) {
+  // Debug logging
+  console.log('Component state:', { 
+    loading, 
+    authLoading, 
+    formInitialized,
+    isAuthorized,
+    reviewId: id,
+    hasReview: !!review
+  });
+
+  if (authLoading || loading) {
     return (
       <Layout>
         <div className="flex justify-center items-center h-64">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-          <span className="ml-4">Loading...</span>
+          <span className="ml-4">Loading review data...</span>
         </div>
       </Layout>
     );
   }
 
-  if (!user) {
+  if (!user || !review) {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto">
           <h1 className="text-3xl font-bold mb-6">Edit Review</h1>
           <ErrorDisplay 
-            error="Please log in to edit reviews" 
+            error={!user ? "Please log in to edit reviews" : "Review not found"} 
             variant="error"
             className="mb-6"
           />
           <div className="flex justify-center">
             <button
-              onClick={() => router.push('/login')}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Log In
-            </button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!review) {
-    return (
-      <Layout>
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Edit Review</h1>
-          <ErrorDisplay 
-            error={generalError || "Review not found"} 
-            variant="error"
-            className="mb-6"
-          />
-          <div className="flex justify-center">
-            <button
-              onClick={() => router.push('/reviews')}
+              onClick={() => router.push(`/reviews`)}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               Back to Reviews
@@ -371,12 +353,23 @@ const EditReview: NextPage = () => {
           />
           <div className="flex justify-center">
             <button
-              onClick={() => router.push(`/reviews/${router.query.id}`)}
+              onClick={() => router.push(`/reviews/${id}`)}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               Back to Review
             </button>
           </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!formInitialized) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+          <span className="ml-4">Preparing form...</span>
         </div>
       </Layout>
     );
@@ -540,7 +533,7 @@ const EditReview: NextPage = () => {
           <div className="flex items-center justify-between mt-8">
             <button
               type="button"
-              onClick={() => router.push(`/reviews/${router.query.id}`)}
+              onClick={() => router.push(`/reviews/${id}`)}
               className="text-gray-600 hover:underline"
             >
               Cancel
