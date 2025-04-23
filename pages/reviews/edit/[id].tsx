@@ -81,15 +81,19 @@ const EditReview: NextPage = () => {
     // Wait until router is ready and id is available
     if (!router.isReady || authLoading) return;
 
-    const reviewId = router.query.id;
-    if (!reviewId || typeof reviewId !== 'string') {
+    // Only fetch data once
+    if (dataFetched) return;
+
+    // Get the ID as a string
+    const reviewId = Array.isArray(router.query.id) 
+      ? router.query.id[0] 
+      : router.query.id;
+      
+    if (!reviewId) {
       setGeneralError('Invalid review ID');
       setLoading(false);
       return;
     }
-
-    // Only fetch data once
-    if (dataFetched) return;
 
     async function fetchData() {
       if (!user) {
@@ -100,7 +104,6 @@ const EditReview: NextPage = () => {
       try {
         console.log('Fetching review data for ID:', reviewId);
         
-        // Now reviewId is guaranteed to be a string
         const reviewData = await getReviewById(reviewId);
         console.log('Review data loaded:', reviewData);
         
