@@ -116,69 +116,87 @@ const NewReview: NextPage = () => {
   };
 
   // Handle form submission
- async function handleSubmit(values: ReviewFormValues) {
-  try {
-    // Clear any previous errors
-    setGeneralError(null);
+  async function handleSubmit(values: ReviewFormValues) {
+    try {
+      // Clear any previous errors
+      setGeneralError(null);
 
-    if (!user) {
-      setGeneralError('You must be logged in to submit a review');
-      form.setSubmitting(false);
-      return;
-    }
-
-    let uploadedImageUrl;
-    
-    // Upload image if provided
-    if (graphImage) {
-      try {
-        // ... existing image upload code ...
-        uploadedImageUrl = urlData.publicUrl;
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        setGeneralError('Failed to upload image. Please try again.');
+      if (!user) {
+        setGeneralError('You must be logged in to submit a review');
         form.setSubmitting(false);
         return;
       }
-    }
 
-    // Create the review using the utility function
-    try {
-      const result = await createReview({
-        title: values.title,
-        description: values.description,
-        graphImageUrl: uploadedImageUrl,
-        status: 'Submitted',
-        userId: user.id,
-        // New fields
-        accountName: values.accountName,
-        orgId: values.orgId,
-        segment: values.segment as 'Enterprise' | 'MidMarket',
-        remoteAccess: values.remoteAccess,
-        graphName: values.graphName,
-        useCase: values.useCase,
-        customerFolder: values.customerFolder,
-        handoffLink: values.handoffLink
-      });
+      let uploadedImageUrl;
       
-      console.log('Review created successfully:', result);
-      
-      // Add a small delay to ensure the state is updated before navigation
-      setTimeout(() => {
-        router.push('/reviews');
-      }, 100);
-      
+      // Upload image if provided
+      if (graphImage) {
+        try {
+          // Create a unique filename
+          const timestamp = Date.now();
+          const safeFileName = graphImage.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const filename = `${timestamp}_${safeFileName}`;
+          
+          // Upload to Supabase storage
+          const { data, error } = await supabase.storage
+            .from(StorageBucket.GRAPH_IMAGES)
+            .upload(filename, graphImage);
+          
+          if (error) {
+            throw error;
+          }
+          
+          // Get the public URL
+          const { data: urlData } = supabase.storage
+            .from(StorageBucket.GRAPH_IMAGES)
+            .getPublicUrl(data.path);
+          
+          uploadedImageUrl = urlData.publicUrl;
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          setGeneralError('Failed to upload image. Please try again.');
+          form.setSubmitting(false);
+          return;
+        }
+      }
+
+      // Create the review using the utility function
+      try {
+        const result = await createReview({
+          title: values.title,
+          description: values.description,
+          graphImageUrl: uploadedImageUrl,
+          status: 'Submitted',
+          userId: user.id,
+          // New fields
+          accountName: values.accountName,
+          orgId: values.orgId,
+          segment: values.segment as 'Enterprise' | 'MidMarket',
+          remoteAccess: values.remoteAccess,
+          graphName: values.graphName,
+          useCase: values.useCase,
+          customerFolder: values.customerFolder,
+          handoffLink: values.handoffLink
+        });
+        
+        console.log('Review created successfully:', result);
+        
+        // Add a small delay to ensure the state is updated before navigation
+        setTimeout(() => {
+          router.push('/reviews');
+        }, 100);
+        
+      } catch (error) {
+        console.error('Error creating review:', error);
+        setGeneralError(error instanceof Error ? error.message : 'Failed to create review');
+        form.setSubmitting(false);
+      }
     } catch (error) {
-      console.error('Error creating review:', error);
-      setGeneralError(error instanceof Error ? error.message : 'Failed to create review');
+      console.error('Unexpected error:', error);
+      setGeneralError('An unexpected error occurred. Please try again.');
       form.setSubmitting(false);
     }
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    setGeneralError('An unexpected error occurred. Please try again.');
-    form.setSubmitting(false);
   }
-}
 
   if (authLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
