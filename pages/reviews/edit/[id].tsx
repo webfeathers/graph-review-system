@@ -89,11 +89,17 @@ const EditReview: NextPage = () => {
       ? router.query.id[0] 
       : router.query.id;
       
+if (typeof reviewId !== 'string') {
+  return { notFound: true };
+}
+
+      
     if (!reviewId) {
       setGeneralError('Invalid review ID');
       setLoading(false);
       return;
     }
+
 
     async function fetchData() {
       if (!user) {
@@ -101,10 +107,6 @@ const EditReview: NextPage = () => {
         return;
       }
 
-const { reviewId } = context.query;
-if (typeof reviewId !== 'string') {
-  return { notFound: true };
-}
 
       try {
         console.log('Fetching review data for ID:', reviewId);
