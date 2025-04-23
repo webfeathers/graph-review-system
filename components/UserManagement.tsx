@@ -35,32 +35,55 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const updateUserRole = async (userId: string, role: Role) => {
-    setError('');
-    setSuccessMessage(null);
-    setSavingUserId(userId);
+  // In components/UserManagement.tsx - Update the updateUserRole function
+
+const updateUserRole = async (userId: string, role: Role) => {
+  setError('');
+  setSuccessMessage(null);
+  setSavingUserId(userId);
+  
+  try {
+    // Use the API directly to update the user role
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
     
-    try {
-      // Use ProfileService to update user role
-      const success = await ProfileService.updateUserRole(userId, role);
-      
-      if (!success) {
-        throw new Error('Failed to update user role');
-      }
-      
-      // Update local state
-      setUsers(users.map(user => 
-        user.id === userId ? { ...user, role } : user
-      ));
-      
-      setSuccessMessage(`User role updated to ${role} successfully`);
-    } catch (err: any) {
-      console.error('Error updating user role:', err);
-      setError(err.message || 'Failed to update user role');
-    } finally {
-      setSavingUserId(null);
+    if (!token) {
+      throw new Error('No authentication token available');
     }
-  };
+    
+    const response = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId, role })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to update user role');
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to update user role');
+    }
+    
+    // Update local state
+    setUsers(users.map(user => 
+      user.id === userId ? { ...user, role } : user
+    ));
+    
+    setSuccessMessage(`User role updated to ${role} successfully`);
+  } catch (err: any) {
+    console.error('Error updating user role:', err);
+    setError(err.message || 'Failed to update user role');
+  } finally {
+    setSavingUserId(null);
+  }
+};
 
   if (loading) {
     return <LoadingState message="Loading users..." />;
