@@ -145,6 +145,113 @@ async function reviewHandler(
       });
     }
   }
+  // PUT /api/reviews/[id]
+if (req.method === 'PUT') {
+  try {
+    // Check if the review exists
+    const { data: review, error: fetchError } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    if (fetchError || !review) {
+      console.error('Error fetching review:', fetchError);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Review not found' 
+      });
+    }
+    
+    // Check authorization - only author or admin can edit
+    const isAuthor = review.user_id === userId;
+    
+    // If not the author, check if admin
+    if (!isAuthor) {
+      const { data: userProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+        
+      if (profileError || !userProfile || userProfile.role !== 'Admin') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'You do not have permission to edit this review' 
+        });
+      }
+    }
+    
+    // Extract fields to update from request body
+    const { 
+      title, 
+      description,
+      graphImageUrl,
+      accountName,
+      orgId,
+      segment,
+      remoteAccess,
+      graphName,
+      useCase,
+      customerFolder,
+      handoffLink
+    } = req.body;
+    
+    // Validate required fields
+    if (!title || !description) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Title and description are required' 
+      });
+    }
+    
+    // Prepare update data
+    const updateData = {
+      title,
+      description,
+      graph_image_url: graphImageUrl,
+      account_name: accountName,
+      org_id: orgId,
+      segment,
+      remote_access: remoteAccess,
+      graph_name: graphName,
+      use_case: useCase,
+      customer_folder: customerFolder,
+      handoff_link: handoffLink,
+      updated_at: new Date().toISOString()
+    };
+    
+    // Update review in the database
+    const { data: updatedReview, error: updateError } = await supabase
+      .from('reviews')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (updateError) {
+      console.error('Error updating review:', updateError);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to update review', 
+        error: updateError.message 
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Review updated successfully',
+      data: updatedReview
+    });
+  } catch (error: any) {
+    console.error('Unexpected error in PUT review:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+}
   
   // Handle unsupported methods
   return res.status(405).json({ 

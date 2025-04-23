@@ -120,6 +120,19 @@ const ReviewPage: NextPage = () => {
             <StatusBadge status={currentStatus || review.status} />
           </div>
           
+          {/* Add this after the status buttons section in pages/reviews/[id].tsx */}
+          {(isAuthor || isAdmin()) && (
+            <div className="mt-4">
+              <a 
+                href={`/reviews/edit/${review.id}`}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 inline-block"
+              >
+                Edit Review
+              </a>
+            </div>
+          )}
+
+
           <div className="text-sm text-gray-500 mb-4">
             <p>Submitted by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</p>
             <p>Last updated: {new Date(review.updatedAt).toLocaleDateString()}</p>
