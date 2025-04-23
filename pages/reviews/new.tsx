@@ -230,13 +230,13 @@ const NewReview: NextPage = () => {
           />
 
           <div className="flex items-center justify-between mt-8">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="text-gray-600 hover:underline"
-            >
-              Cancel
-            </button>
+          <button
+          type="button"
+          onClick={() => router.push('/reviews')}
+          className="text-gray-600 hover:underline"
+          >
+          Cancel
+          </button>
             
             <SubmitButton
               isSubmitting={form.isSubmitting}
