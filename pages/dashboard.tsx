@@ -56,6 +56,7 @@ const Dashboard: NextPage = () => {
           <a href="https://docs.google.com/presentation/d/1nkoiTak8G3vkOt8UcYYOai5S7dYxnEjziYf0bK4RFgw/edit#slide=id.g13a8af19432_0_229">here</a>
           and also replace the Google Doc 
           <a href="https://docs.google.com/forms/d/e/1FAIpQLSfKnIiFZe7BTBbE_qZU0RKjbMMZsbVQPOpjCcZfZc9-Ca_82Q/formResponse">here</a>.
+        </p>
       </div>
 
       <div className="mb-8">
