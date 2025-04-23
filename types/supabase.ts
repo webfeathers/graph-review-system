@@ -19,6 +19,15 @@ export type DbReview = {
   user_id: string;
   created_at: string;
   updated_at: string;
+  // New fields
+  account_name?: string;
+  org_id?: string;
+  segment?: 'Enterprise' | 'MidMarket';
+  remote_access?: boolean;
+  graph_name?: string;
+  use_case?: string;
+  customer_folder?: string;
+  handoff_link?: string;
   // For joined data
   profiles?: DbProfile;
 }
@@ -51,6 +60,15 @@ export type Review = {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  // New fields
+  accountName?: string;
+  orgId?: string;
+  segment?: 'Enterprise' | 'MidMarket';
+  remoteAccess?: boolean;
+  graphName?: string;
+  useCase?: string;
+  customerFolder?: string;
+  handoffLink?: string;
 }
 
 export type Comment = {
@@ -80,7 +98,16 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     status: dbReview.status,
     userId: dbReview.user_id,
     createdAt: dbReview.created_at,
-    updatedAt: dbReview.updated_at
+    updatedAt: dbReview.updated_at,
+    // New fields
+    accountName: dbReview.account_name,
+    orgId: dbReview.org_id,
+    segment: dbReview.segment,
+    remoteAccess: dbReview.remote_access,
+    graphName: dbReview.graph_name,
+    useCase: dbReview.use_case,
+    customerFolder: dbReview.customer_folder,
+    handoffLink: dbReview.handoff_link
   };
 }
 
@@ -106,7 +133,16 @@ export function frontendToDbReview(review: Review): DbReview {
     status: review.status,
     user_id: review.userId,
     created_at: review.createdAt,
-    updated_at: review.updatedAt
+    updated_at: review.updatedAt,
+    // New fields
+    account_name: review.accountName,
+    org_id: review.orgId,
+    segment: review.segment,
+    remote_access: review.remoteAccess,
+    graph_name: review.graphName,
+    use_case: review.useCase,
+    customer_folder: review.customerFolder,
+    handoff_link: review.handoffLink
   };
 }
 
