@@ -96,7 +96,6 @@ export async function getReviews(userId?: string) {
   }
 }
 
-
 export async function getReviewById(id: string) {
   try {
     // Fetch the review
@@ -135,7 +134,16 @@ export async function getReviewById(id: string) {
       status: review.status,
       userId: review.user_id,
       createdAt: review.created_at,
-      updatedAt: review.updated_at
+      updatedAt: review.updated_at,
+      // Add the new fields
+      accountName: review.account_name,
+      orgId: review.org_id,
+      segment: review.segment,
+      remoteAccess: review.remote_access,
+      graphName: review.graph_name,
+      useCase: review.use_case,
+      customerFolder: review.customer_folder,
+      handoffLink: review.handoff_link
     };
 
     // Create review with profile
@@ -147,21 +155,21 @@ export async function getReviewById(id: string) {
         name: profile.name,
         email: profile.email,
         createdAt: profile.created_at,
-            role: profile.role || 'Member' // Add role field with fallback
-          }
-          : {
-            id: review.user_id,
-            name: 'Unknown User',
-            email: '',
-            createdAt: review.created_at,
-            role: 'Member' // Default role
-          }
-        };
-      } catch (err) {
-        console.error('Error in getReviewById:', err);
-        throw err;
+        role: profile.role || 'Member'
       }
-    }
+      : {
+        id: review.user_id,
+        name: 'Unknown User',
+        email: '',
+        createdAt: review.created_at,
+        role: 'Member'
+      }
+    };
+  } catch (err) {
+    console.error('Error in getReviewById:', err);
+    throw err;
+  }
+}
 
 // lib/supabaseUtils.ts
     export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) {
