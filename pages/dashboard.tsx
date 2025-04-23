@@ -55,14 +55,14 @@ const Dashboard: NextPage = () => {
         <p>This app should replace the process outlined 
           <Link
             href="https://docs.google.com/presentation/d/1nkoiTak8G3vkOt8UcYYOai5S7dYxnEjziYf0bK4RFgw/edit#slide=id.g13a8af19432_0_229"
-            className="text-blue-500 hover:underline"
+            className="text-blue-500 hover:underline p-1"
           >
             here
           </Link>
            and also replace the Google Doc 
           <Link
             href="https://docs.google.com/forms/d/e/1FAIpQLSfKnIiFZe7BTBbE_qZU0RKjbMMZsbVQPOpjCcZfZc9-Ca_82Q/formResponse"
-            className="text-blue-500 hover:underline"
+            className="text-blue-500 hover:underline p-1"
           >
             here
           </Link>.
