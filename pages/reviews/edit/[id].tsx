@@ -101,6 +101,11 @@ const EditReview: NextPage = () => {
         return;
       }
 
+const { reviewId } = context.query;
+if (typeof reviewId !== 'string') {
+  return { notFound: true };
+}
+
       try {
         console.log('Fetching review data for ID:', reviewId);
         
