@@ -43,6 +43,7 @@ const EditReview: NextPage = () => {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const { id } = router.query;
+  
   const [review, setReview] = useState<ReviewWithProfile | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [graphImage, setGraphImage] = useState<File | null>(null);
@@ -51,7 +52,32 @@ const EditReview: NextPage = () => {
   const [graphImageTouched, setGraphImageTouched] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [formInitialized, setFormInitialized] = useState(false);
 
+  // Initialize form with empty values first
+  const form = useForm<ReviewFormValues>({
+    initialValues: {
+      title: '',
+      description: '',
+      accountName: '',
+      orgId: '',
+      segment: 'Enterprise',
+      remoteAccess: false,
+      graphName: '',
+      useCase: '',
+      customerFolder: '',
+      handoffLink: ''
+    },
+    validationSchema: {
+      title: reviewValidationSchema.title,
+      description: reviewValidationSchema.description,
+    },
+    validateOnChange: false,
+    validateOnBlur: true,
+    onSubmit: handleSubmit
+  });
+
+  // Load review data and set up form
   useEffect(() => {
     if (authLoading) return;
     
@@ -64,10 +90,30 @@ const EditReview: NextPage = () => {
 
     const loadReview = async () => {
       try {
+        console.log('Loading review data for ID:', id);
         setLoading(true);
         
         const reviewData = await getReviewById(id as string);
+        console.log('Review data loaded:', reviewData);
         setReview(reviewData);
+        
+        // Set form values only once
+        form.setValues({
+          title: reviewData.title || '',
+          description: reviewData.description || '',
+          accountName: reviewData.accountName || '',
+          orgId: reviewData.orgId || '',
+          segment: reviewData.segment || 'Enterprise',
+          remoteAccess: reviewData.remoteAccess || false,
+          graphName: reviewData.graphName || '',
+          useCase: reviewData.useCase || '',
+          customerFolder: reviewData.customerFolder || '',
+          handoffLink: reviewData.handoffLink || ''
+        });
+        console.log('Form values set');
+        
+        // Set form initialized
+        setFormInitialized(true);
         
         // Set the initial graph image URL if it exists
         if (reviewData.graphImageUrl) {
@@ -78,6 +124,7 @@ const EditReview: NextPage = () => {
         const isAuthor = reviewData.userId === user.id;
         const userIsAdmin = isAdmin && isAdmin();
         setIsAuthorized(isAuthor || !!userIsAdmin);
+        console.log('Authorization check:', { isAuthor, isAdmin: userIsAdmin, isAuthorized: isAuthor || !!userIsAdmin });
 
         if (!isAuthor && !userIsAdmin) {
           setGeneralError('You are not authorized to edit this review');
@@ -92,48 +139,7 @@ const EditReview: NextPage = () => {
     };
 
     loadReview();
-  }, [id, user, authLoading, router, isAdmin]);
-
-  // Initialize form with the review data once it's loaded
-  const form = useForm<ReviewFormValues>({
-    initialValues: {
-      title: review?.title || '',
-      description: review?.description || '',
-      accountName: review?.accountName || '',
-      orgId: review?.orgId || '',
-      segment: review?.segment || 'Enterprise',
-      remoteAccess: review?.remoteAccess || false,
-      graphName: review?.graphName || '',
-      useCase: review?.useCase || '',
-      customerFolder: review?.customerFolder || '',
-      handoffLink: review?.handoffLink || ''
-    },
-    validationSchema: {
-      title: reviewValidationSchema.title,
-      description: reviewValidationSchema.description,
-    },
-    validateOnChange: false,
-    validateOnBlur: true,
-    onSubmit: handleSubmit
-  });
-
-  // Update form values when review data is loaded
-  useEffect(() => {
-    if (review) {
-      form.setValues({
-        title: review.title,
-        description: review.description,
-        accountName: review.accountName || '',
-        orgId: review.orgId || '',
-        segment: review.segment || 'Enterprise',
-        remoteAccess: review.remoteAccess || false,
-        graphName: review.graphName || '',
-        useCase: review.useCase || '',
-        customerFolder: review.customerFolder || '',
-        handoffLink: review.handoffLink || ''
-      });
-    }
-  }, [review]);
+  }, [id, user, authLoading, router, isAdmin]); // Don't include form in dependencies
 
   // Handle image change
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,6 +182,7 @@ const EditReview: NextPage = () => {
   // Handle form submission
   async function handleSubmit(values: ReviewFormValues) {
     try {
+      console.log('Form submission started with values:', values);
       // Clear any previous errors
       setGeneralError(null);
 
@@ -202,6 +209,7 @@ const EditReview: NextPage = () => {
       // Upload new image if provided
       if (graphImage) {
         try {
+          console.log('Uploading new image');
           // Create a unique filename
           const timestamp = Date.now();
           const safeFileName = graphImage.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -222,6 +230,7 @@ const EditReview: NextPage = () => {
             .getPublicUrl(data.path);
           
           uploadedImageUrl = urlData.publicUrl;
+          console.log('Image uploaded successfully:', uploadedImageUrl);
         } catch (error) {
           console.error('Error uploading image:', error);
           setGeneralError('Failed to upload image. Please try again.');
@@ -230,10 +239,12 @@ const EditReview: NextPage = () => {
         }
       } else if (graphImageUrl === '') {
         // User cleared the image
-        uploadedImageUrl = '';
+        uploadedImageUrl = ''; // Use empty string instead of null
+        console.log('Image cleared');
       }
 
       // Get token for authentication
+      console.log('Getting authentication token');
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       
@@ -243,6 +254,7 @@ const EditReview: NextPage = () => {
 
       // Update the review via API
       try {
+        console.log('Sending update request to API');
         const response = await fetch(`/api/reviews/${review.id}`, {
           method: 'PUT',
           headers: {
@@ -269,6 +281,7 @@ const EditReview: NextPage = () => {
           throw new Error(errorData.message || 'Failed to update review');
         }
         
+        console.log('Review updated successfully');
         // Success - redirect to the review page
         router.push(`/reviews/${review.id}`);
         
@@ -284,17 +297,49 @@ const EditReview: NextPage = () => {
     }
   }
 
+  // Debug logging
+  console.log('Component state:', { 
+    loading, 
+    authLoading, 
+    formInitialized,
+    isAuthorized,
+    reviewId: id,
+    hasReview: !!review
+  });
+
   if (authLoading || loading) {
     return (
       <Layout>
         <div className="flex justify-center items-center h-64">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+          <span className="ml-4">Loading review data...</span>
         </div>
       </Layout>
     );
   }
 
-  if (!user || !review) return null;
+  if (!user || !review) {
+    return (
+      <Layout>
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-3xl font-bold mb-6">Edit Review</h1>
+          <ErrorDisplay 
+            error={!user ? "Please log in to edit reviews" : "Review not found"} 
+            variant="error"
+            className="mb-6"
+          />
+          <div className="flex justify-center">
+            <button
+              onClick={() => router.push(`/reviews`)}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Back to Reviews
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!isAuthorized) {
     return (
@@ -314,6 +359,17 @@ const EditReview: NextPage = () => {
               Back to Review
             </button>
           </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!formInitialized) {
+    return (
+      <Layout>
+        <div className="flex justify-center items-center h-64">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+          <span className="ml-4">Preparing form...</span>
         </div>
       </Layout>
     );
