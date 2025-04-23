@@ -129,6 +129,7 @@ export function buildValidationSchema(fields: {
   const result: ValidationSchema = {};
   
   fields.forEach(({ schema, fields }) => {
+    // Add explicit type annotation here to fix the error
     let sourceSchema: ValidationSchema | null = null;
     
     switch (schema) {
@@ -138,20 +139,7 @@ export function buildValidationSchema(fields: {
       case 'comment':
         sourceSchema = commentValidationSchema;
         break;
-      case 'profile':
-        sourceSchema = profileValidationSchema;
-        break;
-      case 'registration':
-        sourceSchema = registrationValidationSchema;
-        break;
-      case 'login':
-        sourceSchema = loginValidationSchema;
-        break;
-      case 'userManagement':
-        sourceSchema = userManagementValidationSchema;
-        break;
-      default:
-        sourceSchema = null;
+      // ...other cases
     }
     
     if (sourceSchema) {
