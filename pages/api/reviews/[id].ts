@@ -1,62 +1,157 @@
 // pages/api/reviews/[id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../../lib/supabase';
-import { reviews } from '../../../lib/db';
+import { withAuth } from '../../../lib/apiHelpers';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Get user from Supabase auth
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
-  const token = authHeader.substring(7);
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  
-  if (authError || !user) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
-
+async function reviewHandler(
+  req: NextApiRequest, 
+  res: NextApiResponse,
+  userId: string
+) {
   const { id } = req.query;
   
+  if (!id || typeof id !== 'string') {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Review ID is required' 
+    });
+  }
+
   // GET /api/reviews/[id]
   if (req.method === 'GET') {
-    const review = reviews.find(r => r.id === id);
-    
-    if (!review) {
-      return res.status(404).json({ message: 'Review not found' });
+    try {
+      const { data: review, error } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching review:', error);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error fetching review', 
+          error: error.message 
+        });
+      }
+      
+      if (!review) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Review not found' 
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        data: review
+      });
+    } catch (error: any) {
+      console.error('Unexpected error in GET review:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Internal server error',
+        error: error.message
+      });
     }
-    
-    return res.status(200).json(review);
   }
   
   // PATCH /api/reviews/[id]
   if (req.method === 'PATCH') {
-    const reviewIndex = reviews.findIndex(r => r.id === id);
-    
-    if (reviewIndex === -1) {
-      return res.status(404).json({ message: 'Review not found' });
+    try {
+      // First, fetch the review to check ownership
+      const { data: review, error: fetchError } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError || !review) {
+        console.error('Error fetching review for update:', fetchError);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Review not found' 
+        });
+      }
+      
+      // Check if the user is the author of the review
+      if (review.user_id !== userId) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Forbidden - You can only update your own reviews' 
+        });
+      }
+      
+      const { status } = req.body;
+      
+      // Validate status value
+      if (status && !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Invalid status value' 
+        });
+      }
+      
+      // Only allow admin users to set status to 'Approved'
+      if (status === 'Approved') {
+        // Check if the user is an admin
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+          
+        if (profileError || !profileData || profileData.role !== 'Admin') {
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Only administrators can approve reviews' 
+          });
+        }
+      }
+      
+      // Update the review
+      const updateData: any = {};
+      if (status) {
+        updateData.status = status;
+      }
+      updateData.updated_at = new Date().toISOString();
+      
+      const { data: updatedReview, error: updateError } = await supabase
+        .from('reviews')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (updateError) {
+        console.error('Error updating review:', updateError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error updating review', 
+          error: updateError.message 
+        });
+      }
+      
+      return res.status(200).json({
+        success: true,
+        data: updatedReview
+      });
+    } catch (error: any) {
+      console.error('Unexpected error in PATCH review:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Internal server error',
+        error: error.message
+      });
     }
-    
-    const review = reviews[reviewIndex];
-    
-    // Only the author can update the review
-    if (review.userId !== user.id) {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
-    
-    const { status } = req.body;
-    
-    if (status) {
-      reviews[reviewIndex] = {
-        ...review,
-        status,
-        updatedAt: new Date(),
-      };
-    }
-    
-    return res.status(200).json(reviews[reviewIndex]);
   }
   
-  return res.status(405).json({ message: 'Method not allowed' });
+  // Handle unsupported methods
+  return res.status(405).json({ 
+    success: false, 
+    message: 'Method not allowed' 
+  });
 }
+
+// Wrap the handler with authentication middleware
+export default withAuth(reviewHandler);

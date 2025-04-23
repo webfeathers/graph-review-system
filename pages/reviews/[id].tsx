@@ -15,7 +15,7 @@ import { ErrorDisplay } from '../../components/ErrorDisplay';
 const ReviewPage: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const [review, setReview] = useState<ReviewWithProfile | null>(null);
   const [comments, setComments] = useState<CommentWithProfile[]>([]);
   const [isAuthor, setIsAuthor] = useState(false);
@@ -219,26 +219,42 @@ const ReviewPage: NextPage = () => {
           
           {isAuthor && (
             <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <h3 className="text-lg font-medium mb-3">Update Status</h3>
-              <div className="flex flex-wrap gap-2">
-                {(['Submitted', 'In Review', 'Needs Work', 'Approved'] as const).map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => handleStatusChange(status)}
-                    disabled={status === currentStatus || isUpdating}
-                    className={`px-4 py-2 rounded ${
-                      status === currentStatus
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                    } disabled:opacity-50 cursor-pointer`}
-                    type="button"
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
+            <h3 className="text-lg font-medium mb-3">Update Status</h3>
+            <div className="flex flex-wrap gap-2">
+            {(['Submitted', 'In Review', 'Needs Work'] as const).map((status) => (
+              <button
+              key={status}
+              onClick={() => handleStatusChange(status)}
+              disabled={status === currentStatus || isUpdating}
+              className={`px-4 py-2 rounded ${
+                status === currentStatus
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+              } disabled:opacity-50 cursor-pointer`}
+              type="button"
+              >
+              {status}
+              </button>
+              ))}
+
+      {/* Only show the Approved button for admins */}
+            {isAdmin() && (
+              <button
+              onClick={() => handleStatusChange('Approved')}
+              disabled={'Approved' === currentStatus || isUpdating}
+              className={`px-4 py-2 rounded ${
+                'Approved' === currentStatus
+                ? 'bg-blue-500 text-white'
+                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+              } disabled:opacity-50 cursor-pointer`}
+              type="button"
+              >
+              Approved
+              </button>
+              )}
             </div>
-          )}
+            </div>
+            )}
           
           <CommentSection 
             comments={comments.map(c => ({
