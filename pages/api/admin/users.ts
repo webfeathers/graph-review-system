@@ -105,9 +105,16 @@ async function userHandler(
         });
       }
       
-      // Update the user's role using a direct approach
+      // Update the user's role - Using the service role client to bypass RLS
       console.log('Updating role to:', role);
-      const { data: updatedProfile, error: updateError } = await supabase
+      
+      // Create admin client
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+      const { createClient } = require('@supabase/supabase-js');
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      
+      const { data: updatedProfile, error: updateError } = await supabaseAdmin
         .from('profiles')
         .update({ role })
         .eq('id', userId)
