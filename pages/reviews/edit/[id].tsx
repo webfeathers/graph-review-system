@@ -100,6 +100,7 @@ const EditReview: NextPage = () => {
       try {
         console.log('Fetching review data for ID:', reviewId);
         
+        // Now reviewId is guaranteed to be a string
         const reviewData = await getReviewById(reviewId);
         console.log('Review data loaded:', reviewData);
         
