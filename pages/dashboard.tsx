@@ -52,19 +52,21 @@ const Dashboard: NextPage = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
         <p className="text-gray-600">Welcome back, {user.user_metadata?.name || user.email}!</p>
-        <p>This app should replace the process outlined 
+        <p>This app should replace the 
           <Link
             href="https://docs.google.com/presentation/d/1nkoiTak8G3vkOt8UcYYOai5S7dYxnEjziYf0bK4RFgw/edit#slide=id.g13a8af19432_0_229"
+            target="_blank"
             className="text-blue-500 hover:underline p-1"
           >
-            here
+            process
           </Link>
-           and also replace the Google Doc 
+           and the  
           <Link
             href="https://docs.google.com/forms/d/e/1FAIpQLSfKnIiFZe7BTBbE_qZU0RKjbMMZsbVQPOpjCcZfZc9-Ca_82Q/formResponse"
+            target="_blank"
             className="text-blue-500 hover:underline p-1"
           >
-            here
+            Google Doc
           </Link>.
         </p>
       </div>
