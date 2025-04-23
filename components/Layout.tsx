@@ -29,26 +29,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Link>
           
           {user && (
-            <nav className="flex items-center space-x-4">
-              <Link href="/dashboard" className="hover:underline">
-                Dashboard
-              </Link>
-              <Link href="/reviews" className="hover:underline">
-                Reviews
-              </Link>
-              <Link href="/reviews/new" className="hover:underline">
-                New Review
-              </Link>
-              {/* Only show Admin link for users with Admin role */}
-              {isAdmin() && (
-                <Link href="/admin" className="hover:underline">
-                  Admin
-                </Link>
-              )}
-              <button onClick={handleLogout} className="hover:underline">
-                Logout
-              </button>
-            </nav>
+            // components/Layout.tsx - temporarily use anchor tags instead of Link
+<nav className="flex items-center space-x-4">
+  <a href="/dashboard" className="hover:underline">
+    Dashboard
+  </a>
+  <a href="/reviews" className="hover:underline">
+    Reviews
+  </a>
+  <a href="/reviews/new" className="hover:underline">
+    New Review
+  </a>
+  {/* Only show Admin link for users with Admin role */}
+  {isAdmin() && (
+    <a href="/admin" className="hover:underline">
+      Admin
+    </a>
+  )}
+  <button onClick={handleLogout} className="hover:underline">
+    Logout
+  </button>
+</nav>
           )}
           
           {!user && (
