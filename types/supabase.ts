@@ -99,15 +99,15 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     userId: dbReview.user_id,
     createdAt: dbReview.created_at,
     updatedAt: dbReview.updated_at,
-    // New fields
-    accountName: dbReview.account_name,
-    orgId: dbReview.org_id,
-    segment: dbReview.segment,
-    remoteAccess: dbReview.remote_access,
-    graphName: dbReview.graph_name,
-    useCase: dbReview.use_case,
-    customerFolder: dbReview.customer_folder,
-    handoffLink: dbReview.handoff_link
+    // Handle potentially missing fields with default values
+    accountName: dbReview.account_name || '',
+    orgId: dbReview.org_id || '',
+    segment: dbReview.segment as 'Enterprise' | 'MidMarket' || 'Enterprise',
+    remoteAccess: dbReview.remote_access || false,
+    graphName: dbReview.graph_name || '',
+    useCase: dbReview.use_case || '',
+    customerFolder: dbReview.customer_folder || '',
+    handoffLink: dbReview.handoff_link || ''
   };
 }
 
