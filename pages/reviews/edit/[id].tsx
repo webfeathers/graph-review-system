@@ -230,7 +230,7 @@ const EditReview: NextPage = () => {
         }
       } else if (graphImageUrl === '') {
         // User cleared the image
-        uploadedImageUrl = undefined; // or an empty string
+        uploadedImageUrl = '';
       }
 
       // Get token for authentication
