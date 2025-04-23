@@ -31,12 +31,11 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review }) => {
       )}
       
       <div className="flex justify-between items-center text-sm text-gray-500">
-        <span>Created: {new Date(review.createdAt).toLocaleDateString()}</span>
-        <Link href={`/reviews/${review.id}`} className="text-blue-500 hover:underline">
-          View Discussion
-        </Link>
+      <span>Created on {new Date(review.createdAt).toLocaleDateString()} by {review.user.name}</span>
+      <Link href={`/reviews/${review.id}`} className="text-blue-500 hover:underline">
+      View Discussion
+      </Link>
       </div>
-    </div>
   );
 };
 
