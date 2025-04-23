@@ -66,7 +66,7 @@ const Dashboard: NextPage = () => {
             target="_blank"
             className="text-blue-500 hover:underline p-1"
           >
-            Google Doc
+            Google form
           </Link>.
         </p>
       </div>
