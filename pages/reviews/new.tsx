@@ -11,8 +11,10 @@ import {
   Form, 
   TextInput, 
   TextArea, 
-  FileInput, 
-  SubmitButton 
+  FileInput,
+  SelectInput,  // Add this import
+  Checkbox,     // Add this import too for the remoteAccess field
+  SubmitButton  
 } from '../../components/form/FormComponents';
 import { reviewValidationSchema } from '../../lib/validationSchemas';
 import { 
@@ -144,7 +146,7 @@ const NewReview: NextPage = () => {
           customerFolder: values.customerFolder,
           handoffLink: values.handoffLink
         });
-        
+
   // Redirect to reviews list on success
         router.push('/reviews');
       } catch (error) {
