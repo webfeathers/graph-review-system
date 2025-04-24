@@ -1,7 +1,7 @@
 // pages/reviews/edit/[id].tsx
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Layout from '../../../components/Layout';
 import { useAuth } from '../../../components/AuthProvider';
 import { useForm } from '../../../lib/useForm';
@@ -54,16 +54,25 @@ const EditReview: NextPage = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [formInitialized, setFormInitialized] = useState(false);
 
-  // Debug logging
-  console.log('Rendering EditReview component with state:', { 
+  // Debug logging with render counter
+  const renderCountRef = React.useRef(0);
+  renderCountRef.current += 1;
+  
+  console.log(`Rendering EditReview component (#${renderCountRef.current})`, { 
     loading, 
     authLoading, 
     formInitialized,
     isAuthorized,
     reviewId: id,
-    hasReview: !!review
+    hasReview: !!review,
+    userExists: !!user
   });
 
+  // Memoize the submit handler to prevent recreating it on every render
+  const handleSubmitCallback = useCallback(async (values: ReviewFormValues) => {
+    await handleSubmit(values);
+  }, [handleSubmit]);
+  
   // Initialize form with empty values first
   const form = useForm<ReviewFormValues>({
     initialValues: {
@@ -84,30 +93,35 @@ const EditReview: NextPage = () => {
     },
     validateOnChange: false,
     validateOnBlur: true,
-    onSubmit: handleSubmit
+    onSubmit: handleSubmitCallback
   });
 
-  // Load review data and set up form
+  // Load review data and set up form - with memoized callback to prevent re-renders
   useEffect(() => {
+    // Skip if still loading auth or no user
     if (authLoading) return;
-    
     if (!user) {
       router.push('/login');
       return;
     }
-
     if (!id) return;
-
-    const loadReview = async () => {
+    if (formInitialized) return; // Skip if already initialized
+    
+    console.log('Starting review data load for ID:', id);
+    
+    // Define an immediately-invoked async function
+    (async () => {
       try {
-        console.log('Loading review data for ID:', id);
         setLoading(true);
+        console.log('Fetching review with ID:', id);
         
         const reviewData = await getReviewById(id as string);
-        console.log('Review data loaded:', reviewData);
+        console.log('Review data loaded successfully');
+        
+        // Set the review state
         setReview(reviewData);
         
-        // Set form values only once
+        // Set the form values
         form.setValues({
           title: reviewData.title || '',
           description: reviewData.description || '',
@@ -120,36 +134,37 @@ const EditReview: NextPage = () => {
           customerFolder: reviewData.customerFolder || '',
           handoffLink: reviewData.handoffLink || ''
         });
-        console.log('Form values set');
         
-        // Set form initialized
-        setFormInitialized(true);
-        
-        // Set the initial graph image URL if it exists
+        // Set image URL if it exists
         if (reviewData.graphImageUrl) {
           setGraphImageUrl(reviewData.graphImageUrl);
         }
-
-        // Check if user is authorized to edit (author or admin)
+        
+        // Check authorization
         const isAuthor = reviewData.userId === user.id;
-        const userIsAdmin = isAdmin && isAdmin();
-        setIsAuthorized(isAuthor || !!userIsAdmin);
-        console.log('Authorization check:', { isAuthor, isAdmin: userIsAdmin, isAuthorized: isAuthor || !!userIsAdmin });
-
-        if (!isAuthor && !userIsAdmin) {
+        const userIsAdmin = isAdmin ? isAdmin() : false;
+        const authorized = isAuthor || userIsAdmin;
+        console.log('Auth check:', { isAuthor, isAdmin: userIsAdmin, authorized });
+        
+        setIsAuthorized(authorized);
+        
+        if (!authorized) {
           setGeneralError('You are not authorized to edit this review');
         }
-
-        setLoading(false);
+        
+        // Mark as initialized - this prevents further calls
+        setFormInitialized(true);
       } catch (error) {
         console.error('Error loading review:', error);
         setGeneralError('Failed to load review');
+      } finally {
         setLoading(false);
       }
-    };
-
-    loadReview();
-  }, [id, user, authLoading, router, isAdmin]); // Don't include form in dependencies
+    })();
+    
+    // This effect only runs when these dependencies change
+    // Adding formInitialized will prevent re-runs after initial load
+  }, [id, user, authLoading, router, isAdmin, formInitialized]);
 
   // Handle image change
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,41 +322,10 @@ const EditReview: NextPage = () => {
     }
   }
 
-  if (authLoading || loading) {
-    return (
-      <Layout>
-        <div className="flex justify-center items-center h-64">
-          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-          <span className="ml-4">Loading review data...</span>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!user || !review) {
-    return (
-      <Layout>
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Edit Review</h1>
-          <ErrorDisplay 
-            error={!user ? "Please log in to edit reviews" : "Review not found"} 
-            variant="error"
-            className="mb-6"
-          />
-          <div className="flex justify-center">
-            <button
-              onClick={() => router.push(`/reviews`)}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Back to Reviews
-            </button>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!isAuthorized) {
+  // Already handled by our comprehensive loading check above
+  
+  // This should only run if we have a user and review but not authorized
+  if (!isAuthorized && user && review) {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto">
@@ -364,12 +348,24 @@ const EditReview: NextPage = () => {
     );
   }
 
-  if (!formInitialized) {
+  // Already handled above
+
+  // Show loading state if any of these conditions are true
+  if (authLoading || loading || !formInitialized || !review) {
     return (
       <Layout>
         <div className="flex justify-center items-center h-64">
           <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
-          <span className="ml-4">Preparing form...</span>
+          <span className="ml-4">
+            {authLoading ? 'Checking authentication...' : 
+             loading ? 'Loading review data...' : 
+             !formInitialized ? 'Preparing form...' : 
+             !review ? 'Waiting for review data...' : 'Loading...'}
+          </span>
+        </div>
+        <div className="mt-4 text-center text-gray-500">
+          Debug: authLoading={String(authLoading)}, loading={String(loading)},<br/>
+          formInitialized={String(formInitialized)}, hasReview={String(!!review)}
         </div>
       </Layout>
     );
