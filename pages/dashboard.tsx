@@ -38,9 +38,12 @@ const Dashboard: NextPage = () => {
         // Get the user's reviews
         const reviewsData = await getReviews(user.id);
         
+        // Filter out reviews with 'Approved' status
+        const activeReviews = reviewsData.filter(review => review.status !== 'Approved');
+        
         // For each review, fetch comment count
         const reviewsWithCounts = await Promise.all(
-          reviewsData.map(async (review) => {
+          activeReviews.map(async (review) => {
             // Query to count comments for this review
             const { count, error } = await supabase
               .from('comments')
@@ -97,7 +100,7 @@ const Dashboard: NextPage = () => {
 
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Your Graph Reviews</h2>
+          <h2 className="text-2xl font-semibold">Your Active Graph Reviews</h2>
           <Link
             href="/reviews/new"
             className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
@@ -108,13 +111,13 @@ const Dashboard: NextPage = () => {
 
         {reviews.length === 0 ? (
           <EmptyState
-            message="You haven't submitted any graph reviews yet."
+            message="You don't have any active graph reviews. Approved reviews are not shown here."
             action={
               <Link
                 href="/reviews/new"
                 className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 inline-block mt-2"
               >
-                Submit Your First Review
+                Submit a New Review
               </Link>
             }
           />
@@ -129,6 +132,25 @@ const Dashboard: NextPage = () => {
             ))}
           </div>
         )}
+      </div>
+      
+      {/* Optional: Add a section to see approved reviews */}
+      <div className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold">View All Reviews</h2>
+        </div>
+        
+        <p className="text-gray-600 mb-4">
+          Need to see your approved reviews or reviews from other users? 
+          Visit the reviews page to see all reviews in the system.
+        </p>
+        
+        <Link
+          href="/reviews"
+          className="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300 inline-block"
+        >
+          View All Reviews
+        </Link>
       </div>
     </Layout>
   );
