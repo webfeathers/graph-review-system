@@ -17,14 +17,18 @@ async function reviewHandler(
     });
   }
 
+  console.log(`Processing ${req.method} request for review ID: ${id} by user ${userId}`);
+
   // GET /api/reviews/[id]
   if (req.method === 'GET') {
     try {
+      console.log('Fetching review with ID:', id);
+      
       const { data: review, error } = await supabase
         .from('reviews')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single
       
       if (error) {
         console.error('Error fetching review:', error);
@@ -36,11 +40,14 @@ async function reviewHandler(
       }
       
       if (!review) {
+        console.log('Review not found with ID:', id);
         return res.status(404).json({ 
           success: false, 
           message: 'Review not found' 
         });
       }
+      
+      console.log('Successfully retrieved review');
       
       return res.status(200).json({
         success: true,
@@ -56,18 +63,29 @@ async function reviewHandler(
     }
   }
   
-  // PATCH /api/reviews/[id]
+  // PATCH /api/reviews/[id] - for status updates
   if (req.method === 'PATCH') {
     try {
+      console.log('Processing PATCH request for status update');
+      
       // First, fetch the review to check ownership
       const { data: review, error: fetchError } = await supabase
         .from('reviews')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       
-      if (fetchError || !review) {
+      if (fetchError) {
         console.error('Error fetching review for update:', fetchError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error fetching review', 
+          error: fetchError.message 
+        });
+      }
+      
+      if (!review) {
+        console.log('Review not found with ID:', id);
         return res.status(404).json({ 
           success: false, 
           message: 'Review not found' 
@@ -76,6 +94,7 @@ async function reviewHandler(
       
       // Check if the user is the author of the review
       if (review.user_id !== userId) {
+        console.log('Authorization failed: User is not the review author');
         return res.status(403).json({ 
           success: false, 
           message: 'Forbidden - You can only update your own reviews' 
@@ -85,7 +104,8 @@ async function reviewHandler(
       const { status } = req.body;
       
       // Validate status value
-      if (status && !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
+      if (!status || !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
+        console.log('Invalid status value provided:', status);
         return res.status(400).json({ 
           success: false, 
           message: 'Invalid status value' 
@@ -102,6 +122,7 @@ async function reviewHandler(
           .single();
           
         if (profileError || !profileData || profileData.role !== 'Admin') {
+          console.log('Authorization failed: Admin privileges required for approval');
           return res.status(403).json({ 
             success: false, 
             message: 'Only administrators can approve reviews' 
@@ -109,28 +130,39 @@ async function reviewHandler(
         }
       }
       
+      console.log(`Updating review status to: ${status}`);
+      
       // Update the review
-      const updateData: any = {};
-      if (status) {
-        updateData.status = status;
-      }
-      updateData.updated_at = new Date().toISOString();
+      const updateData: any = {
+        status,
+        updated_at: new Date().toISOString()
+      };
       
       const { data: updatedReview, error: updateError } = await supabase
         .from('reviews')
         .update(updateData)
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
         
       if (updateError) {
-        console.error('Error updating review:', updateError);
+        console.error('Error updating review status:', updateError);
         return res.status(500).json({ 
           success: false, 
           message: 'Error updating review', 
           error: updateError.message 
         });
       }
+      
+      if (!updatedReview) {
+        console.error('Status update succeeded but no review was returned');
+        return res.status(500).json({
+          success: false,
+          message: 'Update operation did not return expected data'
+        });
+      }
+      
+      console.log('Review status updated successfully');
       
       return res.status(200).json({
         success: true,
@@ -145,143 +177,160 @@ async function reviewHandler(
       });
     }
   }
-  // PUT /api/reviews/[id]
-if (req.method === 'PUT') {
-try {
-  // First check if the review exists
-  const { data: existingReview, error: checkError } = await supabase
-    .from('reviews')
-    .select('user_id')
-    .eq('id', id)
-    .maybeSingle(); // Use maybeSingle() instead of single()
-    
-  if (checkError) {
-    console.error('Error checking if review exists:', checkError);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Error checking if review exists', 
-      error: checkError.message 
-    });
-  }
   
-  if (!existingReview) {
-    return res.status(404).json({ 
-      success: false, 
-      message: 'Review not found' 
-    });
-  }
-  
-  // Continue with your update...
-  const { data: updatedReview, error: updateError } = await supabase
-    .from('reviews')
-    .update({
-      title: req.body.title,
-      description: req.body.description,
-      // other fields...
-    })
-    .eq('id', id)
-    .select()
-    .maybeSingle(); // Use maybeSingle() instead of single()
-  
-  // Handle update error and response...
-} catch (error) {
-  console.error('Unexpected error in PUT review:', error);
-  return res.status(500).json({ 
-    success: false, 
-    message: 'Internal server error', 
-    error: error instanceof Error ? error.message : String(error)
-  });
-}
-    
-    // Check authorization - only author or admin can edit
-    const isAuthor = review.user_id === userId;
-    
-    // If not the author, check if admin
-    if (!isAuthor) {
-      const { data: userProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-        
-      if (profileError || !userProfile || userProfile.role !== 'Admin') {
-        return res.status(403).json({ 
+  // PUT /api/reviews/[id] - for full review updates
+  if (req.method === 'PUT') {
+    try {
+      console.log('Processing PUT request for full review update');
+      
+      // Check if the review exists
+      const { data: review, error: fetchError } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (fetchError) {
+        console.error('Error fetching review for update:', fetchError);
+        return res.status(500).json({ 
           success: false, 
-          message: 'You do not have permission to edit this review' 
+          message: 'Error fetching review', 
+          error: fetchError.message 
         });
       }
-    }
-    
-    // Extract fields to update from request body
-    const { 
-      title, 
-      description,
-      graphImageUrl,
-      accountName,
-      orgId,
-      segment,
-      remoteAccess,
-      graphName,
-      useCase,
-      customerFolder,
-      handoffLink
-    } = req.body;
-    
-    // Validate required fields
-    if (!title || !description) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Title and description are required' 
-      });
-    }
-    
-    // Prepare update data
-    const updateData = {
-      title,
-      description,
-      graph_image_url: graphImageUrl,
-      account_name: accountName,
-      org_id: orgId,
-      segment,
-      remote_access: remoteAccess,
-      graph_name: graphName,
-      use_case: useCase,
-      customer_folder: customerFolder,
-      handoff_link: handoffLink,
-      updated_at: new Date().toISOString()
-    };
-    
-    // Update review in the database
-    const { data: updatedReview, error: updateError } = await supabase
-      .from('reviews')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
       
-    if (updateError) {
-      console.error('Error updating review:', updateError);
+      if (!review) {
+        console.log('Review not found with ID:', id);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Review not found' 
+        });
+      }
+      
+      // Check authorization - only author or admin can edit
+      const isAuthor = review.user_id === userId;
+      
+      // If not the author, check if admin
+      if (!isAuthor) {
+        console.log('User is not the author, checking admin status');
+        const { data: userProfile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+          
+        if (profileError) {
+          console.error('Error checking user role:', profileError);
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Error checking user permissions', 
+            error: profileError.message 
+          });
+        }
+        
+        if (!userProfile || userProfile.role !== 'Admin') {
+          console.log('Authorization failed: User is not the author or an admin');
+          return res.status(403).json({ 
+            success: false, 
+            message: 'You do not have permission to edit this review' 
+          });
+        }
+        
+        console.log('User is admin, proceeding with update');
+      } else {
+        console.log('User is the author, proceeding with update');
+      }
+      
+      // Extract fields to update from request body
+      const { 
+        title, 
+        description,
+        graphImageUrl,
+        accountName,
+        orgId,
+        segment,
+        remoteAccess,
+        graphName,
+        useCase,
+        customerFolder,
+        handoffLink
+      } = req.body;
+      
+      // Validate required fields
+      if (!title || !description) {
+        console.log('Validation failed: Missing required fields');
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Title and description are required' 
+        });
+      }
+      
+      console.log('Received update data:', { 
+        title, 
+        description, 
+        hasGraphImage: !!graphImageUrl,
+        accountName
+      });
+      
+      // Prepare update data with snake_case field names for Supabase
+      const updateData = {
+        title,
+        description,
+        graph_image_url: graphImageUrl,
+        account_name: accountName,
+        org_id: orgId,
+        segment,
+        remote_access: remoteAccess,
+        graph_name: graphName,
+        use_case: useCase,
+        customer_folder: customerFolder,
+        handoff_link: handoffLink,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Sending update to database');
+      
+      // Update review in the database
+      const { data: updatedReview, error: updateError } = await supabase
+        .from('reviews')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+        
+      if (updateError) {
+        console.error('Error updating review:', updateError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Failed to update review', 
+          error: updateError.message 
+        });
+      }
+      
+      if (!updatedReview) {
+        console.error('Update succeeded but no review was returned');
+        return res.status(500).json({
+          success: false,
+          message: 'Update operation did not return expected data'
+        });
+      }
+      
+      console.log('Review updated successfully');
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Review updated successfully',
+        data: updatedReview
+      });
+    } catch (error: any) {
+      console.error('Unexpected error in PUT review:', error);
       return res.status(500).json({ 
         success: false, 
-        message: 'Failed to update review', 
-        error: updateError.message 
+        message: 'Internal server error',
+        error: error.message
       });
     }
-    
-    return res.status(200).json({
-      success: true,
-      message: 'Review updated successfully',
-      data: updatedReview
-    });
-  } catch (error: any) {
-    console.error('Unexpected error in PUT review:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Internal server error',
-      error: error.message
-    });
   }
-}
   
   // Handle unsupported methods
   return res.status(405).json({ 
