@@ -280,8 +280,7 @@ async function reviewHandler(
           message: 'Title and description are required' 
         });
       }
-      // Log the exact data being sent to Supabase:
-console.log('Update data being sent to Supabase:', JSON.stringify(updateData));
+      
       
       console.log('Received update data:', { 
         title, 
@@ -305,7 +304,8 @@ console.log('Update data being sent to Supabase:', JSON.stringify(updateData));
         handoff_link: handoffLink,
         updated_at: new Date().toISOString()
       };
-      
+      // Log the exact data being sent to Supabase:
+console.log('Update data being sent to Supabase:', JSON.stringify(updateData));
       console.log('Sending update to database');
       
       // Update review in the database - separate update from select
