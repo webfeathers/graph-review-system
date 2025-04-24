@@ -147,21 +147,51 @@ async function reviewHandler(
   }
   // PUT /api/reviews/[id]
 if (req.method === 'PUT') {
-  try {
-    // Check if the review exists
-    const { data: review, error: fetchError } = await supabase
-      .from('reviews')
-      .select('*')
-      .eq('id', id)
-      .single();
+try {
+  // First check if the review exists
+  const { data: existingReview, error: checkError } = await supabase
+    .from('reviews')
+    .select('user_id')
+    .eq('id', id)
+    .maybeSingle(); // Use maybeSingle() instead of single()
     
-    if (fetchError || !review) {
-      console.error('Error fetching review:', fetchError);
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Review not found' 
-      });
-    }
+  if (checkError) {
+    console.error('Error checking if review exists:', checkError);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Error checking if review exists', 
+      error: checkError.message 
+    });
+  }
+  
+  if (!existingReview) {
+    return res.status(404).json({ 
+      success: false, 
+      message: 'Review not found' 
+    });
+  }
+  
+  // Continue with your update...
+  const { data: updatedReview, error: updateError } = await supabase
+    .from('reviews')
+    .update({
+      title: req.body.title,
+      description: req.body.description,
+      // other fields...
+    })
+    .eq('id', id)
+    .select()
+    .maybeSingle(); // Use maybeSingle() instead of single()
+  
+  // Handle update error and response...
+} catch (error) {
+  console.error('Unexpected error in PUT review:', error);
+  return res.status(500).json({ 
+    success: false, 
+    message: 'Internal server error', 
+    error: error instanceof Error ? error.message : String(error)
+  });
+}
     
     // Check authorization - only author or admin can edit
     const isAuthor = review.user_id === userId;
