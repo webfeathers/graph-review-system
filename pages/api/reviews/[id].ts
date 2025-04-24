@@ -132,18 +132,16 @@ async function reviewHandler(
       
       console.log(`Updating review status to: ${status}`);
       
-      // Update the review
+      // Update the review - separate update from select
       const updateData: any = {
         status,
         updated_at: new Date().toISOString()
       };
       
-      const { data: updatedReview, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('reviews')
         .update(updateData)
-        .eq('id', id)
-        .select()
-        .maybeSingle();
+        .eq('id', id);
         
       if (updateError) {
         console.error('Error updating review status:', updateError);
@@ -154,11 +152,29 @@ async function reviewHandler(
         });
       }
       
+      console.log('Status update operation succeeded, now fetching the updated review');
+      
+      // Fetch the updated review separately
+      const { data: updatedReview, error: fetchError } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error fetching updated review:', fetchError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Update succeeded but could not fetch updated review', 
+          error: fetchError.message 
+        });
+      }
+      
       if (!updatedReview) {
-        console.error('Status update succeeded but no review was returned');
+        console.error('Status update succeeded but review not found in subsequent fetch');
         return res.status(500).json({
           success: false,
-          message: 'Update operation did not return expected data'
+          message: 'Update succeeded but could not retrieve the updated review'
         });
       }
       
@@ -290,13 +306,11 @@ async function reviewHandler(
       
       console.log('Sending update to database');
       
-      // Update review in the database
-      const { data: updatedReview, error: updateError } = await supabase
+      // Update review in the database - separate update from select
+      const { error: updateError } = await supabase
         .from('reviews')
         .update(updateData)
-        .eq('id', id)
-        .select()
-        .maybeSingle();
+        .eq('id', id);
         
       if (updateError) {
         console.error('Error updating review:', updateError);
@@ -307,11 +321,29 @@ async function reviewHandler(
         });
       }
       
+      console.log('Update operation succeeded, now fetching the updated review');
+      
+      // Fetch the updated review separately
+      const { data: updatedReview, error: fetchError } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error fetching updated review:', fetchError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Update succeeded but could not fetch updated review', 
+          error: fetchError.message 
+        });
+      }
+      
       if (!updatedReview) {
-        console.error('Update succeeded but no review was returned');
+        console.error('Update succeeded but review not found in subsequent fetch');
         return res.status(500).json({
           success: false,
-          message: 'Update operation did not return expected data'
+          message: 'Update succeeded but could not retrieve the updated review'
         });
       }
       
