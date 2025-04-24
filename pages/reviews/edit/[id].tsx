@@ -56,6 +56,7 @@ const EditReview: NextPage = () => {
   const [graphImage, setGraphImage] = useState<File | null>(null);
   const [graphImageUrl, setGraphImageUrl] = useState('');
   const [graphImageError, setGraphImageError] = useState<string | null>(null);
+  const [graphImageTouched, setGraphImageTouched] = useState<boolean>(false);
   
   // Form validation state
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -212,6 +213,7 @@ const EditReview: NextPage = () => {
   
   // Handle image change
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setGraphImageTouched(true);
     setGraphImageError(null);
     
     if (e.target.files && e.target.files[0]) {
@@ -249,22 +251,6 @@ const EditReview: NextPage = () => {
   
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
-    // In the handleSubmit function in pages/reviews/edit/[id].tsx
-// Right before your fetch call:
-console.log(`About to send PUT request to: /api/reviews/${review.id}`);
-console.log('Sending update data:', {
-  title,
-  description,
-  graphImageUrl: uploadedImageUrl,
-  accountName,
-  orgId,
-  segment,
-  remoteAccess,
-  graphName,
-  useCase,
-  customerFolder,
-  handoffLink
-});
     e.preventDefault();
     
     // Validate form
@@ -331,6 +317,8 @@ console.log('Sending update data:', {
       if (!token) {
         throw new Error('No authentication token available');
       }
+      
+      console.log(`About to send PUT request to: /api/reviews/${review?.id}`);
       
       // Update the review via API
       const response = await fetch(`/api/reviews/${review.id}`, {
