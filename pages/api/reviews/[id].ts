@@ -18,39 +18,7 @@ async function reviewHandler(
   }
 
   console.log(`Processing ${req.method} request for review ID: ${id} by user ${userId}`);
-// Right before making the fetch request
-console.log(`About to send PUT request to: /api/reviews/${review.id}`);
 
-// Modify your fetch call to log the entire request
-try {
-  console.log('Sending update request with token:', token.substring(0, 10) + '...');
-  
-  const response = await fetch(`/api/reviews/${review.id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      title,
-      description,
-      graphImageUrl: uploadedImageUrl,
-      accountName,
-      orgId,
-      segment,
-      remoteAccess,
-      graphName,
-      useCase,
-      customerFolder,
-      handoffLink
-    })
-  });
-  
-  console.log('Response status:', response.status);
-  console.log('Response headers:', Object.fromEntries([...response.headers]));
-} catch (err) {
-  console.error('Fetch error:', err);
-}
   // GET /api/reviews/[id]
   if (req.method === 'GET') {
     try {
