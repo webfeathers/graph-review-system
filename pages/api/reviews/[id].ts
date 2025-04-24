@@ -305,7 +305,7 @@ async function reviewHandler(
         updated_at: new Date().toISOString()
       };
       
-      console.log('Sending update to database');
+      console.log('Sending update to database' + JSON.stringify(updateData));
       // Log the exact data being sent to Supabase:
 alert('Update data being sent to Supabase:' + JSON.stringify(updateData));
 
