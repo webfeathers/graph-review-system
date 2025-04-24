@@ -54,6 +54,16 @@ const EditReview: NextPage = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [formInitialized, setFormInitialized] = useState(false);
 
+  // Debug logging
+  console.log('Rendering EditReview component with state:', { 
+    loading, 
+    authLoading, 
+    formInitialized,
+    isAuthorized,
+    reviewId: id,
+    hasReview: !!review
+  });
+
   // Initialize form with empty values first
   const form = useForm<ReviewFormValues>({
     initialValues: {
@@ -296,16 +306,6 @@ const EditReview: NextPage = () => {
       form.setSubmitting(false);
     }
   }
-
-  // Debug logging
-  console.log('Component state:', { 
-    loading, 
-    authLoading, 
-    formInitialized,
-    isAuthorized,
-    reviewId: id,
-    hasReview: !!review
-  });
 
   if (authLoading || loading) {
     return (
