@@ -10,11 +10,17 @@ import GraphReviewCard from '../components/GraphReviewCard';
 import { LoadingState } from '../components/LoadingState';
 import { EmptyState } from '../components/EmptyState';
 import Link from 'next/link';
+import { supabase } from '../lib/supabase';
+
+// Interface for review with comment count
+interface ReviewWithCommentCount extends ReviewWithProfile {
+  commentCount: number;
+}
 
 const Dashboard: NextPage = () => {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [reviews, setReviews] = useState<ReviewWithProfile[]>([]);
+  const [reviews, setReviews] = useState<ReviewWithCommentCount[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,11 +32,29 @@ const Dashboard: NextPage = () => {
       return;
     }
 
-    // Fetch only the user's reviews
-    const fetchReviews = async () => {
+    // Fetch only the user's reviews with comment counts
+    const fetchReviewsWithCommentCounts = async () => {
       try {
-        const data = await getReviews(user.id);
-        setReviews(data);
+        // Get the user's reviews
+        const reviewsData = await getReviews(user.id);
+        
+        // For each review, fetch comment count
+        const reviewsWithCounts = await Promise.all(
+          reviewsData.map(async (review) => {
+            // Query to count comments for this review
+            const { count, error } = await supabase
+              .from('comments')
+              .select('id', { count: 'exact', head: true })
+              .eq('review_id', review.id);
+              
+            return {
+              ...review,
+              commentCount: count || 0
+            };
+          })
+        );
+        
+        setReviews(reviewsWithCounts);
       } catch (error) {
         console.error('Error fetching reviews:', error);
       } finally {
@@ -38,7 +62,7 @@ const Dashboard: NextPage = () => {
       }
     };
 
-    fetchReviews();
+    fetchReviewsWithCommentCounts();
   }, [user, authLoading, router]);
 
   if (authLoading || loading) {
@@ -97,7 +121,11 @@ const Dashboard: NextPage = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {reviews.map((review) => (
-              <GraphReviewCard key={review.id} review={review} />
+              <GraphReviewCard 
+                key={review.id} 
+                review={review} 
+                commentCount={review.commentCount}
+              />
             ))}
           </div>
         )}
