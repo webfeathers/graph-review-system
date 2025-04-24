@@ -73,32 +73,56 @@ const Reviews: NextPage = () => {
     return <LoadingState />;
   }
 
+  // Get status color for the list view indicator
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Submitted':
+        return 'bg-gray-200';
+      case 'In Review':
+        return 'bg-blue-200';
+      case 'Needs Work':
+        return 'bg-yellow-200';
+      case 'Approved':
+        return 'bg-[#d1f0e1]';
+      default:
+        return 'bg-gray-200';
+    }
+  };
+
   // List view component for a single review
   const ReviewListItem = ({ review, commentCount }: { review: ReviewWithProfile, commentCount: number }) => (
-    <div className="border-b py-4 flex flex-col md:flex-row md:items-center">
-      <div className="flex-grow mb-2 md:mb-0">
-        <div className="flex items-start justify-between">
-          <Link href={`/reviews/${review.id}`} className="text-lg font-semibold text-blue-600 hover:underline">
-            {review.title}
-          </Link>
-          <StatusBadge status={review.status} />
-        </div>
-        <div className="text-sm text-gray-500 mt-1">
-          By {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}
-        </div>
-        <div className="flex items-center text-sm text-gray-500 mt-1">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
-          <span>{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
-        </div>
+    <div className="py-4 px-2 flex">
+      {/* Status indicator on the left side */}
+      <div className="mr-4 flex flex-col items-center">
+        <div className={`w-2 h-full rounded-full ${getStatusColor(review.status)}`}></div>
       </div>
-      <Link 
-        href={`/reviews/${review.id}`} 
-        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm self-start md:self-center"
-      >
-        View Discussion
-      </Link>
+      
+      {/* Review content */}
+      <div className="flex-grow flex flex-col md:flex-row md:items-center">
+        <div className="flex-grow mb-2 md:mb-0">
+          <div className="flex items-start justify-between">
+            <Link href={`/reviews/${review.id}`} className="text-lg font-semibold text-blue-600 hover:underline">
+              {review.title}
+            </Link>
+            <StatusBadge status={review.status} />
+          </div>
+          <div className="text-sm text-gray-500 mt-1">
+            By {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}
+          </div>
+          <div className="flex items-center text-sm text-gray-500 mt-1">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            <span>{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
+          </div>
+        </div>
+        <Link 
+          href={`/reviews/${review.id}`} 
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm self-start md:self-center"
+        >
+          View Discussion
+        </Link>
+      </div>
     </div>
   );
 
@@ -182,7 +206,7 @@ const Reviews: NextPage = () => {
             ))}
           </div>
         ) : (
-          // List view
+          // List view with status on the left
           <div className="bg-white rounded-lg shadow divide-y">
             {filteredReviews.map((review) => (
               <ReviewListItem 
