@@ -21,7 +21,7 @@ import {
   MAX_FILE_SIZES,
   StorageBucket
 } from '../../../constants';
-import { ReviewWithProfile } from '../../../types/supabase';
+import { ReviewWithProfile, Role } from '../../../types/supabase';
 
 /*
  * This is a simplified implementation of the edit review page
@@ -114,30 +114,30 @@ const EditReview: NextPage = () => {
         }
         
         // Set the review data - transform from snake_case to camelCase
-        const transformedReview = {
+        const transformedReview: ReviewWithProfile = {
           id: reviewData.id,
           title: reviewData.title || '',
           description: reviewData.description || '',
           graphImageUrl: reviewData.graph_image_url || '',
-          status: reviewData.status,
+          status: reviewData.status as 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
           userId: reviewData.user_id,
           createdAt: reviewData.created_at,
           updatedAt: reviewData.updated_at,
           accountName: reviewData.account_name || '',
           orgId: reviewData.org_id || '',
-          segment: reviewData.segment || 'Enterprise',
+          segment: reviewData.segment as 'Enterprise' | 'MidMarket' || 'Enterprise',
           remoteAccess: reviewData.remote_access || false,
           graphName: reviewData.graph_name || '',
           useCase: reviewData.use_case || '',
           customerFolder: reviewData.customer_folder || '',
           handoffLink: reviewData.handoff_link || '',
-          // Mock user data since we don't have it
+          // Use the correct Role type for the user object
           user: {
             id: reviewData.user_id,
             name: 'User',
             email: '',
             createdAt: reviewData.created_at,
-            role: 'Member'
+            role: 'Member' as Role
           }
         };
         
