@@ -20,10 +20,15 @@ interface CommentFormValues {
   content: string;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialComments, reviewId }) => {
   const { user, session } = useAuth();
   const router = useRouter();
   const [generalError, setGeneralError] = useState<string | null>(null);
+  
+  // Sort comments to show newest first
+  const comments = [...initialComments].sort((a, b) => {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   // Define validation schema
   const validationSchema = {
@@ -90,7 +95,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) =
       form.resetForm();
       
       // Simply refresh the page to show the new comment
-      // This is more reliable than trying to fetch comments separately
       router.reload();
     } catch (error) {
       console.error('Error posting comment:', error);
