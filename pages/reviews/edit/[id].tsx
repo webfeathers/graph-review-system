@@ -249,6 +249,22 @@ const EditReview: NextPage = () => {
   
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
+    // In the handleSubmit function in pages/reviews/edit/[id].tsx
+// Right before your fetch call:
+console.log(`About to send PUT request to: /api/reviews/${review.id}`);
+console.log('Sending update data:', {
+  title,
+  description,
+  graphImageUrl: uploadedImageUrl,
+  accountName,
+  orgId,
+  segment,
+  remoteAccess,
+  graphName,
+  useCase,
+  customerFolder,
+  handoffLink
+});
     e.preventDefault();
     
     // Validate form
