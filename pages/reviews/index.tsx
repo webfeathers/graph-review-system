@@ -191,7 +191,7 @@ const Reviews: NextPage = () => {
         </div>
 
         {filteredReviews.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
+          <div className="text-center py-8 bg-gray-50 rounded-lg cards-card">
             <p className="text-gray-500">No reviews found with the selected status.</p>
           </div>
         ) : viewMode === 'card' ? (
@@ -207,7 +207,7 @@ const Reviews: NextPage = () => {
           </div>
         ) : (
           // List view with status on the left
-          <div className="bg-white rounded-lg shadow divide-y">
+          <div className="bg-white rounded-lg shadow divide-y cards-list">
             {filteredReviews.map((review) => (
               <ReviewListItem 
                 key={review.id} 
