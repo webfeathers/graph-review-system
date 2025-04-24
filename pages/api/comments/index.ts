@@ -42,12 +42,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (req.method === 'GET') {
       const { reviewId } = req.query;
       
-      if (!reviewId) {
+      if (!reviewId || typeof reviewId !== 'string') {
         return res.status(400).json({ 
           success: false, 
           message: 'Review ID is required' 
         });
       }
+      
+      console.log('Fetching comments for review:', reviewId);
       
       // Use admin client to bypass RLS
       const { data, error } = await supabaseAdmin
@@ -73,6 +75,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
       
+      console.log(`Successfully fetched ${data.length} comments`);
+      
       return res.status(200).json({
         success: true,
         data
@@ -89,6 +93,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           message: 'Content and review ID are required' 
         });
       }
+      
+      console.log('Adding new comment for review:', reviewId);
       
       // Ensure user profile exists before creating comment
       const { data: profile, error: profileError } = await supabaseAdmin
@@ -140,6 +146,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           error: error.message 
         });
       }
+      
+      console.log('Comment created successfully with ID:', data.id);
       
       return res.status(201).json({
         success: true,
