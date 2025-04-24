@@ -119,14 +119,14 @@ const EditReview: NextPage = () => {
           title: reviewData.title || '',
           description: reviewData.description || '',
           graphImageUrl: reviewData.graph_image_url || '',
-          status: reviewData.status as 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
+          status: (reviewData.status || 'Submitted') as 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
           userId: reviewData.user_id,
           createdAt: reviewData.created_at,
           updatedAt: reviewData.updated_at,
           accountName: reviewData.account_name || '',
           orgId: reviewData.org_id || '',
-          segment: reviewData.segment as 'Enterprise' | 'MidMarket' || 'Enterprise',
-          remoteAccess: reviewData.remote_access || false,
+          segment: (reviewData.segment || 'Enterprise') as 'Enterprise' | 'MidMarket',
+          remoteAccess: !!reviewData.remote_access,
           graphName: reviewData.graph_name || '',
           useCase: reviewData.use_case || '',
           customerFolder: reviewData.customer_folder || '',
@@ -143,17 +143,17 @@ const EditReview: NextPage = () => {
         
         setReview(transformedReview);
         
-        // Set form state
-        setTitle(transformedReview.title);
-        setDescription(transformedReview.description);
-        setAccountName(transformedReview.accountName);
-        setOrgId(transformedReview.orgId);
-        setSegment(transformedReview.segment);
-        setRemoteAccess(transformedReview.remoteAccess);
-        setGraphName(transformedReview.graphName);
-        setUseCase(transformedReview.useCase);
-        setCustomerFolder(transformedReview.customerFolder);
-        setHandoffLink(transformedReview.handoffLink);
+        // Set form state - adding nullish coalescing to ensure string values
+        setTitle(transformedReview.title || '');
+        setDescription(transformedReview.description || '');
+        setAccountName(transformedReview.accountName || '');
+        setOrgId(transformedReview.orgId || '');
+        setSegment(transformedReview.segment || 'Enterprise');
+        setRemoteAccess(transformedReview.remoteAccess || false);
+        setGraphName(transformedReview.graphName || '');
+        setUseCase(transformedReview.useCase || '');
+        setCustomerFolder(transformedReview.customerFolder || '');
+        setHandoffLink(transformedReview.handoffLink || '');
         
         // Set image URL if it exists
         if (transformedReview.graphImageUrl) {
