@@ -336,52 +336,6 @@ const EditReview: NextPage = () => {
           customerFolder,
           handoffLink
         })
-        // In your PUT handler in pages/api/reviews/[id].ts
-try {
-  // First check if the review exists
-  const { data: existingReview, error: checkError } = await supabase
-    .from('reviews')
-    .select('user_id')
-    .eq('id', id)
-    .maybeSingle(); // Use maybeSingle() instead of single()
-    
-  if (checkError) {
-    console.error('Error checking if review exists:', checkError);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Error checking if review exists', 
-      error: checkError.message 
-    });
-  }
-  
-  if (!existingReview) {
-    return res.status(404).json({ 
-      success: false, 
-      message: 'Review not found' 
-    });
-  }
-  
-  // Continue with your update...
-  const { data: updatedReview, error: updateError } = await supabase
-    .from('reviews')
-    .update({
-      title: req.body.title,
-      description: req.body.description,
-      // other fields...
-    })
-    .eq('id', id)
-    .select()
-    .maybeSingle(); // Use maybeSingle() instead of single()
-  
-  // Handle update error and response...
-} catch (error) {
-  console.error('Unexpected error in PUT review:', error);
-  return res.status(500).json({ 
-    success: false, 
-    message: 'Internal server error', 
-    error: error instanceof Error ? error.message : String(error)
-  });
-}
       });
       
       // Log the response for debugging
