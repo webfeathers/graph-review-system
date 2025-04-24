@@ -69,18 +69,18 @@ async function reviewHandler(
       console.log('Processing PATCH request for status update');
       
       // First, fetch the review to check ownership
-      const { data: review, error: fetchError } = await supabase
+      const { data: review, error: reviewFetchError } = await supabase
         .from('reviews')
         .select('*')
         .eq('id', id)
         .maybeSingle();
       
-      if (fetchError) {
-        console.error('Error fetching review for update:', fetchError);
+      if (reviewFetchError) {
+        console.error('Error fetching review for update:', reviewFetchError);
         return res.status(500).json({ 
           success: false, 
           message: 'Error fetching review', 
-          error: fetchError.message 
+          error: reviewFetchError.message 
         });
       }
       
@@ -155,18 +155,18 @@ async function reviewHandler(
       console.log('Status update operation succeeded, now fetching the updated review');
       
       // Fetch the updated review separately
-      const { data: updatedReview, error: fetchError } = await supabase
+      const { data: updatedReview, error: statusFetchError } = await supabase
         .from('reviews')
         .select('*')
         .eq('id', id)
         .maybeSingle();
 
-      if (fetchError) {
-        console.error('Error fetching updated review:', fetchError);
+      if (statusFetchError) {
+        console.error('Error fetching updated review:', statusFetchError);
         return res.status(500).json({ 
           success: false, 
           message: 'Update succeeded but could not fetch updated review', 
-          error: fetchError.message 
+          error: statusFetchError.message 
         });
       }
       
@@ -200,18 +200,18 @@ async function reviewHandler(
       console.log('Processing PUT request for full review update');
       
       // Check if the review exists
-      const { data: review, error: fetchError } = await supabase
+      const { data: review, error: initialFetchError } = await supabase
         .from('reviews')
         .select('*')
         .eq('id', id)
         .maybeSingle();
       
-      if (fetchError) {
-        console.error('Error fetching review for update:', fetchError);
+      if (initialFetchError) {
+        console.error('Error fetching review for update:', initialFetchError);
         return res.status(500).json({ 
           success: false, 
           message: 'Error fetching review', 
-          error: fetchError.message 
+          error: initialFetchError.message 
         });
       }
       
@@ -324,18 +324,18 @@ async function reviewHandler(
       console.log('Update operation succeeded, now fetching the updated review');
       
       // Fetch the updated review separately
-      const { data: updatedReview, error: fetchError } = await supabase
+      const { data: updatedReview, error: finalFetchError } = await supabase
         .from('reviews')
         .select('*')
         .eq('id', id)
         .maybeSingle();
 
-      if (fetchError) {
-        console.error('Error fetching updated review:', fetchError);
+      if (finalFetchError) {
+        console.error('Error fetching updated review:', finalFetchError);
         return res.status(500).json({ 
           success: false, 
           message: 'Update succeeded but could not fetch updated review', 
-          error: fetchError.message 
+          error: finalFetchError.message 
         });
       }
       
