@@ -307,8 +307,8 @@ async function reviewHandler(
       
       console.log('Sending update to database');
       // Log the exact data being sent to Supabase:
-console.log('Update data being sent to Supabase:', JSON.stringify(updateData));
-exit();
+alert('Update data being sent to Supabase:', JSON.stringify(updateData));
+
       
       // Update review in the database - separate update from select
       const { error: updateError } = await supabase
