@@ -1,5 +1,5 @@
 // components/commentSection.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Comment } from '../models/Comment';
 import { User } from '../models/User';
@@ -20,12 +20,10 @@ interface CommentFormValues {
   content: string;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialComments, reviewId }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({ comments, reviewId }) => {
   const { user, session } = useAuth();
   const router = useRouter();
   const [generalError, setGeneralError] = useState<string | null>(null);
-  const [comments, setComments] = useState<(Comment & { user: User })[]>(initialComments);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Define validation schema
   const validationSchema = {
@@ -46,66 +44,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
     onSubmit: handleSubmit
   });
 
-  // Function to fetch comments
-  const fetchComments = async () => {
-    try {
-      // Get current token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
-      const response = await fetch(`/api/comments?reviewId=${reviewId}`, {
-        method: 'GET',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to fetch comments');
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        // Transform the data to match the expected format
-        const formattedComments = data.data.map((comment: any) => ({
-          id: comment.id,
-          content: comment.content,
-          reviewId: comment.review_id,
-          userId: comment.user_id,
-          createdAt: new Date(comment.created_at),
-          user: {
-            id: comment.profiles.id,
-            name: comment.profiles.name,
-            email: comment.profiles.email,
-            password: '', // not needed but required by type
-            createdAt: new Date(comment.profiles.created_at)
-          }
-        }));
-        
-        setComments(formattedComments);
-        return formattedComments;
-      }
-      
-      return [];
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-      setGeneralError('Failed to load comments. Please try again.');
-      return [];
-    }
-  };
-
   async function handleSubmit(values: CommentFormValues) {
     try {
-      // Clear previous errors and messages
+      // Clear previous errors
       setGeneralError(null);
-      setSuccessMessage(null);
       
       if (!user) {
         setGeneralError('User not authenticated');
@@ -118,6 +60,13 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
       
       if (!token) {
         throw new Error('No authentication token available');
+      }
+      
+      // Simple spinner indicator that we're posting
+      const submitButton = document.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.textContent = 'Posting...';
+        submitButton.setAttribute('disabled', 'true');
       }
       
       const response = await fetch('/api/comments', {
@@ -137,21 +86,12 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
         throw new Error(errorData.message || 'Failed to post comment');
       }
       
-      const result = await response.json();
-      
       // Clear the form
       form.resetForm();
       
-      // Show success message
-      setSuccessMessage('Comment posted successfully');
-      
-      // Fetch updated comments instead of refreshing the whole page
-      await fetchComments();
-      
-      // Hide success message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
+      // Simply refresh the page to show the new comment
+      // This is more reliable than trying to fetch comments separately
+      router.reload();
     } catch (error) {
       console.error('Error posting comment:', error);
       
@@ -176,19 +116,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
           variant="error"
           className="mb-4"
         />
-      )}
-      
-      {successMessage && (
-        <div className="bg-green-100 text-green-700 p-4 rounded-md mb-4 relative">
-          <p>{successMessage}</p>
-          <button 
-            onClick={() => setSuccessMessage(null)}
-            className="absolute top-2 right-2 text-green-700 hover:text-green-900"
-            aria-label="Dismiss success message"
-          >
-            ×
-          </button>
-        </div>
       )}
       
       <Form onSubmit={form.handleSubmit} className="mb-6">
