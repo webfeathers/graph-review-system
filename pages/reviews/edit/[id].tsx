@@ -338,9 +338,21 @@ const EditReview: NextPage = () => {
         })
       });
       
+      // Log the response for debugging
+      console.log('API Response Status:', response.status);
+      console.log('API Response Status Text:', response.statusText);
+      
+      // Try to get more detailed error info
+      const responseData = await response.json().catch(e => {
+        console.error('Failed to parse response as JSON:', e);
+        return null;
+      });
+      
+      console.log('API Response Data:', responseData);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update review');
+        const errorMessage = responseData?.message || 'Failed to update review';
+        throw new Error(errorMessage);
       }
       
       console.log('Review updated successfully');
