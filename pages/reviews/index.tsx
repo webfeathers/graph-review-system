@@ -94,7 +94,7 @@ const Reviews: NextPage = () => {
     <div className="py-4 px-2 flex">
       {/* Status indicator on the left side */}
       <div className="mr-4 flex flex-col items-center">
-        <div className={`w-2 h-full rounded-full ${getStatusColor(review.status)}`}></div>
+        <div className={`FEATHERS w-2 h-full rounded-full ${getStatusColor(review.status)}`}></div>
       </div>
       
       {/* Review content */}
