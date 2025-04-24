@@ -104,7 +104,6 @@ const Reviews: NextPage = () => {
             <Link href={`/reviews/${review.id}`} className="text-lg font-semibold text-blue-600 hover:underline">
               {review.title}
             </Link>
-            <!-- <StatusBadge status={review.status} /> -->
           </div>
           <div className="text-sm text-gray-500 mt-1">
             By {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}
