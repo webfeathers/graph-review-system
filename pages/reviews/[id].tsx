@@ -64,12 +64,7 @@ const ReviewPage: NextPage = () => {
       return;
     }
     
-    // Only allow authors or admins to update the status
-    if (!isAuthor && !isAdmin()) {
-      setError('You do not have permission to update this review');
-      return;
-    }
-    
+    // All other statuses can be set by any user
     setIsUpdating(true);
     try {
       await updateReviewStatus(review.id, newStatus, user.id);
@@ -148,45 +143,57 @@ const ReviewPage: NextPage = () => {
           </div>
 
           {/* Status buttons - moved under title and made smaller */}
-          {/* Show status buttons to authors OR admins */}
-            {(isAuthor || isAdmin()) && (
-              <div className="mb-6">
-                <div className="flex flex-wrap gap-2">
-                  {/* Regular status buttons - show to both authors and admins */}
-                  {(['Submitted', 'In Review', 'Needs Work'] as const).map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => handleStatusChange(status)}
-                      disabled={status === currentStatus || isUpdating}
-                      className={`px-3 py-1 text-sm rounded ${
-                        status === currentStatus
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                      } disabled:opacity-50 cursor-pointer`}
-                      type="button"
-                    >
-                      {status}
-                    </button>
-                  ))}
+          {/* Show status buttons to everyone */}
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-2">
+                {/* Regular status buttons - show to everyone */}
+                {(['In Review', 'Needs Work'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleStatusChange(status)}
+                    disabled={status === currentStatus || isUpdating}
+                    className={`px-3 py-1 text-sm rounded ${
+                      status === currentStatus
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    } disabled:opacity-50 cursor-pointer`}
+                    type="button"
+                  >
+                    {status}
+                  </button>
+                ))}
 
-                  {/* Approved button - only shown to admins */}
-                  {isAdmin() && (
-                    <button
-                      onClick={() => handleStatusChange('Approved')}
-                      disabled={'Approved' === currentStatus || isUpdating}
-                      className={`px-3 py-1 text-sm rounded ${
-                        'Approved' === currentStatus
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                      } disabled:opacity-50 cursor-pointer`}
-                      type="button"
-                    >
-                      Approved
-                    </button>
-                  )}
-                </div>
+                {/* Submitted button - shown to everyone */}
+                <button
+                  onClick={() => handleStatusChange('Submitted')}
+                  disabled={'Submitted' === currentStatus || isUpdating}
+                  className={`px-3 py-1 text-sm rounded ${
+                    'Submitted' === currentStatus
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                  } disabled:opacity-50 cursor-pointer`}
+                  type="button"
+                >
+                  Submitted
+                </button>
+
+                {/* Approved button - only shown to admins */}
+                {isAdmin() && (
+                  <button
+                    onClick={() => handleStatusChange('Approved')}
+                    disabled={'Approved' === currentStatus || isUpdating}
+                    className={`px-3 py-1 text-sm rounded ${
+                      'Approved' === currentStatus
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    } disabled:opacity-50 cursor-pointer`}
+                    type="button"
+                  >
+                    Approved
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           
           <div className="text-sm text-gray-500 mb-4">
             <p>Submitted by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</p>
