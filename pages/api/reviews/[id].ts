@@ -112,7 +112,7 @@ async function reviewHandler(
         .select('role')
         .eq('id', userId)
         .maybeSingle();
-        
+
         if (profileError) {
           console.error('Error checking user role:', profileError);
           return res.status(500).json({ 
@@ -197,7 +197,7 @@ async function reviewHandler(
       .update(updateData)
       .eq('id', id)
       .select();
-      
+
       if (updateError) {
         console.error('Error updating review:', updateError);
         return res.status(500).json({ 
@@ -217,7 +217,7 @@ async function reviewHandler(
         .select('*')
         .eq('id', id)
         .maybeSingle();
-        
+
         if (fetchError || !fetchedReview) {
           console.error('Failed to fetch the updated review:', fetchError);
           return res.status(500).json({ 
@@ -257,14 +257,14 @@ async function reviewHandler(
   if (req.method === 'PATCH') {
     try {
       console.log('Processing PATCH request for status update');
-      
+
     // First, fetch the review to check ownership and get previous status
       const { data: review, error: reviewFetchError } = await supabaseAdmin
       .from('reviews')
       .select('*')
       .eq('id', id)
       .maybeSingle();
-      
+
       if (reviewFetchError) {
         console.error('Error fetching review for update:', reviewFetchError);
         return res.status(500).json({ 
@@ -273,7 +273,7 @@ async function reviewHandler(
           error: reviewFetchError.message 
         });
       }
-      
+
       if (!review) {
         console.log('Review not found with ID:', id);
         return res.status(404).json({ 
@@ -281,13 +281,13 @@ async function reviewHandler(
           message: 'Review not found' 
         });
       }
-      
+
     // Store previous status for notification
       const previousStatus = review.status;
-      
+
     // Get the status from the request body
       const { status } = req.body;
-      
+
     // Validate status value
       if (!status || !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
         console.log('Invalid status value provided:', status);
@@ -296,7 +296,7 @@ async function reviewHandler(
           message: 'Invalid status value' 
         });
       }
-      
+
     // Only allow admin users to set status to 'Approved'
       if (status === 'Approved') {
       // Check if the user is an admin
@@ -317,30 +317,6 @@ async function reviewHandler(
       
       console.log(`Updating review status to: ${status}`);
       
-    // Update the review - separate update from select
-      const updateData: any = {
-        status,
-        updated_at: new Date().toISOString()
-      };
-      
-    // Use admin client to bypass RLS
-      const { error: updateError } = await supabaseAdmin
-      .from('reviews')
-      .update(updateData)
-      .eq('id', id);
-      
-      if (updateError) {
-        console.error('Error updating review status:', updateError);
-        return res.status(500).json({ 
-          success: false, 
-          message: 'Error updating review', 
-          error: updateError.message 
-        });
-      }
-      
-      
-      console.log(`Updating review status to: ${status}`);
-      
       // Update the review - separate update from select
       const updateData: any = {
         status,
@@ -352,7 +328,7 @@ async function reviewHandler(
       .from('reviews')
       .update(updateData)
       .eq('id', id);
-      
+
       if (updateError) {
         console.error('Error updating review status:', updateError);
         return res.status(500).json({ 
@@ -397,7 +373,7 @@ async function reviewHandler(
           .select('id, name, email, role')
           .eq('id', userId)
           .single();
-          
+
           if (userError) {
             console.error('Error fetching user profile:', userError);
           }
@@ -408,7 +384,7 @@ async function reviewHandler(
           .select('id, name, email')
           .eq('id', review.user_id)
           .single();
-          
+
           if (ownerError) {
             console.error('Error fetching review owner profile:', ownerError);
           }
@@ -418,10 +394,10 @@ async function reviewHandler(
             // Generate app URL
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
           `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
-          
+
             // Get the name of the person who changed the status
           const changerName = statusChanger?.name || 'A user';
-          
+
             // Send notification using helper method
           await EmailService.sendStatusChangeNotification(
             id,
@@ -433,7 +409,7 @@ async function reviewHandler(
             changerName,
             appUrl
             );
-          
+
           console.log('Status change notification email sent to review author');
         }
       } catch (emailError) {
@@ -441,9 +417,9 @@ async function reviewHandler(
         console.error('Error sending status change notification email:', emailError);
       }
     }
-    
+
     console.log('Review status updated successfully');
-    
+
     return res.status(200).json({
       success: true,
       data: updatedReview
