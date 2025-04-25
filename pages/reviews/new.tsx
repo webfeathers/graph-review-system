@@ -181,7 +181,7 @@ const NewReview: NextPage = () => {
         
         console.log('Review created successfully:', result);
         
-        router.replace('/reviews');
+        window.location.href = '/reviews';
         
       } catch (error) {
         console.error('Error creating review:', error);
