@@ -6,6 +6,7 @@ import {
   dbToFrontendReview, dbToFrontendComment, dbToFrontendProfile,
   dbToFrontendReviewWithProfile, dbToFrontendCommentWithProfile
 } from '../types/supabase';
+
 // Add import for EmailService
 import { EmailService } from './emailService';
 import { APP_URL } from './env';
@@ -194,10 +195,10 @@ export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' |
   };
 
   const { data, error } = await supabase
-  .from('reviews')
-  .insert(dbReviewData)
-  .select()
-  .single();
+    .from('reviews')
+    .insert(dbReviewData)
+    .select()
+    .single();
 
   if (error) {
     console.error('Error creating review:', error);
@@ -213,7 +214,9 @@ export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' |
     
     // Send email notification
     if (reviewWithProfile) {
-      await EmailService.sendNewReviewNotification(reviewWithProfile, APP_URL || '');
+      // Get app URL from environment variable
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+      await EmailService.sendNewReviewNotification(reviewWithProfile, appUrl);
     }
   } catch (emailError) {
     // Log but don't fail the request if email sending fails
@@ -304,7 +307,7 @@ export async function getCommentsByReviewId(reviewId: string) {
         userId: comment.user_id,
         createdAt: comment.created_at
       };
-      
+
       if (profile) {
         // Use the found profile
         return {

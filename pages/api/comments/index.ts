@@ -1,9 +1,8 @@
 // pages/api/comments/index.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
-import { APP_URL } from '../../lib/env';
-import { EmailService } from '../../lib/emailService';
-import { getReviewById } from '../../lib/supabaseUtils';
+import { EmailService } from '../../../lib/emailService'; // Fixed path
+import { getReviewById } from '../../../lib/supabaseUtils'; // Fixed path
 
 // Create a Supabase admin client that can bypass RLS
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -178,7 +177,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         
         if (review) {
           // Get the base URL for links in the email
-          const appUrl = APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
                        
           // Format comment data for the email
           const commentData = {
