@@ -1,6 +1,9 @@
 // pages/api/comments/index.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { APP_URL } from '../../lib/env';
+import { EmailService } from '../../lib/emailService';
+import { getReviewById } from '../../lib/supabaseUtils';
 
 // Create a Supabase admin client that can bypass RLS
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -99,7 +102,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Ensure user profile exists before creating comment
       const { data: profile, error: profileError } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, name, email, role')
         .eq('id', user.id)
         .single();
       
@@ -127,7 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       
       // Create the comment using admin client to bypass RLS
-      const { data, error } = await supabaseAdmin
+      const { data: newComment, error } = await supabaseAdmin
         .from('comments')
         .insert({
           content,
@@ -147,11 +150,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
       
-      console.log('Comment created successfully with ID:', data.id);
+      console.log('Comment created successfully with ID:', newComment.id);
+      
+      // Get full comment data with user info
+      const { data: commentWithUser, error: commentError } = await supabaseAdmin
+        .from('comments')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            name,
+            email,
+            created_at,
+            role
+          )
+        `)
+        .eq('id', newComment.id)
+        .single();
+        
+      if (commentError) {
+        console.error('Error fetching comment with user:', commentError);
+      }
+      
+      // Get the review for email notification
+      try {
+        const review = await getReviewById(reviewId);
+        
+        if (review) {
+          // Get the base URL for links in the email
+          const appUrl = APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+                       
+          // Format comment data for the email
+          const commentData = {
+            ...newComment,
+            user: {
+              id: user.id,
+              name: profile?.name || user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+              email: profile?.email || user.email || ''
+            }
+          };
+          
+          // Send email notification to review author
+          await EmailService.sendNewCommentNotification(
+            commentWithUser || commentData,
+            review,
+            appUrl
+          );
+        }
+      } catch (emailError) {
+        // Log but don't fail the request if email sending fails
+        console.error('Error sending email notification:', emailError);
+      }
       
       return res.status(201).json({
         success: true,
-        data
+        data: newComment
       });
     }
     
