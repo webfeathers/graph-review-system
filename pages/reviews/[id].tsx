@@ -11,6 +11,7 @@ import { getReviewById, updateReviewStatus, getCommentsByReviewId } from '../../
 import { ReviewWithProfile, CommentWithProfile } from '../../types/supabase';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorDisplay } from '../../components/ErrorDisplay';
+import { supabase } from '../../lib/supabase';
 
 const ReviewPage: NextPage = () => {
   const router = useRouter();
