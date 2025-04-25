@@ -7,10 +7,6 @@ import {
   dbToFrontendReviewWithProfile, dbToFrontendCommentWithProfile
 } from '../types/supabase';
 
-// Add import for EmailService
-import { EmailService } from './emailService';
-import { APP_URL } from './env';
-
 // Reviews
 export async function getReviews(userId?: string) {
   try {
@@ -175,148 +171,131 @@ export async function getReviewById(id: string) {
   }
 }
 
-export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) {
+// lib/supabaseUtils.ts
+    export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) {
   // Convert the camelCase to snake_case for the database
-  const dbReviewData: any = {
-    title: reviewData.title,
-    description: reviewData.description,
-    graph_image_url: reviewData.graphImageUrl,
-    status: reviewData.status,
-    user_id: reviewData.userId,
+      const dbReviewData: any = {
+        title: reviewData.title,
+        description: reviewData.description,
+        graph_image_url: reviewData.graphImageUrl,
+        status: reviewData.status,
+        user_id: reviewData.userId,
     // New fields
-    account_name: reviewData.accountName,
-    org_id: reviewData.orgId,
-    segment: reviewData.segment,
-    remote_access: reviewData.remoteAccess,
-    graph_name: reviewData.graphName,
-    use_case: reviewData.useCase,
-    customer_folder: reviewData.customerFolder,
-    handoff_link: reviewData.handoffLink
-  };
-
-  const { data, error } = await supabase
-    .from('reviews')
-    .insert(dbReviewData)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error creating review:', error);
-    throw error;
-  }
-
-  // Convert to frontend format
-  const review = dbToFrontendReview(data);
-
-  // Get the full review with user profile for the email notification
-  try {
-    const reviewWithProfile = await getReviewById(review.id);
-    
-    // Send email notification
-    if (reviewWithProfile) {
-      // Get app URL from environment variable
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-      await EmailService.sendNewReviewNotification(reviewWithProfile, appUrl);
-    }
-  } catch (emailError) {
-    // Log but don't fail the request if email sending fails
-    console.error('Error sending email notification:', emailError);
-  }
-
-  return review;
-}
-
-export async function updateReviewStatus(id: string, status: Review['status'], userId: string) {
-  // First check if the user is the owner of the review
-  const { data: existingReview } = await supabase
-  .from('reviews')
-  .select('user_id')
-  .eq('id', id)
-  .single();
-
-  if (!existingReview || existingReview.user_id !== userId) {
-    throw new Error('Unauthorized to update this review');
-  }
-
-  const { data, error } = await supabase
-  .from('reviews')
-  .update({ status })
-  .eq('id', id)
-  .select()
-  .single();
-
-  if (error) {
-    console.error('Error updating review status:', error);
-    throw error;
-  }
-
-  return {
-    id: data.id,
-    title: data.title,
-    description: data.description,
-    graphImageUrl: data.graph_image_url,
-    status: data.status,
-    userId: data.user_id,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at
-  };
-}
-
-// Comments
-export async function getCommentsByReviewId(reviewId: string) {
-  try {
-    // Fetch comments without using relationships
-    const { data: comments, error } = await supabase
-    .from('comments')
-    .select('*')
-    .eq('review_id', reviewId)
-    .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching comments:', error);
-      throw error;
-    }
-
-    if (!comments || comments.length === 0) {
-      return [];
-    }
-
-    // Get unique user IDs
-    const userIds = [...new Set(comments.map(comment => comment.user_id))];
-
-    // Fetch profiles separately
-    const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
-    .select('*')
-    .in('id', userIds);
-
-    if (profilesError) {
-      console.error('Error fetching profiles for comments:', profilesError);
-    }
-
-    // Transform to frontend format
-    const frontendComments: CommentWithProfile[] = comments.map(comment => {
-      // Find matching profile, or use fallback
-      const profile = profiles?.find(p => p.id === comment.user_id);
-
-          // Convert comment to frontend format
-      const frontendComment = {
-        id: comment.id,
-        content: comment.content,
-        reviewId: comment.review_id,
-        userId: comment.user_id,
-        createdAt: comment.created_at
+        account_name: reviewData.accountName,
+        org_id: reviewData.orgId,
+        segment: reviewData.segment,
+        remote_access: reviewData.remoteAccess,
+        graph_name: reviewData.graphName,
+        use_case: reviewData.useCase,
+        customer_folder: reviewData.customerFolder,
+        handoff_link: reviewData.handoffLink
       };
 
-      if (profile) {
+      const { data, error } = await supabase
+      .from('reviews')
+      .insert(dbReviewData)
+      .select()
+      .single();
+
+      if (error) {
+        console.error('Error creating review:', error);
+        throw error;
+      }
+
+      return dbToFrontendReview(data);
+    }
+
+    export async function updateReviewStatus(id: string, status: Review['status'], userId: string) {
+  // First check if the user is the owner of the review
+      const { data: existingReview } = await supabase
+      .from('reviews')
+      .select('user_id')
+      .eq('id', id)
+      .single();
+
+      if (!existingReview || existingReview.user_id !== userId) {
+        throw new Error('Unauthorized to update this review');
+      }
+
+      const { data, error } = await supabase
+      .from('reviews')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+
+      if (error) {
+        console.error('Error updating review status:', error);
+        throw error;
+      }
+
+      return {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        graphImageUrl: data.graph_image_url,
+        status: data.status,
+        userId: data.user_id,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
+    }
+
+// Comments
+    export async function getCommentsByReviewId(reviewId: string) {
+      try {
+    // Fetch comments without using relationships
+        const { data: comments, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('review_id', reviewId)
+        .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching comments:', error);
+          throw error;
+        }
+
+        if (!comments || comments.length === 0) {
+          return [];
+        }
+
+    // Get unique user IDs
+        const userIds = [...new Set(comments.map(comment => comment.user_id))];
+        
+    // Fetch profiles separately
+        const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds);
+        
+        if (profilesError) {
+          console.error('Error fetching profiles for comments:', profilesError);
+        }
+        
+    // Transform to frontend format
+        const frontendComments: CommentWithProfile[] = comments.map(comment => {
+      // Find matching profile, or use fallback
+          const profile = profiles?.find(p => p.id === comment.user_id);
+          
+      // Convert comment to frontend format
+          const frontendComment = {
+            id: comment.id,
+            content: comment.content,
+            reviewId: comment.review_id,
+            userId: comment.user_id,
+            createdAt: comment.created_at
+          };
+          
+          if (profile) {
         // Use the found profile
-        return {
-          ...frontendComment,
-          user: {
-            id: profile.id,
-            name: profile.name,
-            email: profile.email,
-            createdAt: profile.created_at,
+            return {
+              ...frontendComment,
+              user: {
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                createdAt: profile.created_at,
             role: profile.role || 'Member' // Add role field with fallback
           }
         };
@@ -334,92 +313,92 @@ export async function getCommentsByReviewId(reviewId: string) {
         };
       }
     });
+        
+        return frontendComments;
+      } catch (err) {
+        console.error('Error in getCommentsByReviewId:', err);
+        throw err;
+      }
+    }
 
-    return frontendComments;
-  } catch (err) {
-    console.error('Error in getCommentsByReviewId:', err);
-    throw err;
-  }
-}
+    export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt'>) {
+  // Convert the camelCase to snake_case for the database
+      const dbCommentData: any = {
+        content: commentData.content,
+        review_id: commentData.reviewId,
+        user_id: commentData.userId
+      };
+      
+      const { data, error } = await supabase
+      .from('comments')
+      .insert(dbCommentData)
+      .select()
+      .single();
 
-export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt'>) {
-    // Convert the camelCase to snake_case for the database
-  const dbCommentData: any = {
-    content: commentData.content,
-    review_id: commentData.reviewId,
-    user_id: commentData.userId
-  };
+      if (error) {
+        console.error('Error creating comment:', error);
+        throw error;
+      }
 
-  const { data, error } = await supabase
-  .from('comments')
-  .insert(dbCommentData)
-  .select()
-  .single();
-
-  if (error) {
-    console.error('Error creating comment:', error);
-    throw error;
-  }
-
-  return {
-    id: data.id,
-    content: data.content,
-    reviewId: data.review_id,
-    userId: data.user_id,
-    createdAt: data.created_at
-  };
-}
+      return {
+        id: data.id,
+        content: data.content,
+        reviewId: data.review_id,
+        userId: data.user_id,
+        createdAt: data.created_at
+      };
+    }
 
 // Profiles
-export async function getProfileById(id: string) {
-  const { data, error } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('id', id)
-  .single();
+    export async function getProfileById(id: string) {
+      const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', id)
+      .single();
 
-  if (error) {
-    console.error('Error fetching profile:', error);
-    throw error;
-  }
+      if (error) {
+        console.error('Error fetching profile:', error);
+        throw error;
+      }
 
-  return {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    createdAt: data.created_at
-  };
-}
+      return {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        createdAt: data.created_at
+      };
+    }
 
-export async function updateProfile(profileData: Partial<Profile> & { id: string }) {
+    export async function updateProfile(profileData: Partial<Profile> & { id: string }) {
   // Convert camelCase to snake_case for the database
-  const dbProfileData: any = {
-    id: profileData.id,
-    name: profileData.name,
-    email: profileData.email
-  };
-
+      const dbProfileData: any = {
+        id: profileData.id,
+        name: profileData.name,
+        email: profileData.email
+      };
+      
   // Remove undefined fields
-  Object.keys(dbProfileData).forEach(key => 
-    dbProfileData[key] === undefined && delete dbProfileData[key]
-    );
+      Object.keys(dbProfileData).forEach(key => 
+        dbProfileData[key] === undefined && delete dbProfileData[key]
+        );
 
-  const { data, error } = await supabase
-  .from('profiles')
-  .update(dbProfileData)
-  .eq('id', profileData.id)
-  .select()
-  .single();
+      const { data, error } = await supabase
+      .from('profiles')
+      .update(dbProfileData)
+      .eq('id', profileData.id)
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error updating profile:', error);
-    throw error;
-  }
+      if (error) {
+        console.error('Error updating profile:', error);
+        throw error;
+      }
 
-  return {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    createdAt: data.created_at
-  };
-}
+      return {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        createdAt: data.created_at
+      };
+    }

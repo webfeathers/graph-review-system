@@ -3,8 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../../lib/supabase';
 import { withAuth } from '../../../lib/apiHelpers';
 import { createClient } from '@supabase/supabase-js';
-import { EmailService } from '../../../lib/emailService'; 
-import { getReviewById } from '../../../lib/supabaseUtils';
+
 // Create a Supabase admin client with service role for bypassing RLS
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -253,183 +252,136 @@ async function reviewHandler(
   }
   
   // PATCH /api/reviews/[id] - for status updates
-if (req.method === 'PATCH') {
-  try {
-    console.log('Processing PATCH request for status update');
-    
-    // First, fetch the review to check ownership and get previous status
-    const { data: review, error: reviewFetchError } = await supabaseAdmin
-      .from('reviews')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    
-    if (reviewFetchError) {
-      console.error('Error fetching review for update:', reviewFetchError);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Error fetching review', 
-        error: reviewFetchError.message 
-      });
-    }
-    
-    if (!review) {
-      console.log('Review not found with ID:', id);
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Review not found' 
-      });
-    }
-    
-    // Store previous status for notification
-    const previousStatus = review.status;
-    
-    // Check if the user is the author of the review
-    if (review.user_id !== userId) {
-      console.log('Authorization failed: User is not the author');
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Forbidden - You can only update your own reviews' 
-      });
-    }
-    
-    const { status } = req.body;
-    
-    // Validate status value
-    if (!status || !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
-      console.log('Invalid status value provided:', status);
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid status value' 
-      });
-    }
-    
-    // Only allow admin users to set status to 'Approved'
-    if (status === 'Approved') {
-      // Check if the user is an admin
-      const { data: profileData, error: profileError } = await supabaseAdmin
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-        
-      if (profileError || !profileData || profileData.role !== 'Admin') {
-        console.log('Authorization failed: Admin privileges required for approval');
-        return res.status(403).json({ 
+  if (req.method === 'PATCH') {
+    try {
+      console.log('Processing PATCH request for status update');
+      
+      // First, fetch the review to check ownership
+      const { data: review, error: reviewFetchError } = await supabaseAdmin
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+      
+      if (reviewFetchError) {
+        console.error('Error fetching review for update:', reviewFetchError);
+        return res.status(500).json({ 
           success: false, 
-          message: 'Only administrators can approve reviews' 
+          message: 'Error fetching review', 
+          error: reviewFetchError.message 
         });
       }
-    }
-    
-    console.log(`Updating review status to: ${status}`);
-    
-    // Update the review - separate update from select
-    const updateData: any = {
-      status,
-      updated_at: new Date().toISOString()
-    };
-    
-    // Use admin client to bypass RLS
-    const { error: updateError } = await supabaseAdmin
-      .from('reviews')
-      .update(updateData)
-      .eq('id', id);
       
-    if (updateError) {
-      console.error('Error updating review status:', updateError);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Error updating review', 
-        error: updateError.message 
-      });
-    }
-    
-    console.log('Status update operation succeeded, now fetching the updated review');
-    
-    // Fetch the updated review separately
-    const { data: updatedReview, error: statusFetchError } = await supabaseAdmin
-      .from('reviews')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (statusFetchError) {
-      console.error('Error fetching updated review:', statusFetchError);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Update succeeded but could not fetch updated review', 
-        error: statusFetchError.message 
-      });
-    }
-    
-    if (!updatedReview) {
-      console.error('Status update succeeded but review not found in subsequent fetch');
-      return res.status(500).json({
-        success: false,
-        message: 'Update succeeded but could not retrieve the updated review'
-      });
-    }
-    
-    // Get user profile for the notification
-    const { data: userProfile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, name, email, role')
-      .eq('id', userId)
-      .single();
-      
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError);
-    }
-    
-    // Send email notification if status changed
-    if (previousStatus !== status) {
-      try {
-        // Get the full review with profile info
-        const reviewWithProfile = await getReviewById(id);
-        
-        if (reviewWithProfile) {
-          // Get the base URL for email links
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
-
-          
-          // Format the user data for the notification
-          const updatedBy = userProfile || {
-            id: userId,
-            name: 'User',
-            email: '',
-            role: 'Member'
-          };
-          
-          // Send notification email
-          await EmailService.sendStatusChangeNotification(
-            reviewWithProfile,
-            previousStatus,
-            updatedBy,
-            appUrl
-          );
-        }
-      } catch (emailError) {
-        // Log but don't fail if email sending fails
-        console.error('Error sending status change notification:', emailError);
+      if (!review) {
+        console.log('Review not found with ID:', id);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Review not found' 
+        });
       }
+      
+      // Check if the user is the author of the review
+      if (review.user_id !== userId) {
+        console.log('Authorization failed: User is not the review author');
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Forbidden - You can only update your own reviews' 
+        });
+      }
+      
+      const { status } = req.body;
+      
+      // Validate status value
+      if (!status || !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
+        console.log('Invalid status value provided:', status);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Invalid status value' 
+        });
+      }
+      
+      // Only allow admin users to set status to 'Approved'
+      if (status === 'Approved') {
+        // Check if the user is an admin
+        const { data: profileData, error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+          
+        if (profileError || !profileData || profileData.role !== 'Admin') {
+          console.log('Authorization failed: Admin privileges required for approval');
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Only administrators can approve reviews' 
+          });
+        }
+      }
+      
+      console.log(`Updating review status to: ${status}`);
+      
+      // Update the review - separate update from select
+      const updateData: any = {
+        status,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Use admin client to bypass RLS
+      const { error: updateError } = await supabaseAdmin
+        .from('reviews')
+        .update(updateData)
+        .eq('id', id);
+        
+      if (updateError) {
+        console.error('Error updating review status:', updateError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error updating review', 
+          error: updateError.message 
+        });
+      }
+      
+      console.log('Status update operation succeeded, now fetching the updated review');
+      
+      // Fetch the updated review separately
+      const { data: updatedReview, error: statusFetchError } = await supabaseAdmin
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (statusFetchError) {
+        console.error('Error fetching updated review:', statusFetchError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Update succeeded but could not fetch updated review', 
+          error: statusFetchError.message 
+        });
+      }
+      
+      if (!updatedReview) {
+        console.error('Status update succeeded but review not found in subsequent fetch');
+        return res.status(500).json({
+          success: false,
+          message: 'Update succeeded but could not retrieve the updated review'
+        });
+      }
+      
+      console.log('Review status updated successfully');
+      
+      return res.status(200).json({
+        success: true,
+        data: updatedReview
+      });
+    } catch (error: any) {
+      console.error('Unexpected error in PATCH review:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Internal server error',
+        error: error.message
+      });
     }
-    
-    console.log('Review status updated successfully');
-    
-    return res.status(200).json({
-      success: true,
-      data: updatedReview
-    });
-  } catch (error: any) {
-    console.error('Unexpected error in PATCH review:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Internal server error',
-      error: error.message
-    });
   }
-}
   
   // Handle unsupported methods
   return res.status(405).json({ 
