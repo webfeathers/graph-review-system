@@ -2,11 +2,19 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  output: 'standalone', // Add this line
   
-  // This tells Next.js that nodemailer is a server-side only package
-  experimental: {
-    serverComponentsExternalPackages: ['nodemailer'],
+  // For standalone builds with Node.js dependencies
+  output: 'standalone',
+  
+  // Prevent webpack from trying to bundle node modules
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      // Keep Node.js modules as external when running on the server
+      // This fixes issues with modules like nodemailer
+      config.externals = [...config.externals, 'nodemailer'];
+    }
+    
+    return config;
   },
 }
 
