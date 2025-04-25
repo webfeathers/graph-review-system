@@ -1,4 +1,4 @@
-// pages/api/email/send.ts
+// pages/api/email/send.ts (updated with better error handling)
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { EmailService } from '../../../lib/emailService';
 
@@ -26,6 +26,13 @@ export default async function handler(
       });
     }
 
+    // Log email configuration for debugging (remove in production)
+    console.log('Email configuration:');
+    console.log('- HOST:', process.env.EMAIL_HOST);
+    console.log('- PORT:', process.env.EMAIL_PORT);
+    console.log('- USER exists:', !!process.env.EMAIL_USER);
+    console.log('- PASSWORD exists:', !!process.env.EMAIL_PASSWORD);
+
     // Send the email
     const result = await EmailService.sendEmail({
       to,
@@ -37,6 +44,7 @@ export default async function handler(
 
     // Handle errors from the email service
     if (!result.success) {
+      console.error('Email service error:', result.error);
       return res.status(500).json({
         success: false,
         message: 'Failed to send email',
@@ -54,7 +62,8 @@ export default async function handler(
     
     return res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : 'An unexpected error occurred'
+      message: error instanceof Error ? error.message : 'An unexpected error occurred',
+      error: error instanceof Error ? error.stack : 'Unknown error'
     });
   }
 }
