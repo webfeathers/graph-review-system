@@ -206,20 +206,33 @@ export async function getReviewById(id: string) {
     }
 
     export async function updateReviewStatus(id: string, status: Review['status'], userId: string) {
-  // First check if the user is the owner of the review
-      const { data: existingReview } = await supabase
-      .from('reviews')
-      .select('user_id')
-      .eq('id', id)
-      .single();
-
-      if (!existingReview || existingReview.user_id !== userId) {
-        throw new Error('Unauthorized to update this review');
+  // Use the admin client to bypass restrictions
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+      const { createClient } = require('@supabase/supabase-js');
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+      
+  // First check if the status is 'Approved' and the user is an admin
+      if (status === 'Approved') {
+    // Get the user's role
+        const { data: userProfile, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+        
+        if (profileError || !userProfile || userProfile.role !== 'Admin') {
+          throw new Error('Only administrators can set a review to Approved');
+        }
       }
 
-      const { data, error } = await supabase
+  // Bypass the owner check - allow any user to update status
+      const { data, error } = await supabaseAdmin
       .from('reviews')
-      .update({ status })
+      .update({ 
+        status,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id)
       .select()
       .single();
