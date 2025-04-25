@@ -1,6 +1,8 @@
 // pages/api/comments/index.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { EmailService } from '../../../lib/emailService';
+import { getReviewById } from '../../../lib/supabaseUtils';
 
 // Create a Supabase admin client that can bypass RLS
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -99,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Ensure user profile exists before creating comment
       const { data: profile, error: profileError } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, name, email, role')
         .eq('id', user.id)
         .single();
       
@@ -127,7 +129,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       
       // Create the comment using admin client to bypass RLS
-      const { data, error } = await supabaseAdmin
+      const { data: newComment, error } = await supabaseAdmin
         .from('comments')
         .insert({
           content,
@@ -147,11 +149,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       }
       
-      console.log('Comment created successfully with ID:', data.id);
+      console.log('Comment created successfully with ID:', newComment.id);
+      
+      // Send email notification
+      try {
+        const review = await getReviewById(reviewId);
+        
+        if (review && review.user.email) {
+          // Skip sending notification if the comment author is the review owner
+          if (review.userId === user.id) {
+            console.log('Skipping notification as comment author is review owner');
+          } else {
+            // Get the commenter's name
+            const commenterName = profile?.name || 
+                                  user.user_metadata?.name || 
+                                  user.email?.split('@')[0] || 
+                                  'A user';
+            
+            // Generate app URL
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                          `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+            
+            // Send notification using helper method
+            await EmailService.sendCommentNotification(
+              reviewId,
+              review.title,
+              review.user.email,
+              review.user.name || 'User',
+              content,
+              commenterName,
+              appUrl
+            );
+            
+            console.log('Comment notification email sent to review author');
+          }
+        }
+      } catch (emailError) {
+        // Log but don't fail the request if email sending fails
+        console.error('Error sending comment notification email:', emailError);
+      }
       
       return res.status(201).json({
         success: true,
-        data
+        data: newComment
       });
     }
     

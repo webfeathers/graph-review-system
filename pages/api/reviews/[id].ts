@@ -3,6 +3,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../../lib/supabase';
 import { withAuth } from '../../../lib/apiHelpers';
 import { createClient } from '@supabase/supabase-js';
+import { EmailService } from '../../../lib/emailService';
+import { getReviewById } from '../../../lib/supabaseUtils';
 
 // Create a Supabase admin client with service role for bypassing RLS
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -256,7 +258,7 @@ async function reviewHandler(
     try {
       console.log('Processing PATCH request for status update');
       
-      // First, fetch the review to check ownership
+      // First, fetch the review to check ownership and get previous status
       const { data: review, error: reviewFetchError } = await supabaseAdmin
         .from('reviews')
         .select('*')
@@ -279,6 +281,9 @@ async function reviewHandler(
           message: 'Review not found' 
         });
       }
+      
+      // Store previous status for notification
+      const previousStatus = review.status;
       
       // Check if the user is the author of the review
       if (review.user_id !== userId) {
@@ -365,6 +370,60 @@ async function reviewHandler(
           success: false,
           message: 'Update succeeded but could not retrieve the updated review'
         });
+      }
+      
+      // Send email notification if status changed
+      if (previousStatus !== status) {
+        try {
+          // Get the user who changed the status
+          const { data: statusChanger, error: userError } = await supabaseAdmin
+            .from('profiles')
+            .select('id, name, email, role')
+            .eq('id', userId)
+            .single();
+            
+          if (userError) {
+            console.error('Error fetching user profile:', userError);
+          }
+          
+          // Get the review owner's email by fetching the user associated with the review
+          const { data: reviewOwner, error: ownerError } = await supabaseAdmin
+            .from('profiles')
+            .select('id, name, email')
+            .eq('id', review.user_id)
+            .single();
+            
+          if (ownerError) {
+            console.error('Error fetching review owner profile:', ownerError);
+          }
+          
+          // Skip notification if the status changer is the review owner
+          if (reviewOwner && reviewOwner.email && reviewOwner.id !== userId) {
+            // Generate app URL
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                          `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+            
+            // Get the name of the person who changed the status
+            const changerName = statusChanger?.name || 'A user';
+            
+            // Send notification using helper method
+            await EmailService.sendStatusChangeNotification(
+              id,
+              review.title,
+              reviewOwner.email,
+              reviewOwner.name || 'User',
+              previousStatus,
+              status,
+              changerName,
+              appUrl
+            );
+            
+            console.log('Status change notification email sent to review author');
+          }
+        } catch (emailError) {
+          // Log but don't fail the request if email sending fails
+          console.error('Error sending status change notification email:', emailError);
+        }
       }
       
       console.log('Review status updated successfully');
