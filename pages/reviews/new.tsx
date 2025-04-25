@@ -181,10 +181,7 @@ const NewReview: NextPage = () => {
         
         console.log('Review created successfully:', result);
         
-        // Add a small delay to ensure the state is updated before navigation
-        setTimeout(() => {
-          router.push('/reviews');
-        }, 100);
+        router.replace('/reviews');
         
       } catch (error) {
         console.error('Error creating review:', error);
