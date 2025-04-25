@@ -390,7 +390,8 @@ if (req.method === 'PATCH') {
         
         if (reviewWithProfile) {
           // Get the base URL for email links
-          const appUrl = APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+
           
           // Format the user data for the notification
           const updatedBy = userProfile || {
