@@ -115,24 +115,65 @@ const ReviewPage: NextPage = () => {
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <div className="flex justify-between items-start mb-2">
-            <h1 className="text-3xl font-bold">{review.title}</h1>
+          {/* Title with Edit button and Status Badge */}
+          <div className="flex justify-between items-start mb-4">
+            <div className="flex items-center gap-3">
+              {/* Edit button - now an icon button to the left of the title */}
+              {(isAuthor || isAdmin()) && (
+                <a 
+                  href={`/reviews/edit/${review.id}`}
+                  className="bg-gray-200 text-gray-700 p-2 rounded-full hover:bg-gray-300"
+                  title="Edit Review"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </a>
+              )}
+              <h1 className="text-3xl font-bold">{review.title}</h1>
+            </div>
             <StatusBadge status={currentStatus || review.status} />
           </div>
-          
-          {/* Add this after the status buttons section in pages/reviews/[id].tsx */}
-          {(isAuthor || isAdmin()) && (
-            <div className="mt-4">
-              <a 
-                href={`/reviews/edit/${review.id}`}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 inline-block"
-              >
-                Edit Review
-              </a>
+
+          {/* Status buttons - moved under title and made smaller */}
+          {isAuthor && (
+            <div className="mb-6">
+              <div className="flex flex-wrap gap-2">
+                {(['Submitted', 'In Review', 'Needs Work'] as const).map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleStatusChange(status)}
+                    disabled={status === currentStatus || isUpdating}
+                    className={`px-3 py-1 text-sm rounded ${
+                      status === currentStatus
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    } disabled:opacity-50 cursor-pointer`}
+                    type="button"
+                  >
+                    {status}
+                  </button>
+                ))}
+
+                {/* Only show the Approved button for admins */}
+                {isAdmin() && (
+                  <button
+                    onClick={() => handleStatusChange('Approved')}
+                    disabled={'Approved' === currentStatus || isUpdating}
+                    className={`px-3 py-1 text-sm rounded ${
+                      'Approved' === currentStatus
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                    } disabled:opacity-50 cursor-pointer`}
+                    type="button"
+                  >
+                    Approved
+                  </button>
+                )}
+              </div>
             </div>
           )}
-
-
+          
           <div className="text-sm text-gray-500 mb-4">
             <p>Submitted by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</p>
             <p>Last updated: {new Date(review.updatedAt).toLocaleDateString()}</p>
@@ -229,45 +270,6 @@ const ReviewPage: NextPage = () => {
               </div>
             )}
           </div>
-          
-          {isAuthor && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-            <h3 className="text-lg font-medium mb-3">Update Status</h3>
-            <div className="flex flex-wrap gap-2">
-            {(['Submitted', 'In Review', 'Needs Work'] as const).map((status) => (
-              <button
-              key={status}
-              onClick={() => handleStatusChange(status)}
-              disabled={status === currentStatus || isUpdating}
-              className={`px-4 py-2 rounded ${
-                status === currentStatus
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-              } disabled:opacity-50 cursor-pointer`}
-              type="button"
-              >
-              {status}
-              </button>
-              ))}
-
-      {/* Only show the Approved button for admins */}
-            {isAdmin() && (
-              <button
-              onClick={() => handleStatusChange('Approved')}
-              disabled={'Approved' === currentStatus || isUpdating}
-              className={`px-4 py-2 rounded ${
-                'Approved' === currentStatus
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-              } disabled:opacity-50 cursor-pointer`}
-              type="button"
-              >
-              Approved
-              </button>
-              )}
-            </div>
-            </div>
-            )}
           
           <CommentSection 
             comments={comments.map(c => ({
