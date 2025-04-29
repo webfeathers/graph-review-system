@@ -183,6 +183,7 @@ export async function getReviewById(id: string) {
     // New fields
         account_name: reviewData.accountName,
         org_id: reviewData.orgId,
+        kantata_project_id: reviewData.kantataProjectId,
         segment: reviewData.segment,
         remote_access: reviewData.remoteAccess,
         graph_name: reviewData.graphName,
