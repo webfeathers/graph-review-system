@@ -229,12 +229,35 @@ const ReviewPage: NextPage = () => {
       <span className="font-medium">OrgID:</span> {review.orgId}
       </div>
       )}
-     {/* Add the Kantata Project ID field */}
 
-    {review.kantataProjectId && (
-      <div>
-      <span className="font-medium">Kantata Project ID</span> {review.kantataProjectId}
-      </div>
+      {/* Add the Kantata Project ID field here with a clickable icon */}
+      {review.kantataProjectId && (
+        <div className="flex items-center">
+          <span className="font-medium">Kantata Project ID:</span>
+          <span className="mx-1">{review.kantataProjectId}</span>
+          <a 
+            href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-2 text-blue-600 hover:text-blue-800"
+            title="Open in Kantata"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-5 w-5" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+              />
+            </svg>
+          </a>
+        </div>
       )}
     {review.segment && (
       <div>
