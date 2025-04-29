@@ -23,6 +23,11 @@ import {
 } from '../../../constants';
 import { ReviewWithProfile, Role } from '../../../types/supabase';
 
+// Extending the existing ReviewWithProfile type to include kantataProjectId
+interface ExtendedReviewWithProfile extends ReviewWithProfile {
+  kantataProjectId?: string;
+}
+
 /*
  * This is a simplified implementation of the edit review page
  * that avoids complex state management and form libraries to
@@ -34,7 +39,7 @@ const EditReview: NextPage = () => {
   const { id } = router.query;
   
   // Component state
-  const [review, setReview] = useState<ReviewWithProfile | null>(null);
+  const [review, setReview] = useState<ExtendedReviewWithProfile | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +121,7 @@ const EditReview: NextPage = () => {
         }
         
         // Set the review data - transform from snake_case to camelCase
-        const transformedReview: ReviewWithProfile = {
+        const transformedReview: ExtendedReviewWithProfile = {
           id: reviewData.id,
           title: reviewData.title || '',
           description: reviewData.description || '',
