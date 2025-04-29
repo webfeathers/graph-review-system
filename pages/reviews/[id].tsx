@@ -170,6 +170,20 @@ const ReviewPage: NextPage = () => {
     <div className="mb-6">
     <div className="flex flex-wrap gap-2">
                 {/* Regular status buttons - show to everyone */}
+    
+                {/* Submitted button - shown to everyone */}
+    <button
+    onClick={() => handleStatusChange('Submitted')}
+    disabled={'Submitted' === currentStatus || isUpdating}
+    className={`px-3 py-1 text-sm rounded ${
+      'Submitted' === currentStatus
+      ? 'bg-blue-500 text-white'
+      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+    } disabled:opacity-50 cursor-pointer`}
+    type="button"
+    >
+    Submitted
+    </button>
     {(['In Review', 'Needs Work'] as const).map((status) => (
       <button
       key={status}
@@ -186,19 +200,6 @@ const ReviewPage: NextPage = () => {
       </button>
       ))}
 
-                {/* Submitted button - shown to everyone */}
-    <button
-    onClick={() => handleStatusChange('Submitted')}
-    disabled={'Submitted' === currentStatus || isUpdating}
-    className={`px-3 py-1 text-sm rounded ${
-      'Submitted' === currentStatus
-      ? 'bg-blue-500 text-white'
-      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-    } disabled:opacity-50 cursor-pointer`}
-    type="button"
-    >
-    Submitted
-    </button>
 
                 {/* Approved button - only shown to admins */}
     {isAdmin() && (
