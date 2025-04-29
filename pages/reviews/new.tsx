@@ -254,13 +254,13 @@ const NewReview: NextPage = () => {
               id="kantataProjectId"
               name="kantataProjectId"
               label="Kantata Project ID"
-              placeholder="Enter associated Kantata project ID"
+              placeholder="Enter associated Kantata (Mavenlink) project ID"
               value={form.values.kantataProjectId || ''}
               onChange={form.handleChange('kantataProjectId')}
               onBlur={form.handleBlur('kantataProjectId')}
               error={form.errors.kantataProjectId}
               touched={form.touched.kantataProjectId}
-              helpText="Link this review to a Kantata project"
+              helpText="Link this review to a Kantata (Mavenlink) project"
               />
 
             <TextInput

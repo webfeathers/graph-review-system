@@ -51,6 +51,7 @@ const EditReview: NextPage = () => {
   const [useCase, setUseCase] = useState('');
   const [customerFolder, setCustomerFolder] = useState('');
   const [handoffLink, setHandoffLink] = useState('');
+  const [kantataProjectId, setKantataProjectId] = useState(''); // Added Kantata Project ID state
   
   // Image state
   const [graphImage, setGraphImage] = useState<File | null>(null);
@@ -132,6 +133,7 @@ const EditReview: NextPage = () => {
           useCase: reviewData.use_case || '',
           customerFolder: reviewData.customer_folder || '',
           handoffLink: reviewData.handoff_link || '',
+          kantataProjectId: reviewData.kantata_project_id || '', // Added Kantata Project ID
           // Use the correct Role type for the user object
           user: {
             id: reviewData.user_id,
@@ -155,6 +157,7 @@ const EditReview: NextPage = () => {
         setUseCase(transformedReview.useCase || '');
         setCustomerFolder(transformedReview.customerFolder || '');
         setHandoffLink(transformedReview.handoffLink || '');
+        setKantataProjectId(transformedReview.kantataProjectId || ''); // Set Kantata Project ID
         
         // Set image URL if it exists
         if (transformedReview.graphImageUrl) {
@@ -338,7 +341,8 @@ const EditReview: NextPage = () => {
           graphName,
           useCase,
           customerFolder,
-          handoffLink
+          handoffLink,
+          kantataProjectId // Added Kantata Project ID to submission
         })
       });
       
@@ -481,6 +485,21 @@ const EditReview: NextPage = () => {
               onChange={(e) => setOrgId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Enter the organization ID"
+            />
+          </div>
+          
+          {/* Kantata Project ID - Added field */}
+          <div className="mb-4">
+            <label htmlFor="kantataProjectId" className="block text-sm font-medium text-gray-700 mb-1">
+              Kantata Project ID
+            </label>
+            <input
+              id="kantataProjectId"
+              type="text"
+              value={kantataProjectId}
+              onChange={(e) => setKantataProjectId(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter associated Kantata project ID"
             />
           </div>
           
