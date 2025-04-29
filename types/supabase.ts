@@ -54,6 +54,8 @@ export type Profile = {
 export type Review = {
   id: string;
   title: string;
+  // New field for Kantata integration
+  kantataProjectId?: string;
   description: string;
   graphImageUrl?: string;
   status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
@@ -83,10 +85,36 @@ export type Comment = {
 export type ReviewWithProfile = Review & {
   user: Profile;
 }
-
+export interface ReviewWithProfile {
+  id: string;
+  title: string;
+  description: string;
+  graphImageUrl: string;
+  status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+  accountName: string;
+  orgId: string;
+  segment: 'Enterprise' | 'MidMarket';
+  remoteAccess: boolean;
+  graphName: string;
+  useCase: string;
+  customerFolder: string;
+  handoffLink: string;
+  kantataProjectId?: string; // Add this line
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    createdAt: string;
+    role: Role;
+  };
+}
 export type CommentWithProfile = Comment & {
   user: Profile;
 }
+
 
 // Helper functions to convert between database and frontend types
 export function dbToFrontendReview(dbReview: DbReview): Review {
