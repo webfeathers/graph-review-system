@@ -229,6 +229,13 @@ const ReviewPage: NextPage = () => {
       <span className="font-medium">OrgID:</span> {review.orgId}
       </div>
       )}
+     {/* Add the Kantata Project ID field */}
+    {review.kantataProjectId && (
+      <div>
+        <h3 className="text-sm font-medium text-gray-500">Kantata Project ID</h3>
+        <p className="mt-1">{review.kantataProjectId}</p>
+      </div>
+    )}
     {review.segment && (
       <div>
       <span className="font-medium">Segment:</span> {review.segment}
