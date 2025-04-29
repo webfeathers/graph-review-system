@@ -1,5 +1,6 @@
 // test-kantata-validation.js - Save this as a separate file to run with Node.js
-const fetch = require('node-fetch');
+//const fetch = require('node-fetch');
+import fetch from 'node-fetch'
 
 async function testValidation() {
   // Replace with your actual OAuth token
