@@ -29,6 +29,7 @@ interface ReviewFormValues {
   title: string;
   description: string;
   accountName: string;
+  kantataProjectId?: string;
   orgId: string;
   segment: string; // 'Enterprise' or 'MidMarket'
   remoteAccess: boolean;
