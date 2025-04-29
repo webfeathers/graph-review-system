@@ -230,7 +230,6 @@ const ReviewPage: NextPage = () => {
       </div>
       )}
      {/* Add the Kantata Project ID field */}
-    <p>Here<p>
     {review.kantataProjectId && (
       <div>
         <h3 className="text-sm font-medium text-gray-500">Kantata Project ID</h3>
