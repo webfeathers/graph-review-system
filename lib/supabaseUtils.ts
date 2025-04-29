@@ -138,6 +138,7 @@ export async function getReviewById(id: string) {
       // Add the new fields
       accountName: review.account_name,
       orgId: review.org_id,
+      kantataProjectId: review.kantata_project_id,
       segment: review.segment,
       remoteAccess: review.remote_access,
       graphName: review.graph_name,
