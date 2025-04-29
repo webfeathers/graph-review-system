@@ -209,6 +209,10 @@ const EditReview: NextPage = () => {
       errors.accountName = 'Account name is required';
     }
     
+    // Add Kantata Project ID validation
+    if (!kantataProjectId.trim()) {
+      errors.kantataProjectId = 'Kantata Project ID is required';
+    }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -496,16 +500,24 @@ const EditReview: NextPage = () => {
           {/* Kantata Project ID - Added field */}
           <div className="mb-4">
             <label htmlFor="kantataProjectId" className="block text-sm font-medium text-gray-700 mb-1">
-              Kantata Project ID
+              Kantata Project ID<span className="text-red-600 ml-1">*</span>
             </label>
             <input
               id="kantataProjectId"
               type="text"
               value={kantataProjectId}
               onChange={(e) => setKantataProjectId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full px-3 py-2 border ${
+                formErrors.kantataProjectId && touched.kantataProjectId 
+                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
+                  : 'border-gray-300 focus:border-blue-500'
+              } rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
               placeholder="Enter associated Kantata project ID"
+              required
             />
+            {formErrors.kantataProjectId && touched.kantataProjectId && (
+              <p className="mt-1 text-sm text-red-600">{formErrors.kantataProjectId}</p>
+            )}
           </div>
           
           {/* Segment */}

@@ -36,6 +36,10 @@ export const reviewValidationSchema: ValidationSchema = {
     minLength(10, 'Description must be at least 10 characters'),
     maxLength(FIELD_LIMITS.DESCRIPTION_MAX_LENGTH, `Description must be no more than ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`)
   ),
+  // Add validation for Kantata Project ID
+  kantataProjectId: createValidator(
+    required('Kantata (Mavenlink) Project ID is required')
+  ),
   graphImage: createValidator(
     fileType(ALLOWED_IMAGE_TYPES, 'File must be a valid image (JPEG, PNG, GIF, or WEBP)'),
     maxFileSize(MAX_FILE_SIZES.IMAGE, `File size must be less than ${MAX_FILE_SIZES.IMAGE / (1024 * 1024)}MB`)

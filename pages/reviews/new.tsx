@@ -64,6 +64,7 @@ const NewReview: NextPage = () => {
       description: '',
       accountName: '',
       orgId: '',
+      kantataProjectId: '',
       segment: 'Enterprise',
       remoteAccess: false,
       graphName: '',
@@ -74,6 +75,7 @@ const NewReview: NextPage = () => {
     validationSchema: {
       title: reviewValidationSchema.title,
       description: reviewValidationSchema.description,
+      kantataProjectId: reviewValidationSchema.kantataProjectId,
       // Add validation for new fields if needed
     },
     validateOnChange: false,
@@ -260,8 +262,9 @@ const NewReview: NextPage = () => {
               onBlur={form.handleBlur('kantataProjectId')}
               error={form.errors.kantataProjectId}
               touched={form.touched.kantataProjectId}
+              required
               helpText="Link this review to a Kantata (Mavenlink) project"
-              />
+            />
 
             <TextInput
               id="orgId"
