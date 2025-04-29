@@ -9,10 +9,11 @@ type ResponseData = {
   message: string;
   reviewId?: string;
   reviewStatus?: string;
+  graphReviewUrl?: string;
 }
 
 async function handler(
-  req: NextApiRequest,
+  req: NextApiRequest, 
   res: NextApiResponse<ResponseData>,
   userId: string
 ) {
@@ -37,14 +38,25 @@ async function handler(
       });
     }
     
+    console.log(`Validating status for Kantata project: ${projectId}`);
+    
     // Query for review with matching Kantata project ID
     const { data: review, error } = await supabase
       .from('reviews')
-      .select('id, status')
-      .eq('kantataProjectId', projectId)
+      .select('id, title, status, user_id')
+      .eq('kantata_project_id', projectId)
       .single();
       
-    if (error || !review) {
+    if (error) {
+      console.error('Error fetching review:', error);
+      return res.status(404).json({
+        success: false,
+        isApproved: false,
+        message: 'No matching review found for this Kantata project'
+      });
+    }
+    
+    if (!review) {
       return res.status(404).json({
         success: false,
         isApproved: false,
@@ -55,14 +67,18 @@ async function handler(
     // Check if the review is approved
     const isApproved = review.status === 'Approved';
     
+    // Construct the URL to the review
+    const graphReviewUrl = `https://graph-review-system-3a7t.vercel.app/reviews/${review.id}`;
+    
     return res.status(200).json({
       success: true,
       isApproved,
       message: isApproved 
-        ? 'Review is approved, status change to Live is allowed' 
-        : `Review status is ${review.status}, must be Approved to change to Live`,
+        ? `Graph review "${review.title}" is approved, status change to Live is allowed` 
+        : `Graph review "${review.title}" has status "${review.status}", must be Approved to change to Live`,
       reviewId: review.id,
-      reviewStatus: review.status
+      reviewStatus: review.status,
+      graphReviewUrl
     });
     
   } catch (error) {
