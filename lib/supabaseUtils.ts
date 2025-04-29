@@ -180,7 +180,6 @@ export async function getReviewById(id: string) {
         graph_image_url: reviewData.graphImageUrl,
         status: reviewData.status,
         user_id: reviewData.userId,
-    // New fields
         account_name: reviewData.accountName,
         org_id: reviewData.orgId,
         kantata_project_id: reviewData.kantataProjectId,
@@ -189,8 +188,7 @@ export async function getReviewById(id: string) {
         graph_name: reviewData.graphName,
         use_case: reviewData.useCase,
         customer_folder: reviewData.customerFolder,
-        handoff_link: reviewData.handoffLink,
-        kantata_project_id: reviewData.kantataProjectId  // Add this line
+        handoff_link: reviewData.handoffLink
       };
 
       const { data, error } = await supabase
