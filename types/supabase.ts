@@ -21,6 +21,7 @@ export type DbReview = {
   updated_at: string;
   // New fields
   account_name?: string;
+  kantata_project_id?: string;
   org_id?: string;
   segment?: 'Enterprise' | 'MidMarket';
   remote_access?: boolean;
@@ -103,13 +104,13 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     // Handle potentially missing fields with default values
     accountName: dbReview.account_name || '',
     orgId: dbReview.org_id || '',
+    kantataProjectId: dbReview.kantata_project_id || '',
     segment: dbReview.segment as 'Enterprise' | 'MidMarket' || 'Enterprise',
     remoteAccess: dbReview.remote_access || false,
     graphName: dbReview.graph_name || '',
     useCase: dbReview.use_case || '',
     customerFolder: dbReview.customer_folder || '',
-    handoffLink: dbReview.handoff_link || '',
-    kantataProjectId?: string; // Add this line
+    handoffLink: dbReview.handoff_link || ''
   };
 }
 
@@ -139,6 +140,7 @@ export function frontendToDbReview(review: Review): DbReview {
     // New fields
     account_name: review.accountName,
     org_id: review.orgId,
+    kantata_project_id: review.kantataProjectId,
     segment: review.segment,
     remote_access: review.remoteAccess,
     graph_name: review.graphName,
