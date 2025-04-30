@@ -42,7 +42,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .eq('id', userData.user.id)
       .single();
       
-    const isAdmin = profileData?.role === 'admin';
+      const userRole = profileData?.role || '';
+      const isAdmin = userRole.toLowerCase() === 'admin';
     
     if (!isAdmin) {
       return res.status(403).json({ message: 'Access denied: Admin privileges required' });
