@@ -19,11 +19,19 @@ async function handler(
     // Get the OAuth token from your environment variables
     const KANTATA_API_TOKEN = process.env.KANTATA_API_TOKEN;
     
+    // Debug info
+    const debugInfo = {
+      tokenExists: !!KANTATA_API_TOKEN,
+      tokenLength: KANTATA_API_TOKEN ? KANTATA_API_TOKEN.length : 0,
+      tokenPrefix: KANTATA_API_TOKEN ? KANTATA_API_TOKEN.substring(0, 5) + '...' : null
+    };
+    
     if (!KANTATA_API_TOKEN) {
       console.error('Kantata API token not configured');
       return res.status(500).json({
         success: false,
-        message: 'Kantata API token not configured'
+        message: 'Kantata API token not configured',
+        debug: debugInfo
       });
     }
     
@@ -40,35 +48,72 @@ async function handler(
     
     console.log('Kantata API response status:', response.status);
     
+    // Debug info for response
+    const responseDebugInfo = {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries([...response.headers.entries()]),
+      ...debugInfo
+    };
+    
     if (!response.ok) {
       let errorMessage = `API responded with status ${response.status}`;
+      let errorData = null;
       
       try {
-        const errorData = await response.json();
+        errorData = await response.json();
         errorMessage = `Kantata API error: ${JSON.stringify(errorData)}`;
         console.error(errorMessage);
       } catch (parseError) {
         console.error('Could not parse error response:', parseError);
+        
+        // Try to get the text instead
+        try {
+          const text = await response.text();
+          errorData = { rawText: text };
+        } catch (textError) {
+          console.error('Could not get response text:', textError);
+        }
       }
       
       return res.status(response.status).json({
         success: false,
-        message: errorMessage
+        message: errorMessage,
+        error: errorData,
+        debug: responseDebugInfo
       });
     }
     
-    const data = await response.json();
-    console.log('Successfully fetched Kantata custom fields');
+    // Successfully got a response, let's try to parse it
+    let data;
+    try {
+      data = await response.json();
+      console.log('Successfully fetched Kantata custom fields');
+    } catch (parseError) {
+      console.error('Error parsing successful response:', parseError);
+      
+      // Try to get the text
+      const text = await response.text();
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to parse Kantata API response',
+        error: parseError instanceof Error ? parseError.message : 'Unknown error',
+        rawResponse: text.substring(0, 1000), // First 1000 chars for debugging
+        debug: responseDebugInfo
+      });
+    }
     
     return res.status(200).json({
       success: true,
-      fields: data
+      fields: data,
+      debug: responseDebugInfo
     });
   } catch (error) {
     console.error('Error fetching Kantata custom fields:', error);
     return res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : null
     });
   }
 }
