@@ -25,7 +25,11 @@ interface ValidationResult {
   reviewTitle: string;
   reviewStatus: string;
   kantataProjectId: string;
-  kantataStatus: string;
+  kantataStatus: string | {
+    color: string;
+    key: number;
+    message: string;
+  };
   isValid: boolean;
   message: string;
 }
@@ -239,9 +243,13 @@ const Dashboard: NextPage = () => {
                           </Link>
                         </td>
                         <td className="px-4 py-2">{result.reviewStatus || 'Unknown'}</td>
-                        <td className="px-4 py-2"><p>Status: {typeof result.kantataStatus === 'string'
-  ? result.kantataStatus
-  : result.kantataStatus.message}</p></td>
+                        <td className="px-4 py-2">
+                          <p>Status: {
+                              typeof result.kantataStatus === 'string'
+                                ? result.kantataStatus
+                                : result.kantataStatus?.message ?? 'Unknown'
+                            }</p>
+                        </td>
                         <td className="px-4 py-2">
                           {result.isValid 
                             ? <span className="text-green-600">✓ Valid</span> 
