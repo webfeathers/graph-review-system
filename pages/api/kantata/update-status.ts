@@ -112,4 +112,63 @@ async function handler(
         });
       }
       
-      /
+      // Get the first result's ID
+      const customFieldValueId = getResponseData.results[0].id;
+      console.log('Found custom field value ID:', customFieldValueId);
+      
+      // Now update the existing value
+      const updatePayload = {
+        custom_field_value: {
+          value: kantataStatus
+        }
+      };
+      
+      const updateResponse = await fetch(`https://api.mavenlink.com/api/v1/custom_field_values/${customFieldValueId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatePayload)
+      });
+      
+      if (!updateResponse.ok) {
+        const errorText = await updateResponse.text();
+        console.error('Error updating custom field value:', errorText);
+        
+        return res.status(updateResponse.status).json({
+          success: false,
+          message: 'Failed to update custom field value',
+          details: errorText
+        });
+      }
+      
+      const updateData = await updateResponse.json();
+      
+      return res.status(200).json({
+        success: true,
+        message: `Successfully updated Kantata project status to ${kantataStatus}`,
+        data: updateData
+      });
+    }
+    
+    // If creation was successful
+    const createData = await createResponse.json();
+    
+    return res.status(200).json({
+      success: true,
+      message: `Successfully created Kantata project status set to ${kantataStatus}`,
+      data: createData
+    });
+  } catch (error) {
+    console.error('Error updating Kantata status:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating Kantata status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// Wrap the handler with authentication middleware
+export default withAuth(handler);
