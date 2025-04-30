@@ -87,8 +87,6 @@ const Dashboard: NextPage = () => {
     fetchReviewsWithCommentCounts();
   }, [user, authLoading, router]);
 
-  c// pages/dashboard.tsx
-// ...existing code...
 
   const runValidation = async () => {
     try {
