@@ -87,46 +87,55 @@ const Dashboard: NextPage = () => {
     fetchReviewsWithCommentCounts();
   }, [user, authLoading, router]);
 
-const runValidation = async () => {
-  try {
-    setValidating(true);
-    setMessage(null);
-    setError(null);
-    setResults([]);
-    
-    // Get auth token for user authentication only
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userToken = sessionData.session?.access_token;
-    
-    if (!userToken) {
-      throw new Error('No authentication token available');
-    }
-    
-    // Call your API endpoint - let the server handle the Kantata token
-    const response = await fetch('/api/kantata/validate-projects', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${userToken}`,
-        'Content-Type': 'application/json'
+  const runValidation = async () => {
+    try {
+      setValidating(true);
+      setMessage(null);
+      setError(null);
+      setResults([]);
+      
+      // Get auth token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
       }
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to validate projects');
+      
+      // Call your API endpoint
+      const response = await fetch('/api/kantata/validate-projects', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to validate projects');
+      }
+      
+      const data = await response.json();
+      
+      // Safely set results - make sure validationResults exists and is an array
+      if (data && Array.isArray(data.validationResults)) {
+        setResults(data.validationResults);
+      } else {
+        console.warn('Expected validationResults array but got:', data);
+        // Initialize as empty array if not present or not an array
+        setResults([]);
+      }
+      
+      // Show success message
+      setMessage(data.message || 'Validation complete!');
+    } catch (error) {
+      console.error('Error running validation:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setValidating(false);
     }
-    
-    const data = await response.json();
-    setResults(data.validationResults);
-    
-    // Show success message
-    setMessage(`Validation complete! ${data.message}`);
-  } catch (error) {
-    setError(error instanceof Error ? error.message : 'An unexpected error occurred');
-  } finally {
-    setValidating(false);
-  }
-};
+  };
 
   if (authLoading || loading) {
     return <LoadingState message="Loading dashboard..." />;
@@ -194,7 +203,7 @@ const runValidation = async () => {
             />
           )}
           
-          {results.length > 0 && (
+          {results && results.length > 0 && (
             <div className="mt-4">
               <h3 className="text-lg font-medium mb-2">Validation Results</h3>
               <div className="bg-gray-50 rounded-lg overflow-hidden">
@@ -212,15 +221,15 @@ const runValidation = async () => {
                       <tr key={index} className={result.isValid ? 'bg-green-50' : 'bg-red-50'}>
                         <td className="px-4 py-2">
                           <Link href={`/reviews/${result.reviewId}`} className="text-blue-500 hover:underline">
-                            {result.reviewTitle}
+                            {result.reviewTitle || 'Untitled Review'}
                           </Link>
                         </td>
-                        <td className="px-4 py-2">{result.reviewStatus}</td>
-                        <td className="px-4 py-2">{result.kantataStatus}</td>
+                        <td className="px-4 py-2">{result.reviewStatus || 'Unknown'}</td>
+                        <td className="px-4 py-2">{result.kantataStatus || 'Unknown'}</td>
                         <td className="px-4 py-2">
                           {result.isValid 
                             ? <span className="text-green-600">✓ Valid</span> 
-                            : <span className="text-red-600">✗ Invalid</span>}
+                            : <span className="text-red-600">✗ {result.message || 'Invalid'}</span>}
                         </td>
                       </tr>
                     ))}
