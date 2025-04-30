@@ -6,9 +6,9 @@ import { useAuth } from '../../components/AuthProvider';
 import { supabase } from '../../lib/supabase';
 
 const KantataFieldsPage = () => {
-  const [fields, setFields] = useState([]);
+  const [fields, setFields] = useState<any>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null); // Specify the type here
   const { user } = useAuth();
 
   useEffect(() => {
@@ -86,7 +86,7 @@ const KantataFieldsPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {fields.results?.map((fieldId) => {
+              {fields.results?.map((fieldId: string) => {
                 const field = fields.custom_fields[fieldId];
                 return (
                   <tr key={field.id}>
