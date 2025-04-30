@@ -33,8 +33,8 @@ async function handler(
       });
     }
     
-    // This is the key change - we're using the Graph Review status directly,
-    // not transforming it to a Kantata status
+    // Map Graph Review status to acceptable values if needed
+    // (You might need to adjust this based on your custom field's allowed values)
     const graphReviewStatus = status;
     
     // Use environment variable or hardcoded token
@@ -53,79 +53,152 @@ async function handler(
       });
     }
     
-    // Try to get the custom field value ID first
-    console.log('Getting current custom field value...');
+    // DIFFERENT APPROACH: Create a new custom field value directly
+    // Skip the GET request that was failing
+    console.log('Creating new custom field value directly...');
     
-    const getResponse = await fetch(`https://api.mavenlink.com/api/v1/custom_field_values?custom_field_id=${fieldId}&subject_id=${kantataProjectId}&subject_type=workspace`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!getResponse.ok) {
-      const errorText = await getResponse.text();
-      console.error('Error getting custom field value:', errorText);
-      
-      // If not found, try to create a new value
-      if (getResponse.status === 404) {
-        return await createCustomFieldValue(KANTATA_API_TOKEN, fieldId, kantataProjectId, graphReviewStatus, res);
-      }
-      
-      return res.status(getResponse.status).json({
-        success: false,
-        message: 'Failed to find existing custom field value',
-        details: errorText
-      });
-    }
-    
-    const getResponseData = await getResponse.json();
-    console.log('Get custom field values response:', getResponseData);
-    
-    // Check if we found any existing values
-    if (!getResponseData.results || getResponseData.results.length === 0) {
-      // Create a new custom field value
-      return await createCustomFieldValue(KANTATA_API_TOKEN, fieldId, kantataProjectId, graphReviewStatus, res);
-    }
-    
-    // Get the ID of the first result
-    const customFieldValueId = getResponseData.results[0].id;
-    console.log('Found custom field value ID:', customFieldValueId);
-    
-    // Update the existing value
-    const updatePayload = {
+    const createPayload = {
       custom_field_value: {
+        custom_field_id: fieldId,
+        subject_id: kantataProjectId,
+        subject_type: "workspace",
         value: graphReviewStatus
       }
     };
     
-    const updateResponse = await fetch(`https://api.mavenlink.com/api/v1/custom_field_values/${customFieldValueId}`, {
-      method: 'PUT',
+    console.log('Create payload:', JSON.stringify(createPayload));
+    
+    const createResponse = await fetch('https://api.mavenlink.com/api/v1/custom_field_values', {
+      method: 'POST',
       headers: {
         'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(updatePayload)
+      body: JSON.stringify(createPayload)
     });
     
-    if (!updateResponse.ok) {
-      const errorText = await updateResponse.text();
-      console.error('Error updating custom field value:', errorText);
-      
-      return res.status(updateResponse.status).json({
-        success: false,
-        message: 'Failed to update custom field value',
-        details: errorText
+    console.log('Create response status:', createResponse.status);
+    
+    // Get the response text for debugging
+    const responseText = await createResponse.text();
+    console.log('Create response text:', responseText);
+    
+    let responseData;
+    try {
+      // Try to parse as JSON if possible
+      responseData = JSON.parse(responseText);
+    } catch (e) {
+      // If not valid JSON, use the text
+      responseData = { rawText: responseText };
+    }
+    
+    // If creation was successful
+    if (createResponse.ok) {
+      return res.status(201).json({
+        success: true,
+        message: `Successfully created or updated custom field with Graph Review status: ${graphReviewStatus}`,
+        data: responseData
       });
     }
     
-    const updateData = await updateResponse.json();
+    // If creation failed with a 422 (validation error), it might be because the value already exists
+    // We need to find the existing ID and update it
+    if (createResponse.status === 422) {
+      console.log('Creation failed with 422, attempting to find and update existing value...');
+      
+      // Get all custom field values for this project
+      const getProjectResponse = await fetch(`https://api.mavenlink.com/api/v1/workspaces/${kantataProjectId}?include=custom_field_values`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!getProjectResponse.ok) {
+        return res.status(getProjectResponse.status).json({
+          success: false,
+          message: 'Failed to get project data with custom field values',
+          details: await getProjectResponse.text()
+        });
+      }
+      
+      const projectData = await getProjectResponse.json();
+      console.log('Project data received, looking for custom field values...');
+      
+      // Find the custom field value for our field
+      let customFieldValueId = null;
+      
+      // Extract custom field values from the project data
+      if (projectData.workspaces && 
+          projectData.workspaces[kantataProjectId] && 
+          projectData.workspaces[kantataProjectId].custom_field_value_ids) {
+        
+        const fieldValueIds = projectData.workspaces[kantataProjectId].custom_field_value_ids;
+        console.log('Custom field value IDs:', fieldValueIds);
+        
+        // Check each custom field value to find the one for our field
+        for (const valueId of fieldValueIds) {
+          if (projectData.custom_field_values && 
+              projectData.custom_field_values[valueId] && 
+              projectData.custom_field_values[valueId].custom_field_id === fieldId) {
+            
+            customFieldValueId = valueId;
+            console.log('Found matching custom field value ID:', customFieldValueId);
+            break;
+          }
+        }
+      }
+      
+      // If we found a matching custom field value, update it
+      if (customFieldValueId) {
+        console.log('Updating existing custom field value:', customFieldValueId);
+        
+        const updatePayload = {
+          custom_field_value: {
+            value: graphReviewStatus
+          }
+        };
+        
+        const updateResponse = await fetch(`https://api.mavenlink.com/api/v1/custom_field_values/${customFieldValueId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(updatePayload)
+        });
+        
+        if (!updateResponse.ok) {
+          return res.status(updateResponse.status).json({
+            success: false,
+            message: 'Failed to update custom field value',
+            details: await updateResponse.text()
+          });
+        }
+        
+        const updateData = await updateResponse.json();
+        
+        return res.status(200).json({
+          success: true,
+          message: `Successfully updated existing custom field to Graph Review status: ${graphReviewStatus}`,
+          data: updateData
+        });
+      }
+      
+      // If we couldn't find the custom field value, return an error
+      return res.status(404).json({
+        success: false,
+        message: 'Could not find or create custom field value for this project',
+        details: responseData
+      });
+    }
     
-    return res.status(200).json({
-      success: true,
-      message: `Successfully updated Kantata custom field to Graph Review status: ${graphReviewStatus}`,
-      data: updateData
+    // For other errors, return the error response
+    return res.status(createResponse.status).json({
+      success: false,
+      message: 'Failed to create or update custom field value',
+      details: responseData
     });
   } catch (error) {
     console.error('Error updating Kantata status:', error);
@@ -135,54 +208,6 @@ async function handler(
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
-}
-
-// Helper function to create a new custom field value
-async function createCustomFieldValue(
-  token: string,
-  fieldId: string,
-  projectId: string,
-  status: string,
-  res: NextApiResponse
-) {
-  console.log('Creating new custom field value...');
-  
-  const createPayload = {
-    custom_field_value: {
-      custom_field_id: fieldId,
-      subject_id: projectId,
-      subject_type: "workspace",
-      value: status
-    }
-  };
-  
-  const createResponse = await fetch('https://api.mavenlink.com/api/v1/custom_field_values', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(createPayload)
-  });
-  
-  if (!createResponse.ok) {
-    const errorText = await createResponse.text();
-    console.error('Error creating custom field value:', errorText);
-    
-    return res.status(createResponse.status).json({
-      success: false,
-      message: 'Failed to create custom field value',
-      details: errorText
-    });
-  }
-  
-  const createData = await createResponse.json();
-  
-  return res.status(201).json({
-    success: true,
-    message: `Successfully created custom field with Graph Review status: ${status}`,
-    data: createData
-  });
 }
 
 // Wrap the handler with authentication middleware
