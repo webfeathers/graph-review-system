@@ -87,11 +87,14 @@ const Dashboard: NextPage = () => {
     fetchReviewsWithCommentCounts();
   }, [user, authLoading, router]);
 
+  c// pages/dashboard.tsx
+// ...existing code...
+
   const runValidation = async () => {
     try {
       setValidating(true);
       setMessage(null);
-      setError(null);
+      setError(null);  // Make sure error is always set to a string or null
       setResults([]);
       
       // Get auth token
@@ -131,11 +134,24 @@ const Dashboard: NextPage = () => {
       setMessage(data.message || 'Validation complete!');
     } catch (error) {
       console.error('Error running validation:', error);
-      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      // Make sure we're setting a string for the error
+      setError(typeof error === 'string' ? error : 
+               error instanceof Error ? error.message : 
+               'An unexpected error occurred');
     } finally {
       setValidating(false);
     }
   };
+
+  // ... rest of your component ...
+
+  {error && (
+    <ErrorDisplay
+      error={error} // Make sure this is always a string
+      onDismiss={() => setError(null)}
+      className="mb-4"
+    />
+  )}
 
   if (authLoading || loading) {
     return <LoadingState message="Loading dashboard..." />;
