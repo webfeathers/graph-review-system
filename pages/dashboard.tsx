@@ -97,6 +97,11 @@ const Dashboard: NextPage = () => {
       // Get auth token
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
+
+      const kantataApiToken = process.env.KANTATA_API_TOKEN;
+if (!kantataApiToken) {
+  return res.status(500).json({ message: 'Kantata API token not configured' });
+}
       
       if (!token) {
         throw new Error('No authentication token available');
