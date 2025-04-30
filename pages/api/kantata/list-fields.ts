@@ -10,7 +10,7 @@ async function handler(
   try {
     // Use environment variable or hardcoded token
     const KANTATA_API_TOKEN = process.env.NEXT_PUBLIC_KANTATA_API_TOKEN || 
-                            "07c8e70750fee404afa7c4c5c8ff72cb31e5b215e993357dbc7c8cbbde60dbcc";
+                            "07c8e70750fee404afa7c4c5c8ff72cb31e5b215e993357dbc7c8cbbde60dbcc"; // Replace with your token
     
     console.log('Using Kantata API token:', 
                 KANTATA_API_TOKEN.substring(0, 4) + '...' + 
@@ -38,8 +38,10 @@ async function handler(
       });
     }
     
+    // Get the raw response data
     const data = await response.json();
     
+    // Pass the entire response to the client
     return res.status(200).json({
       success: true,
       fields: data
