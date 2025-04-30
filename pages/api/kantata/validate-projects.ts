@@ -146,17 +146,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           
           // Extract the status from the response (adjust this based on actual API response structure)
           const kantataProject = kantataData.workspaces?.[review.kantata_project_id] || {};
-          const kantataStatus = kantataProject.status || 'Unknown';
+          const kantataStatus = kantataProject.status || { message: 'Unknown' };
+          const kantataStatusMessage = kantataStatus.message || 'Unknown';
+
           
           let isValid = true;
           let message = 'Status is consistent';
 
           // Strict rule: Live Kantata project requires Approved Graph Review
-          if (kantataStatus === 'Live') {
-            if (review.status !== 'Approved') {
-              isValid = false;
-              message = 'Invalid: Kantata project is Live but Graph Review is not Approved';
-            }
+          if (kantataStatusMessage === 'Live' && review.status !== 'Approved') {
+            isValid = false;
+            message = 'Invalid: Kantata project is Live but Graph Review is not Approved';
           }
           
           // Add result to array
