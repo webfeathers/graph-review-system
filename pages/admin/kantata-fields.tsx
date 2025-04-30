@@ -1,20 +1,23 @@
 // pages/admin/kantata-fields.tsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import { withRoleProtection } from '../../components/withRoleProtection';
 import { useAuth } from '../../components/AuthProvider';
 import { supabase } from '../../lib/supabase';
+import { LoadingState } from '../../components/LoadingState';
+import { ErrorDisplay } from '../../components/ErrorDisplay';
 
 const KantataFieldsPage = () => {
-  const [fields, setFields] = useState<any>([]);
+  const [fields, setFields] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // Specify the type here
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
-    const fetchFields = async () => {
+    async function fetchFields() {
       try {
         setLoading(true);
+        setError(null);
         
         // Get auth token
         const { data: sessionData } = await supabase.auth.getSession();
@@ -32,28 +35,34 @@ const KantataFieldsPage = () => {
         });
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to fetch Kantata fields');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `API error: ${response.status}`);
         }
         
         const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.message || 'Failed to fetch Kantata fields');
+        }
+        
         setFields(data.fields);
-      } catch (error) {
-        setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      } catch (err) {
+        console.error('Error fetching fields:', err);
+        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       } finally {
         setLoading(false);
       }
-    };
+    }
     
-    fetchFields();
-  }, []);
+    if (user) {
+      fetchFields();
+    }
+  }, [user]);
 
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
+        <LoadingState message="Loading Kantata fields..." />
       </Layout>
     );
   }
@@ -62,9 +71,26 @@ const KantataFieldsPage = () => {
     return (
       <Layout>
         <div className="max-w-4xl mx-auto mt-8">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            <p>{error}</p>
+          <ErrorDisplay error={error} />
+          <div className="mt-4">
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              Retry
+            </button>
           </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Guard clause for when fields is null
+  if (!fields || !fields.custom_fields) {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto mt-8">
+          <p>No fields data available. The API response format may be different than expected.</p>
         </div>
       </Layout>
     );
@@ -75,7 +101,7 @@ const KantataFieldsPage = () => {
       <div className="max-w-6xl mx-auto mt-8">
         <h1 className="text-3xl font-bold mb-6">Kantata Custom Fields</h1>
         
-        <div className="bg-white shadow overflow-hidden rounded-lg">
+        <div className="bg-white shadow-md rounded-lg overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -86,16 +112,16 @@ const KantataFieldsPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {fields.results?.map((fieldId: string) => {
+              {fields.results && fields.results.map((fieldId: string) => {
                 const field = fields.custom_fields[fieldId];
-                return (
-                  <tr key={field.id}>
+                return field ? (
+                  <tr key={fieldId}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{field.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{field.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{field.value_type}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{field.subject_type}</td>
                   </tr>
-                );
+                ) : null;
               })}
             </tbody>
           </table>
