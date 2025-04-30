@@ -16,35 +16,80 @@ async function handler(
                 KANTATA_API_TOKEN.substring(0, 4) + '...' + 
                 KANTATA_API_TOKEN.substring(KANTATA_API_TOKEN.length - 4));
     
-    // Call the Kantata API to get custom fields
-    const response = await fetch('https://api.mavenlink.com/api/v1/custom_fields', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    // Fetch all pages of custom fields
+    let allResults: any[] = [];
+    let allCustomFields: any = {};
+    let currentPage = 1;
+    let totalPages = 1;
+    let totalCount = 0;
     
-    console.log('Kantata API response status:', response.status);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Error from Kantata API:', errorText);
+    // Keep fetching until we've got all pages
+    do {
+      console.log(`Fetching custom fields page ${currentPage}...`);
       
-      return res.status(response.status).json({
-        success: false,
-        message: `Kantata API error: ${response.status} ${response.statusText}`,
-        details: errorText
+      // Call the Kantata API with pagination
+      const response = await fetch(`https://api.mavenlink.com/api/v1/custom_fields?page=${currentPage}&per_page=50`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
       });
-    }
+      
+      console.log(`Page ${currentPage} response status:`, response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error from Kantata API:', errorText);
+        
+        return res.status(response.status).json({
+          success: false,
+          message: `Kantata API error: ${response.status} ${response.statusText}`,
+          details: errorText
+        });
+      }
+      
+      // Parse the response
+      const data = await response.json();
+      
+      // Extract pagination info
+      if (currentPage === 1) {
+        totalCount = data.count || 0;
+        // Estimate total pages based on count and per_page
+        totalPages = Math.ceil(totalCount / 50);
+        console.log(`Found ${totalCount} total custom fields across ${totalPages} pages`);
+      }
+      
+      // Merge the results
+      if (data.results) {
+        allResults = [...allResults, ...data.results];
+      }
+      
+      // Merge the custom fields objects
+      if (data.custom_fields) {
+        allCustomFields = { ...allCustomFields, ...data.custom_fields };
+      }
+      
+      // Move to next page
+      currentPage++;
+    } while (currentPage <= totalPages);
     
-    // Get the raw response data
-    const data = await response.json();
+    // Compile the final response
+    const combinedData = {
+      count: totalCount,
+      results: allResults,
+      custom_fields: allCustomFields,
+      meta: {
+        total_pages: totalPages,
+        total_count: totalCount
+      }
+    };
     
-    // Pass the entire response to the client
+    console.log(`Successfully fetched all ${totalCount} custom fields`);
+    
     return res.status(200).json({
       success: true,
-      fields: data
+      fields: combinedData
     });
   } catch (error) {
     console.error('Error fetching Kantata custom fields:', error);
