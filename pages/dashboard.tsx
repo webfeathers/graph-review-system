@@ -11,17 +11,36 @@ import { LoadingState } from '../components/LoadingState';
 import { EmptyState } from '../components/EmptyState';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
+import { ErrorDisplay } from '../components/ErrorDisplay';
+import { Button } from '../components/Button';
 
 // Interface for review with comment count
 interface ReviewWithCommentCount extends ReviewWithProfile {
   commentCount: number;
 }
 
+// Interface for validation result
+interface ValidationResult {
+  reviewId: string;
+  reviewTitle: string;
+  reviewStatus: string;
+  kantataProjectId: string;
+  kantataStatus: string;
+  isValid: boolean;
+  message: string;
+}
+
 const Dashboard: NextPage = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const [reviews, setReviews] = useState<ReviewWithCommentCount[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // New state for validation
+  const [validating, setValidating] = useState(false);
+  const [results, setResults] = useState<ValidationResult[]>([]);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -31,44 +50,6 @@ const Dashboard: NextPage = () => {
       router.push('/login');
       return;
     }
-
-const runValidation = async () => {
-  try {
-    setValidating(true);
-    
-    // Get auth token
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData.session?.access_token;
-    
-    if (!token) {
-      throw new Error('No authentication token available');
-    }
-    
-    // Call your API endpoint
-    const response = await fetch('/api/kantata/validate-projects', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to validate projects');
-    }
-    
-    const data = await response.json();
-    setResults(data.validationResults);
-    
-    // Show success message
-    setMessage(`Validation complete! ${data.message}`);
-  } catch (error) {
-    setError(error instanceof Error ? error.message : 'An unexpected error occurred');
-  } finally {
-    setValidating(false);
-  }
-};
 
     // Fetch only the user's reviews with comment counts
     const fetchReviewsWithCommentCounts = async () => {
@@ -106,6 +87,47 @@ const runValidation = async () => {
     fetchReviewsWithCommentCounts();
   }, [user, authLoading, router]);
 
+  const runValidation = async () => {
+    try {
+      setValidating(true);
+      setMessage(null);
+      setError(null);
+      setResults([]);
+      
+      // Get auth token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Call your API endpoint
+      const response = await fetch('/api/kantata/validate-projects', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to validate projects');
+      }
+      
+      const data = await response.json();
+      setResults(data.validationResults);
+      
+      // Show success message
+      setMessage(`Validation complete! ${data.message}`);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setValidating(false);
+    }
+  };
+
   if (authLoading || loading) {
     return <LoadingState message="Loading dashboard..." />;
   }
@@ -135,6 +157,80 @@ const runValidation = async () => {
           </Link>.
         </p>
       </div>
+
+      {/* Show Validation section for admins */}
+      {isAdmin && isAdmin() && (
+        <div className="mb-8 bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4">Kantata Status Validation</h2>
+          
+          <div className="mb-4">
+            <p className="text-gray-600 mb-2">
+              Validate the status of all projects in Kantata to ensure they match the Graph Review status.
+              This will check for projects marked as "Live" in Kantata that don't have "Approved" status in Graph Review.
+            </p>
+            
+            <Button
+              onClick={runValidation}
+              variant="primary"
+              isLoading={validating}
+              disabled={validating}
+              className="mt-2"
+            >
+              {validating ? 'Validating...' : 'Run Validation Now'}
+            </Button>
+          </div>
+          
+          {message && (
+            <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4">
+              {message}
+            </div>
+          )}
+          
+          {error && (
+            <ErrorDisplay
+              error={error}
+              onDismiss={() => setError(null)}
+              className="mb-4"
+            />
+          )}
+          
+          {results.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-lg font-medium mb-2">Validation Results</h3>
+              <div className="bg-gray-50 rounded-lg overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Review</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kantata Status</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {results.map((result, index) => (
+                      <tr key={index} className={result.isValid ? 'bg-green-50' : 'bg-red-50'}>
+                        <td className="px-4 py-2">
+                          <Link href={`/reviews/${result.reviewId}`} className="text-blue-500 hover:underline">
+                            {result.reviewTitle}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2">{result.reviewStatus}</td>
+                        <td className="px-4 py-2">{result.kantataStatus}</td>
+                        <td className="px-4 py-2">
+                          {result.isValid 
+                            ? <span className="text-green-600">✓ Valid</span> 
+                            : <span className="text-red-600">✗ Invalid</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mb-8">
         <div className="flex justify-between items-center mb-4">
