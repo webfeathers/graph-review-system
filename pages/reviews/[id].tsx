@@ -56,7 +56,6 @@ const ReviewPage: NextPage = () => {
     fetchData();
   }, [id, user, authLoading, router]);
 
-  // In pages/reviews/[id].tsx - modify handleStatusChange
   const handleStatusChange = async (newStatus: ReviewWithProfile['status']) => {
     if (!user || !review || newStatus === currentStatus || isUpdating) return;
     
@@ -76,7 +75,7 @@ const ReviewPage: NextPage = () => {
         throw new Error('No authentication token available');
       }
       
-    // Call API endpoint instead of using supabaseUtils directly
+    // First, update the status in your system
       const response = await fetch(`/api/reviews/${review.id}`, {
         method: 'PATCH',
         headers: {
@@ -89,6 +88,34 @@ const ReviewPage: NextPage = () => {
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to update status');
+      }
+      
+    // After successful update, call the Kantata update API if we have a Kantata ID
+      if (review.kantataProjectId) {
+        try {
+          const kantataResponse = await fetch('/api/kantata/update-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              kantataProjectId: review.kantataProjectId,
+              status: newStatus
+            })
+          });
+          
+          if (!kantataResponse.ok) {
+          // Log but don't fail completely if Kantata update fails
+            const kantataError = await kantataResponse.json();
+            console.error('Kantata update failed:', kantataError);
+          } else {
+            console.log('Kantata status updated successfully');
+          }
+        } catch (kantataError) {
+        // Log but don't fail completely
+          console.error('Error updating Kantata:', kantataError);
+        }
       }
       
       setCurrentStatus(newStatus);
@@ -231,33 +258,33 @@ const ReviewPage: NextPage = () => {
       )}
 
       {/* Add the Kantata Project ID field here with a clickable icon */}
-      {review.kantataProjectId && (
-        <div className="flex items-center">
-          <span className="font-medium">Kantata Project ID:</span>
-          <span className="mx-1">{review.kantataProjectId}</span>
-          <a 
-            href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-2 text-blue-600 hover:text-blue-800"
-            title="Open in Kantata"
-          >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-5 w-5" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
-              />
-            </svg>
-          </a>
-        </div>
+    {review.kantataProjectId && (
+      <div className="flex items-center">
+      <span className="font-medium">Kantata Project ID:</span>
+      <span className="mx-1">{review.kantataProjectId}</span>
+      <a 
+      href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="ml-2 text-blue-600 hover:text-blue-800"
+      title="Open in Kantata"
+      >
+      <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      className="h-5 w-5" 
+      fill="none" 
+      viewBox="0 0 24 24" 
+      stroke="currentColor"
+      >
+      <path 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      strokeWidth={2} 
+      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
+      />
+      </svg>
+      </a>
+      </div>
       )}
     {review.segment && (
       <div>
