@@ -85,47 +85,49 @@ const KantataFieldsPage = () => {
     );
   }
 
-  // Guard clause for when fields is null
-  if (!fields || !fields.custom_fields) {
-    return (
-      <Layout>
-        <div className="max-w-4xl mx-auto mt-8">
-          <p>No fields data available. The API response format may be different than expected.</p>
-        </div>
-      </Layout>
-    );
-  }
-
   return (
     <Layout>
       <div className="max-w-6xl mx-auto mt-8">
         <h1 className="text-3xl font-bold mb-6">Kantata Custom Fields</h1>
         
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject Type</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {fields.results && fields.results.map((fieldId: string) => {
-                const field = fields.custom_fields[fieldId];
-                return field ? (
-                  <tr key={fieldId}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{field.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{field.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{field.value_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{field.subject_type}</td>
+        {!fields ? (
+          <p>No fields data available.</p>
+        ) : (
+          <>
+            <p className="mb-4">Found {fields.count} custom fields</p>
+            
+            <div className="bg-white shadow-md rounded-lg overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Key</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Copy ID</th>
                   </tr>
-                ) : null;
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {fields.results && fields.results.map((field: any, index: number) => (
+                    <tr key={index}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{field.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{field.key}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(field.id);
+                            alert(`Copied ID: ${field.id}`);
+                          }}
+                          className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        >
+                          Copy
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </Layout>
   );
