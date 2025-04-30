@@ -32,6 +32,44 @@ const Dashboard: NextPage = () => {
       return;
     }
 
+const runValidation = async () => {
+  try {
+    setValidating(true);
+    
+    // Get auth token
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+    
+    // Call your API endpoint
+    const response = await fetch('/api/kantata/validate-projects', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to validate projects');
+    }
+    
+    const data = await response.json();
+    setResults(data.validationResults);
+    
+    // Show success message
+    setMessage(`Validation complete! ${data.message}`);
+  } catch (error) {
+    setError(error instanceof Error ? error.message : 'An unexpected error occurred');
+  } finally {
+    setValidating(false);
+  }
+};
+
     // Fetch only the user's reviews with comment counts
     const fetchReviewsWithCommentCounts = async () => {
       try {
