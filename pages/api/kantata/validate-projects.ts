@@ -8,7 +8,9 @@ interface ValidationResult {
   reviewTitle: string;
   reviewStatus: string;
   kantataProjectId: string;
-  kantataStatus: string;
+  //kantataStatus: string;
+
+  kantataStatus: string | { color: string; key: number; message: string };
   isValid: boolean;
   message: string;
 }
