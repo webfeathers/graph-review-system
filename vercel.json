@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "path": "/api/kantata/validate-projects",
+      "schedule": "*/5 * * * *"  // Run every 5 minutes
+      // "schedule": "0 */6 * * *"  // Run every 6 hours
+    }
+  ]
+}
