@@ -1,6 +1,4 @@
 // lib/kantataService.ts
-import fetch from 'node-fetch';
-
 interface KantataAuth {
   token: string;
   workspaceId: string;
