@@ -33,8 +33,9 @@ async function handler(
       });
     }
     
-    // Map the Graph Review status to a Kantata status
-    const kantataStatus = status === 'Approved' ? 'Approved' : 'In Progress';
+    // This is the key change - we're using the Graph Review status directly,
+    // not transforming it to a Kantata status
+    const graphReviewStatus = status;
     
     // Use environment variable or hardcoded token
     const KANTATA_API_TOKEN = process.env.NEXT_PUBLIC_KANTATA_API_TOKEN || 
@@ -52,113 +53,79 @@ async function handler(
       });
     }
     
-    // This is the key change - first create the custom field value
-    // Try to create a new custom field value first
-    console.log('Creating custom field value...');
+    // Try to get the custom field value ID first
+    console.log('Getting current custom field value...');
     
-    const createPayload = {
+    const getResponse = await fetch(`https://api.mavenlink.com/api/v1/custom_field_values?custom_field_id=${fieldId}&subject_id=${kantataProjectId}&subject_type=workspace`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!getResponse.ok) {
+      const errorText = await getResponse.text();
+      console.error('Error getting custom field value:', errorText);
+      
+      // If not found, try to create a new value
+      if (getResponse.status === 404) {
+        return await createCustomFieldValue(KANTATA_API_TOKEN, fieldId, kantataProjectId, graphReviewStatus, res);
+      }
+      
+      return res.status(getResponse.status).json({
+        success: false,
+        message: 'Failed to find existing custom field value',
+        details: errorText
+      });
+    }
+    
+    const getResponseData = await getResponse.json();
+    console.log('Get custom field values response:', getResponseData);
+    
+    // Check if we found any existing values
+    if (!getResponseData.results || getResponseData.results.length === 0) {
+      // Create a new custom field value
+      return await createCustomFieldValue(KANTATA_API_TOKEN, fieldId, kantataProjectId, graphReviewStatus, res);
+    }
+    
+    // Get the ID of the first result
+    const customFieldValueId = getResponseData.results[0].id;
+    console.log('Found custom field value ID:', customFieldValueId);
+    
+    // Update the existing value
+    const updatePayload = {
       custom_field_value: {
-        custom_field_id: fieldId,
-        subject_id: kantataProjectId,
-        subject_type: "workspace",
-        value: kantataStatus
+        value: graphReviewStatus
       }
     };
     
-    // Make API request to create the custom field value
-    const createResponse = await fetch('https://api.mavenlink.com/api/v1/custom_field_values', {
-      method: 'POST',
+    const updateResponse = await fetch(`https://api.mavenlink.com/api/v1/custom_field_values/${customFieldValueId}`, {
+      method: 'PUT',
       headers: {
         'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(createPayload)
+      body: JSON.stringify(updatePayload)
     });
     
-    console.log('Create response status:', createResponse.status);
-    
-    // If creation wasn't successful, try updating instead
-    if (!createResponse.ok) {
-      console.log('Creation failed, trying to update...');
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error('Error updating custom field value:', errorText);
       
-      // First, get the custom field value ID
-      const getResponse = await fetch(`https://api.mavenlink.com/api/v1/custom_field_values?custom_field_id=${fieldId}&subject_id=${kantataProjectId}&subject_type=workspace`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!getResponse.ok) {
-        const errorText = await getResponse.text();
-        console.error('Error getting custom field value:', errorText);
-        
-        return res.status(getResponse.status).json({
-          success: false,
-          message: 'Failed to find existing custom field value',
-          details: errorText
-        });
-      }
-      
-      const getResponseData = await getResponse.json();
-      console.log('Get custom field values response:', getResponseData);
-      
-      // Check if we found any existing values
-      if (!getResponseData.results || getResponseData.results.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: 'No existing custom field value found to update'
-        });
-      }
-      
-      // Get the first result's ID
-      const customFieldValueId = getResponseData.results[0].id;
-      console.log('Found custom field value ID:', customFieldValueId);
-      
-      // Now update the existing value
-      const updatePayload = {
-        custom_field_value: {
-          value: kantataStatus
-        }
-      };
-      
-      const updateResponse = await fetch(`https://api.mavenlink.com/api/v1/custom_field_values/${customFieldValueId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${KANTATA_API_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(updatePayload)
-      });
-      
-      if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        console.error('Error updating custom field value:', errorText);
-        
-        return res.status(updateResponse.status).json({
-          success: false,
-          message: 'Failed to update custom field value',
-          details: errorText
-        });
-      }
-      
-      const updateData = await updateResponse.json();
-      
-      return res.status(200).json({
-        success: true,
-        message: `Successfully updated Kantata project status to ${kantataStatus}`,
-        data: updateData
+      return res.status(updateResponse.status).json({
+        success: false,
+        message: 'Failed to update custom field value',
+        details: errorText
       });
     }
     
-    // If creation was successful
-    const createData = await createResponse.json();
+    const updateData = await updateResponse.json();
     
     return res.status(200).json({
       success: true,
-      message: `Successfully created Kantata project status set to ${kantataStatus}`,
-      data: createData
+      message: `Successfully updated Kantata custom field to Graph Review status: ${graphReviewStatus}`,
+      data: updateData
     });
   } catch (error) {
     console.error('Error updating Kantata status:', error);
@@ -168,6 +135,54 @@ async function handler(
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
+}
+
+// Helper function to create a new custom field value
+async function createCustomFieldValue(
+  token: string,
+  fieldId: string,
+  projectId: string,
+  status: string,
+  res: NextApiResponse
+) {
+  console.log('Creating new custom field value...');
+  
+  const createPayload = {
+    custom_field_value: {
+      custom_field_id: fieldId,
+      subject_id: projectId,
+      subject_type: "workspace",
+      value: status
+    }
+  };
+  
+  const createResponse = await fetch('https://api.mavenlink.com/api/v1/custom_field_values', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(createPayload)
+  });
+  
+  if (!createResponse.ok) {
+    const errorText = await createResponse.text();
+    console.error('Error creating custom field value:', errorText);
+    
+    return res.status(createResponse.status).json({
+      success: false,
+      message: 'Failed to create custom field value',
+      details: errorText
+    });
+  }
+  
+  const createData = await createResponse.json();
+  
+  return res.status(201).json({
+    success: true,
+    message: `Successfully created custom field with Graph Review status: ${status}`,
+    data: createData
+  });
 }
 
 // Wrap the handler with authentication middleware
