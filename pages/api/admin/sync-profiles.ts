@@ -39,8 +39,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   }
 
   try {
-    // Run the profile synchronization
-    const result = await syncUserProfiles();
+    // Run the profile synchronization using ProfileService
+    const result = await ProfileService.syncAllUserProfiles();
     
     if (!result.success) {
       return res.status(500).json({
@@ -52,8 +52,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     
     // Return the result with a success message
     return res.status(200).json({
+      success: true,
       message: 'Profile synchronization completed successfully',
-      ...result  // This already contains success: true
+      createdProfiles: result.syncedCount || 0
     });
   } catch (error: any) {
     console.error('Unexpected error during profile sync:', error);

@@ -394,9 +394,9 @@ export class ProfileService {
       
       console.log(`Found ${usersWithoutProfiles.length} users without profiles`);
       
-      // Create missing profiles
-      const createdCount = 0;
-      const failedCount = 0;
+      // Create missing profiles - use let instead of const for counters
+      let createdCount = 0;
+      let failedCount = 0;
       
       await Promise.all(
         usersWithoutProfiles.map(async (user) => {
@@ -420,7 +420,7 @@ export class ProfileService {
       console.error('Error in profile synchronization:', error);
       return { success: false, error };
     }
-  }  
+  }
   
   /**
    * Get profiles for multiple users in a single query, using cache
