@@ -23,9 +23,6 @@ export type FormErrors<T extends FormValues> = Partial<Record<keyof T, string>>;
 
 /**
  * Creates a validator function from a set of rules
- * 
- * @param rules Array of validation rules to apply
- * @returns A validator function that applies all rules
  */
 export function createValidator<T>(...rules: ValidationRule<T>[]): FieldValidator<T> {
   return (value: T, formValues?: any): string | null => {
@@ -41,10 +38,6 @@ export function createValidator<T>(...rules: ValidationRule<T>[]): FieldValidato
 
 /**
  * Validates a complete form
- * 
- * @param values Form values to validate
- * @param validationSchema Object containing validator functions for each field
- * @returns Object containing validation errors for each field
  */
 export function validateForm<T extends FormValues>(
   values: T,
@@ -69,9 +62,6 @@ export function validateForm<T extends FormValues>(
 
 /**
  * Checks if a form has any validation errors
- * 
- * @param errors Form errors object
- * @returns True if the form has any errors
  */
 export function hasErrors<T extends FormValues>(errors: FormErrors<T>): boolean {
   return Object.keys(errors).length > 0;
@@ -79,9 +69,6 @@ export function hasErrors<T extends FormValues>(errors: FormErrors<T>): boolean 
 
 /**
  * Throws a ValidationError if a form has errors
- * 
- * @param errors Form errors object
- * @param message Error message
  */
 export function throwIfErrors<T extends FormValues>(
   errors: FormErrors<T>,
@@ -92,7 +79,8 @@ export function throwIfErrors<T extends FormValues>(
   }
 }
 
-// Common validation rules
+// Common validation rules - migrated from validation.ts where needed
+
 export const required = (message: string = 'This field is required'): ValidationRule<any> => 
   (value) => {
     if (value === undefined || value === null || value === '') {
@@ -150,6 +138,19 @@ export const matches = (
     return null;
   };
 
+export const url = (
+  message: string = 'Please enter a valid URL'
+): ValidationRule<string> => 
+  (value) => {
+    if (!value) return null;
+    try {
+      new URL(value);
+      return null;
+    } catch (e) {
+      return message;
+    }
+  };
+
 export const fileType = (
   allowedTypes: string[],
   message: string = `File type must be one of: ${allowedTypes.join(', ')}`
@@ -171,24 +172,3 @@ export const maxFileSize = (
     }
     return null;
   };
-
-// Example usage:
-// const nameValidator = createValidator(
-//   required('Name is required'),
-//   minLength(2, 'Name must be at least 2 characters'),
-//   maxLength(50, 'Name must be less than 50 characters')
-// );
-//
-// const emailValidator = createValidator(
-//   required('Email is required'),
-//   email('Please enter a valid email address')
-// );
-//
-// const formSchema = {
-//   name: nameValidator,
-//   email: emailValidator
-// };
-//
-// const formValues = { name: 'John', email: 'invalid' };
-// const errors = validateForm(formValues, formSchema);
-// console.log(errors); // { email: 'Please enter a valid email address' }

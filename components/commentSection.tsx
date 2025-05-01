@@ -9,6 +9,8 @@ import { Form, TextArea, SubmitButton } from './form/FormComponents';
 import { useForm } from '../lib/useForm';
 import { createValidator, required, maxLength } from '../lib/validationUtils';
 import { FIELD_LIMITS } from '../constants';
+import { commentValidationSchema } from '../lib/validationSchemas';
+
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
@@ -42,7 +44,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
     initialValues: {
       content: ''
     },
-    validationSchema,
+    validationSchema: {
+      content: commentValidationSchema.content
+    },
     validateOnChange: false,
     validateOnBlur: true,
     onSubmit: handleSubmit

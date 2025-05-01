@@ -75,8 +75,10 @@ const NewReview: NextPage = () => {
     validationSchema: {
       title: reviewValidationSchema.title,
       description: reviewValidationSchema.description,
+      accountName: reviewValidationSchema.accountName,
       kantataProjectId: reviewValidationSchema.kantataProjectId,
-      // Add validation for new fields if needed
+      customerFolder: reviewValidationSchema.customerFolder,
+      handoffLink: reviewValidationSchema.handoffLink
     },
     validateOnChange: false,
     validateOnBlur: true,

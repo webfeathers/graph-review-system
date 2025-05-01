@@ -22,6 +22,10 @@ import {
   StorageBucket
 } from '../../../constants';
 import { ReviewWithProfile, Role } from '../../../types/supabase';
+import { reviewValidationSchema } from '../../../lib/validationSchemas';
+import { validateForm } from '../../../lib/validationUtils';
+
+
 
 // Extending the existing ReviewWithProfile type to include kantataProjectId
 interface ExtendedReviewWithProfile extends ReviewWithProfile {
@@ -188,31 +192,25 @@ const EditReview: NextPage = () => {
   
   // Handle form validation
   const validate = () => {
-    const errors: Record<string, string> = {};
+    const values = {
+      title,
+      description,
+      accountName,
+      kantataProjectId,
+      customerFolder,
+      handoffLink
+    };
     
-    // Title validation
-    if (!title.trim()) {
-      errors.title = 'Title is required';
-    } else if (title.length > FIELD_LIMITS.TITLE_MAX_LENGTH) {
-      errors.title = `Title must be no more than ${FIELD_LIMITS.TITLE_MAX_LENGTH} characters`;
-    }
+    const schema = {
+      title: reviewValidationSchema.title,
+      description: reviewValidationSchema.description,
+      accountName: reviewValidationSchema.accountName,
+      kantataProjectId: reviewValidationSchema.kantataProjectId,
+      customerFolder: reviewValidationSchema.customerFolder,
+      handoffLink: reviewValidationSchema.handoffLink
+    };
     
-    // Description validation
-    if (!description.trim()) {
-      errors.description = 'Description is required';
-    } else if (description.length > FIELD_LIMITS.DESCRIPTION_MAX_LENGTH) {
-      errors.description = `Description must be no more than ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`;
-    }
-    
-    // Account name validation
-    if (!accountName.trim()) {
-      errors.accountName = 'Account name is required';
-    }
-    
-    // Add Kantata Project ID validation
-    if (!kantataProjectId.trim()) {
-      errors.kantataProjectId = 'Kantata Project ID is required';
-    }
+    const errors = validateForm(values, schema);
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
