@@ -385,24 +385,28 @@ export async function getCommentCountsForReviews(reviewIds: string[]): Promise<R
   try {
     if (!reviewIds.length) return {};
     
-    // Get comment counts for all reviews in a single query
+    const countMap: Record<string, number> = {};
+    
+    // Initialize all IDs with zero counts
+    reviewIds.forEach(id => {
+      countMap[id] = 0;
+    });
+    
+    // Fetch all comments for these reviews
     const { data, error } = await supabase
       .from('comments')
-      .select('review_id, count(*)')
-      .in('review_id', reviewIds)
-      .group('review_id');
+      .select('review_id')
+      .in('review_id', reviewIds);
       
     if (error) {
       console.error('Error fetching comment counts:', error);
-      return {};
+      return countMap;
     }
     
-    // Create a map of review ID to comment count
-    const countMap: Record<string, number> = {};
-    
+    // Count them manually
     if (data) {
-      data.forEach(item => {
-        countMap[item.review_id] = parseInt(item.count);
+      data.forEach(comment => {
+        countMap[comment.review_id] = (countMap[comment.review_id] || 0) + 1;
       });
     }
     
