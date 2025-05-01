@@ -193,9 +193,6 @@ export async function getReviewById(id: string) {
  */
 export const getCommentsByReviewId = async (reviewId: string) => {
   try {
-    // Instead of trying to use the automatic join with "profiles:user_id"
-    // We'll do a manual join with two separate queries
-    
     // First, get all comments for the review
     const { data: comments, error: commentsError } = await supabase
       .from('comments')
@@ -213,7 +210,7 @@ export const getCommentsByReviewId = async (reviewId: string) => {
     }
     
     // Now fetch the associated user profiles
-    const userIds = comments.map(comment => comment.user_id);
+    const userIds = comments.map((comment: any) => comment.user_id);
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
@@ -225,13 +222,13 @@ export const getCommentsByReviewId = async (reviewId: string) => {
     }
     
     // Create a map of user profiles for quick lookup
-    const profileMap = (profiles || []).reduce((map, profile) => {
+    const profileMap = (profiles || []).reduce((map: Record<string, any>, profile: any) => {
       map[profile.id] = profile;
       return map;
     }, {} as Record<string, any>);
     
     // Combine the data manually
-    const commentsWithProfiles = comments.map(comment => {
+    const commentsWithProfiles: CommentWithProfile[] = comments.map((comment: any) => {
       const profile = profileMap[comment.user_id] || {
         id: comment.user_id,
         name: 'Unknown User',
