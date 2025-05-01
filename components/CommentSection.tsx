@@ -49,49 +49,47 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
     onSubmit: handleSubmit
   });
 
-  // Try this alternative approach in components/CommentSection.tsx
-async function handleSubmit(values: CommentFormValues) {
-  try {
-    setGeneralError(null);
-    
-    if (!user) {
-      setGeneralError('User not authenticated');
-      return;
+  async function handleSubmit(values: CommentFormValues) {
+    try {
+      // Clear previous errors
+      setGeneralError(null);
+      
+      if (!user) {
+        setGeneralError('User not authenticated');
+        return;
+      }
+      
+      // Insert directly using Supabase client
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          content: values.content,
+          review_id: reviewId,
+          user_id: user.id,
+          created_at: new Date().toISOString()
+        });
+      
+      if (error) {
+        throw new Error(`Failed to post comment: ${error.message}`);
+      }
+      
+      // Clear the form
+      form.resetForm();
+      
+      // Refresh the page to show the new comment
+      router.reload();
+    } catch (error) {
+      console.error('Error posting comment:', error);
+      
+      if (error instanceof Error) {
+        setGeneralError(error.message || 'Failed to post comment');
+      } else {
+        setGeneralError('An unexpected error occurred');
+      }
+      
+      form.setSubmitting(false);
     }
-    
-    console.log('Submitting comment directly via Supabase client');
-    
-    // Insert directly using Supabase client
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({
-        content: values.content,
-        review_id: reviewId,
-        user_id: user.id,
-        created_at: new Date().toISOString()
-      })
-      .select();
-    
-    if (error) {
-      console.error('Supabase error:', error);
-      throw new Error(`Database error: ${error.message}`);
-    }
-    
-    console.log('Comment inserted successfully:', data);
-    form.resetForm();
-    router.reload();
-  } catch (error) {
-    console.error('Error posting comment:', error);
-    
-    if (error instanceof Error) {
-      setGeneralError(error.message || 'Failed to post comment');
-    } else {
-      setGeneralError('An unexpected error occurred');
-    }
-    
-    form.setSubmitting(false);
   }
-}
 
   return (
     <div className="mt-8">
