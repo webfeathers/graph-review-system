@@ -1,8 +1,8 @@
 // components/commentSection.tsx
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { Comment } from '../models/Comment';
-import { User } from '../models/User';
+import { Comment } from '../types';
+import { Profile } from '../types';
 import { useAuth } from './AuthProvider';
 import { supabase } from '../lib/supabase';
 import { ErrorDisplay } from './ErrorDisplay';
@@ -12,7 +12,7 @@ import { createValidator, required, maxLength } from '../lib/validationUtils';
 import { FIELD_LIMITS } from '../constants';
 
 interface CommentSectionProps {
-  comments: (Comment & { user: User })[];
+  comments: CommentWithProfile[];
   reviewId: string;
 }
 
