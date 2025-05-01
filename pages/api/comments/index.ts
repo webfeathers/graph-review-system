@@ -37,6 +37,13 @@ async function commentHandler(
           message: 'Content and review ID are required' 
         });
       }
+
+      console.log('Authenticated user ID:', userId);
+console.log('Creating comment with data:', {
+  content: content?.substring(0, 20) + '...',
+  review_id: reviewId,
+  user_id: userId
+});
       
       // Simplified: Just insert the comment without complex validation or email notification
       console.log('Inserting comment into database');
