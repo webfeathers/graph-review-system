@@ -364,13 +364,13 @@ const ReviewPage: NextPage = () => {
               content: c.content,
               reviewId: c.reviewId,
               userId: c.userId,
-              createdAt: c.createdAt.toISOString(), // Convert Date to string
+              createdAt: c.createdAt, // Already a string, no need to convert
               user: {
                 id: c.user.id,
                 name: c.user.name,
                 email: c.user.email,
                 password: '',
-                createdAt: c.user.createdAt.toISOString(), // Convert user createdAt to string
+                createdAt: c.user.createdAt, // Already a string, no need to convert
                 role: c.user.role || 'user' // Add the missing role property
               }
             }))} 
