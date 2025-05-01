@@ -35,24 +35,52 @@ const Reviews: NextPage = () => {
 
     const fetchReviewsWithCommentCounts = async () => {
       try {
+        setLoading(true);
+        
         // Fetch all reviews
         const reviewsData = await getReviews();
         
-        // For each review, fetch comment count
-        const reviewsWithCounts = await Promise.all(
-          reviewsData.map(async (review) => {
-            // Query to count comments for this review
-            const { count, error } = await supabase
-              .from('comments')
-              .select('id', { count: 'exact', head: true })
-              .eq('review_id', review.id);
-              
-            return {
-              ...review,
-              commentCount: count || 0
-            };
-          })
-        );
+        if (reviewsData.length === 0) {
+          setReviews([]);
+          setLoading(false);
+          return;
+        }
+        
+        // Get all review IDs
+        const reviewIds = reviewsData.map(review => review.id);
+        
+        // OPTIMIZED: Get comment counts for all reviews in a single query
+        const { data: commentCounts, error: countError } = await supabase
+          .from('comments')
+          .select('review_id, count(*)')
+          .in('review_id', reviewIds)
+          .group('review_id');
+          
+        if (countError) {
+          console.error('Error fetching comment counts:', countError);
+          // Continue with no comment counts
+          setReviews(reviewsData.map(review => ({
+            ...review,
+            commentCount: 0
+          })));
+          setLoading(false);
+          return;
+        }
+        
+        // Create a map of review ID to comment count
+        const countMap: Record<string, number> = {};
+        
+        if (commentCounts) {
+          commentCounts.forEach(item => {
+            countMap[item.review_id] = parseInt(item.count);
+          });
+        }
+        
+        // Add comment counts to reviews
+        const reviewsWithCounts = reviewsData.map(review => ({
+          ...review,
+          commentCount: countMap[review.id] || 0
+        }));
         
         setReviews(reviewsWithCounts);
       } catch (error) {
