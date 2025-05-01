@@ -1,18 +1,44 @@
 // types/index.ts
 // Re-export all types from supabase.ts to provide a central location
-export * from './supabase';
 
-// Add a comment to models/Review.ts, models/Comment.ts, and models/User.ts
+// Use proper 'export type' syntax for isolatedModules compatibility
+export type {
+  // Database types
+  DbProfile,
+  DbReview,
+  DbComment,
+  
+  // Frontend types
+  Role,
+  Profile,
+  Review,
+  Comment,
+  
+  // Relationship types
+  ReviewWithProfile,
+  CommentWithProfile,
+  
+  // Helper functions
+  dbToFrontendReview,
+  dbToFrontendProfile,
+  dbToFrontendComment,
+  frontendToDbReview,
+  dbToFrontendReviewWithProfile,
+  dbToFrontendCommentWithProfile
+} from './supabase';
 
-/*
- * ⚠️ IMPORTANT:
- * This file is kept for backward compatibility.
- * Please use the types defined in '../types/supabase.ts' for all new code.
+/* 
+ * Usage Guide:
  * 
- * Example: 
- * import { Review, Comment, User } from '../types';
+ * To use these types in your components, import them from this central location:
+ * 
+ * ```typescript
+ * import type { Review, Comment, Profile } from '../types';
+ * ```
+ * 
+ * If you need the User type for backward compatibility:
+ * 
+ * ```typescript
+ * import type { Profile as User } from '../types';
+ * ```
  */
-
-// Update imports in components to use the new central location
-// Example:
-// import { Review } from '../types';

@@ -2,13 +2,13 @@
 // This file is kept for backward compatibility
 // In the future, import from '../types' instead
 
-import { Review } from '../types/supabase';
-export { Review };
+import type { Review } from '../types/supabase';
+export type { Review };
 
 /*
  * DEPRECATION NOTICE:
  * This file is deprecated and will be removed in a future update.
  * Please update your imports to use '../types' instead:
  * 
- * import { Review } from '../types';
+ * import type { Review } from '../types';
  */
