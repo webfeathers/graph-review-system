@@ -49,84 +49,86 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
     onSubmit: handleSubmit
   });
 
-  async function try {
-  // Clear previous errors
-  setGeneralError(null);
-  
-  if (!user) {
-    setGeneralError('User not authenticated');
-    return;
+  async function handleSubmit(values: CommentFormValues) {
+    try {
+      // Clear previous errors
+      setGeneralError(null);
+      
+      if (!user) {
+        setGeneralError('User not authenticated');
+        return;
+      }
+      
+      // Get current token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Simple spinner indicator that we're posting
+      const submitButton = document.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.textContent = 'Posting...';
+        submitButton.setAttribute('disabled', 'true');
+      }
+      
+      console.log('Submitting comment:', { 
+        content: values.content.substring(0, 20) + '...', 
+        reviewId 
+      });
+      
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          content: values.content, 
+          reviewId 
+        }),
+      });
+      
+      // Get the response text for better debugging
+      const responseText = await response.text();
+      console.log('API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseText
+      });
+      
+      // Try to parse as JSON
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        throw new Error(`Server responded with: ${responseText}`);
+      }
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || `Error: ${response.status} ${response.statusText}`);
+      }
+      
+      // Clear the form
+      form.resetForm();
+      
+      // Simply refresh the page to show the new comment
+      router.reload();
+    } catch (error) {
+      console.error('Error posting comment:', error);
+      
+      if (error instanceof Error) {
+        setGeneralError(error.message || 'Failed to post comment');
+      } else {
+        setGeneralError('An unexpected error occurred');
+      }
+      
+      form.setSubmitting(false);
+    }
   }
-  
-  // Get current token
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
-  
-  if (!token) {
-    throw new Error('No authentication token available');
-  }
-  
-  // Simple spinner indicator that we're posting
-  const submitButton = document.querySelector('button[type="submit"]');
-  if (submitButton) {
-    submitButton.textContent = 'Posting...';
-    submitButton.setAttribute('disabled', 'true');
-  }
-  
-  console.log('Submitting comment:', { 
-    content: values.content.substring(0, 20) + '...', 
-    reviewId 
-  });
-  
-  const response = await fetch('/api/comments', {
-    method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({ 
-      content: values.content, 
-      reviewId 
-    }),
-  });
-  
-  // Get the response text for better debugging
-  const responseText = await response.text();
-  console.log('API Response:', {
-    status: response.status,
-    statusText: response.statusText,
-    body: responseText
-  });
-  
-  // Try to parse as JSON
-  let responseData;
-  try {
-    responseData = JSON.parse(responseText);
-  } catch (e) {
-    console.error('Failed to parse response as JSON:', e);
-    throw new Error(`Server responded with: ${responseText}`);
-  }
-  
-  if (!response.ok) {
-    throw new Error(responseData.message || `Error: ${response.status} ${response.statusText}`);
-  }
-  
-  // Clear the form
-  form.resetForm();
-  
-  // Simply refresh the page to show the new comment
-  router.reload();
-} catch (error) {
-  console.error('Error posting comment (full details):', error);
-  
-  if (error instanceof Error) {
-    setGeneralError(error.message || 'Failed to post comment');
-  } else {
-    setGeneralError('An unexpected error occurred');
-  }
-  
-  form.setSubmitting(false);
-}
 
   return (
     <div className="mt-8">
@@ -149,43 +151,4 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
           placeholder="Share your thoughts on this graph review..."
           value={form.values.content}
           onChange={form.handleChange('content')}
-          onBlur={form.handleBlur('content')}
-          error={form.errors.content}
-          touched={form.touched.content}
-          required
-          rows={4}
-          helpText={`Maximum ${FIELD_LIMITS.COMMENT_MAX_LENGTH} characters`}
-          containerClassName="mb-4"
-        />
-        
-        <SubmitButton
-          isSubmitting={form.isSubmitting}
-          label="Post Comment"
-          submittingLabel="Posting..."
-          disabled={form.isSubmitting || !user}
-          className="w-full md:w-auto"
-        />
-      </Form>
-      
-      <div className="space-y-4">
-        {comments.length === 0 ? (
-          <p className="text-gray-500">No comments yet. Be the first to start the discussion!</p>
-        ) : (
-          comments.map((comment) => (
-            <div key={comment.id} className="border-b pb-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">{comment.user.name}</span>
-                <span className="text-sm text-gray-500">
-                  {new Date(comment.createdAt).toLocaleString()}
-                </span>
-              </div>
-              <p>{comment.content}</p>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default CommentSection;
+          onBlur={form.handleB
