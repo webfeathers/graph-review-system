@@ -364,13 +364,13 @@ const ReviewPage: NextPage = () => {
               content: c.content,
               reviewId: c.reviewId,
               userId: c.userId,
-              createdAt: new Date(c.createdAt),
+              createdAt: c.createdAt.toISOString(), // Convert Date to string
               user: {
                 id: c.user.id,
                 name: c.user.name,
                 email: c.user.email,
                 password: '',
-                createdAt: new Date(c.user.createdAt)
+                createdAt: c.user.createdAt.toISOString() // Convert user createdAt to string
               }
             }))} 
             reviewId={review.id} 
