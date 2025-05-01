@@ -8,13 +8,19 @@ async function handler(
   userId: string
 ) {
   try {
-    // Use environment variable or hardcoded token
-    const KANTATA_API_TOKEN = process.env.NEXT_PUBLIC_KANTATA_API_TOKEN || 
-                            "07c8e70750fee404afa7c4c5c8ff72cb31e5b215e993357dbc7c8cbbde60dbcc"; // Replace with your token
+    // Get the Kantata API token from environment variables
+    const KANTATA_API_TOKEN = process.env.NEXT_PUBLIC_KANTATA_API_TOKEN;
     
-    console.log('Using Kantata API token:', 
-                KANTATA_API_TOKEN.substring(0, 4) + '...' + 
-                KANTATA_API_TOKEN.substring(KANTATA_API_TOKEN.length - 4));
+    // Check if token exists
+    if (!KANTATA_API_TOKEN) {
+      console.error('Kantata API token not configured in environment variables');
+      return res.status(500).json({
+        success: false,
+        message: 'Kantata API is not properly configured. Please contact an administrator.'
+      });
+    }
+    
+    console.log('Using Kantata API token from environment variables');
     
     // Fetch all pages of custom fields
     let allResults: any[] = [];
@@ -44,8 +50,8 @@ async function handler(
         
         return res.status(response.status).json({
           success: false,
-          message: `Kantata API error: ${response.status} ${response.statusText}`,
-          details: errorText
+          message: `Failed to fetch data from Kantata API`,
+          details: 'External API error'
         });
       }
       
@@ -95,7 +101,7 @@ async function handler(
     console.error('Error fetching Kantata custom fields:', error);
     return res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : 'Unknown error'
+      message: 'An error occurred while fetching data from Kantata'
     });
   }
 }
