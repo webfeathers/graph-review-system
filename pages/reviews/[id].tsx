@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Layout from '../../components/Layout';
 import StatusBadge from '../../components/StatusBadge';
-import CommentSection from '../../components/CommentSection';
+import CommentSection from '../../components/commentSection';
 import { useAuth } from '../../components/AuthProvider';
 import { getReviewById, updateReviewStatus, getCommentsByReviewId } from '../../lib/supabaseUtils';
 import { ReviewWithProfile, CommentWithProfile } from '../../types/supabase';
