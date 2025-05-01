@@ -370,7 +370,8 @@ const ReviewPage: NextPage = () => {
                 name: c.user.name,
                 email: c.user.email,
                 password: '',
-                createdAt: c.user.createdAt.toISOString() // Convert user createdAt to string
+                createdAt: c.user.createdAt.toISOString(), // Convert user createdAt to string
+                role: c.user.role || 'user' // Add the missing role property
               }
             }))} 
             reviewId={review.id} 
