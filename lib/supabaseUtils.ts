@@ -193,19 +193,10 @@ export async function getReviewById(id: string) {
  */
 export const getCommentsByReviewId = async (reviewId: string) => {
   try {
-    // OPTIMIZED: Use a single query with join to get comments and profiles
+    // Use explicit joins instead of the nested syntax that's causing issues
     const { data: comments, error } = await supabase
       .from('comments')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          email,
-          created_at,
-          role
-        )
-      `)
+      .select('*, user:user_id (id, name, email, created_at, role)')
       .eq('review_id', reviewId)
       .order('created_at', { ascending: true });
       
@@ -221,7 +212,7 @@ export const getCommentsByReviewId = async (reviewId: string) => {
     // Transform to frontend format with proper type safety
     const commentsWithProfiles: CommentWithProfile[] = comments.map(comment => {
       // Extract profile from the join result with proper type checking
-      const profile = comment.profiles;
+      const profile = comment.user;
       
       if (!profile) {
         // Fallback if profile not found
