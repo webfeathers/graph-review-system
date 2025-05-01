@@ -1,6 +1,6 @@
 // pages/api/admin/sync-profiles.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { syncUserProfiles } from '../../../lib/profileSync';
+import { ProfileService } from '../../../lib/profileService';
 import { supabase } from '../../../lib/supabase';
 
 type SyncResponseData = {

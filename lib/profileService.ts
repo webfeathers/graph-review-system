@@ -343,6 +343,84 @@ export class ProfileService {
       return [];
     }
   }
+
+  /**
+   * Synchronizes all user profiles to ensure consistency
+   * This is useful for admin operations or scheduled tasks
+   * 
+   * @returns Object with success status and count of synced profiles
+   */
+  static async syncAllUserProfiles(): Promise<{ 
+    success: boolean; 
+    syncedCount?: number; 
+    error?: any 
+  }> {
+    try {
+      console.log('Starting profile synchronization...');
+      
+      // Get all auth users (requires service role key!)
+      const { data, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error('Error fetching auth users:', authError);
+        return { success: false, error: authError };
+      }
+      
+      if (!data || !Array.isArray(data.users)) {
+        console.error('No users data returned from auth.admin.listUsers');
+        return { success: false, error: new Error('No users data returned') };
+      }
+      
+      const authUsers = data.users;
+      console.log(`Found ${authUsers.length} users in auth system`);
+      
+      // Get all existing profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id');
+        
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        return { success: false, error: profilesError };
+      }
+      
+      console.log(`Found ${profiles ? profiles.length : 0} existing profiles`);
+      
+      // Find users without profiles
+      const profileIds = new Set(profiles ? profiles.map(p => p.id) : []);
+      const usersWithoutProfiles = authUsers.filter(user => 
+        user && typeof user.id === 'string' && !profileIds.has(user.id)
+      );
+      
+      console.log(`Found ${usersWithoutProfiles.length} users without profiles`);
+      
+      // Create missing profiles
+      const createdCount = 0;
+      const failedCount = 0;
+      
+      await Promise.all(
+        usersWithoutProfiles.map(async (user) => {
+          try {
+            await this.ensureProfile(user);
+            createdCount++;
+          } catch (error) {
+            console.error(`Error creating profile for user ${user.id}:`, error);
+            failedCount++;
+          }
+        })
+      );
+      
+      console.log(`Profile sync complete. Created ${createdCount} profiles. Failed: ${failedCount}`);
+      
+      return { 
+        success: true,
+        syncedCount: createdCount
+      };
+    } catch (error) {
+      console.error('Error in profile synchronization:', error);
+      return { success: false, error };
+    }
+  }  
   
   /**
    * Get profiles for multiple users in a single query, using cache
