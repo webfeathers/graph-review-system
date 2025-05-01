@@ -191,76 +191,77 @@ export async function getReviewById(id: string) {
  * @param reviewId The review ID to get comments for
  * @returns Array of comments with user profile data
  */
-export async function getCommentsByReviewId(reviewId: string) {
+export const getCommentsByReviewId = async (reviewId: string) => {
   try {
-    // Use a single query with join for comments and profiles
-    const { data: comments, error } = await supabase
+    // Instead of trying to use the automatic join with "profiles:user_id"
+    // We'll do a manual join with two separate queries
+    
+    // First, get all comments for the review
+    const { data: comments, error: commentsError } = await supabase
       .from('comments')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          email,
-          created_at,
-          role
-        )
-      `)
+      .select('*')
       .eq('review_id', reviewId)
       .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching comments:', error);
-      throw error;
+      
+    if (commentsError) {
+      console.error('Error fetching comments:', commentsError);
+      throw commentsError;
     }
-
+    
     if (!comments || comments.length === 0) {
       return [];
     }
-
-    // Transform to frontend format
-    const frontendComments: CommentWithProfile[] = comments.map(comment => {
-      // Extract profile from the join result
-      const profile = comment.profiles;
+    
+    // Now fetch the associated user profiles
+    const userIds = comments.map(comment => comment.user_id);
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
       
-      // Convert comment to frontend format
-      const frontendComment: Comment = {
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+      throw profilesError;
+    }
+    
+    // Create a map of user profiles for quick lookup
+    const profileMap = (profiles || []).reduce((map, profile) => {
+      map[profile.id] = profile;
+      return map;
+    }, {} as Record<string, any>);
+    
+    // Combine the data manually
+    const commentsWithProfiles = comments.map(comment => {
+      const profile = profileMap[comment.user_id] || {
+        id: comment.user_id,
+        name: 'Unknown User',
+        email: '',
+        created_at: comment.created_at,
+        role: 'Member'
+      };
+      
+      return {
         id: comment.id,
         content: comment.content,
         reviewId: comment.review_id,
         userId: comment.user_id,
-        createdAt: comment.created_at
-      };
-      
-      // Construct the comment with profile
-      const commentWithProfile: CommentWithProfile = {
-        ...frontendComment,
-        user: profile ? {
+        createdAt: comment.created_at,
+        user: {
           id: profile.id,
           name: profile.name || 'Unknown User',
           email: profile.email || '',
-          // Fix here too
           createdAt: profile.created_at,
           role: profile.role || 'Member'
-        } : {
-          id: comment.user_id,
-          name: 'Unknown User',
-          email: '',
-          // And here
-          createdAt: comment.created_at,
-          role: 'Member'
         }
       };
-      
-      return commentWithProfile;
     });
     
-    return frontendComments;
+    return commentsWithProfiles;
   } catch (err) {
     console.error('Error in getCommentsByReviewId:', err);
     throw err;
   }
-}
+};
 
 /**
  * Create a new review
