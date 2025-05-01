@@ -151,4 +151,43 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
           placeholder="Share your thoughts on this graph review..."
           value={form.values.content}
           onChange={form.handleChange('content')}
-          onBlur={form.handleB
+          onBlur={form.handleBlur('content')}
+          error={form.errors.content}
+          touched={form.touched.content}
+          required
+          rows={4}
+          helpText={`Maximum ${FIELD_LIMITS.COMMENT_MAX_LENGTH} characters`}
+          containerClassName="mb-4"
+        />
+        
+        <SubmitButton
+          isSubmitting={form.isSubmitting}
+          label="Post Comment"
+          submittingLabel="Posting..."
+          disabled={form.isSubmitting || !user}
+          className="w-full md:w-auto"
+        />
+      </Form>
+      
+      <div className="space-y-4">
+        {comments.length === 0 ? (
+          <p className="text-gray-500">No comments yet. Be the first to start the discussion!</p>
+        ) : (
+          comments.map((comment) => (
+            <div key={comment.id} className="border-b pb-4">
+              <div className="flex justify-between items-center mb-2">
+                <span className="font-medium">{comment.user.name}</span>
+                <span className="text-sm text-gray-500">
+                  {new Date(comment.createdAt).toLocaleString()}
+                </span>
+              </div>
+              <p>{comment.content}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default CommentSection;
