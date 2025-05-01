@@ -193,58 +193,66 @@ export async function getReviewById(id: string) {
  */
 export const getCommentsByReviewId = async (reviewId: string) => {
   try {
-    // Use explicit joins instead of the nested syntax that's causing issues
-    const { data: comments, error } = await supabase
+    // First, get all comments for the review
+    const { data: comments, error: commentsError } = await supabase
       .from('comments')
-      .select('*, user:user_id (id, name, email, created_at, role)')
+      .select('*')
       .eq('review_id', reviewId)
       .order('created_at', { ascending: true });
       
-    if (error) {
-      console.error('Error fetching comments:', error);
-      throw error;
+    if (commentsError) {
+      console.error('Error fetching comments:', commentsError);
+      throw commentsError;
     }
     
     if (!comments || comments.length === 0) {
       return [];
     }
     
-    // Transform to frontend format with proper type safety
+    // Get all unique user IDs from comments
+    const userIds = Array.from(new Set(comments.map(comment => comment.user_id)));
+    
+    // Now fetch all these users in a single query
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
+      
+    if (profilesError) {
+      console.error('Error fetching user profiles:', profilesError);
+      throw profilesError;
+    }
+    
+    // Create a map of user profiles for quick lookup
+    const profileMap: Record<string, any> = {};
+    if (profiles) {
+      profiles.forEach(profile => {
+        profileMap[profile.id] = profile;
+      });
+    }
+    
+    // Combine the data
     const commentsWithProfiles: CommentWithProfile[] = comments.map(comment => {
-      // Extract profile from the join result with proper type checking
-      const profile = comment.user;
+      const profile = profileMap[comment.user_id];
       
-      if (!profile) {
-        // Fallback if profile not found
-        return {
-          id: comment.id,
-          content: comment.content,
-          reviewId: comment.review_id,
-          userId: comment.user_id,
-          createdAt: comment.created_at,
-          user: {
-            id: comment.user_id,
-            name: 'Unknown User',
-            email: '',
-            createdAt: comment.created_at,
-            role: 'Member'
-          }
-        };
-      }
-      
-      // Create the comment with profile
       return {
         id: comment.id,
         content: comment.content,
         reviewId: comment.review_id,
         userId: comment.user_id,
         createdAt: comment.created_at,
-        user: {
+        user: profile ? {
           id: profile.id,
           name: profile.name || 'Unknown User',
           email: profile.email || '',
           createdAt: profile.created_at,
           role: profile.role || 'Member'
+        } : {
+          id: comment.user_id,
+          name: 'Unknown User',
+          email: '',
+          createdAt: comment.created_at,
+          role: 'Member'
         }
       };
     });
