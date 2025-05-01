@@ -98,112 +98,103 @@ async function commentHandler(
     }
   }
   
-  // POST /api/comments
-  if (req.method === 'POST') {
-    try {
-      const { content, reviewId } = req.body;
-      
-      if (!content || !reviewId) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Content and review ID are required' 
-        });
-      }
-      
-      console.log('Adding new comment for review:', reviewId);
-      
-      // Validate content length
-      if (content.length > 1000) {
-        return res.status(400).json({
-          success: false,
-          message: 'Comment exceeds maximum length of 1000 characters'
-        });
-      }
-      
-      // Create the comment
-      const { data: newComment, error } = await supabase
-        .from('comments')
-        .insert({
-          content,
-          review_id: reviewId,
-          user_id: userId,
-          created_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating comment:', error);
-        return res.status(500).json({ 
-          success: false, 
-          message: 'Error creating comment', 
-          error: 'Database operation failed' 
-        });
-      }
-      
-      console.log('Comment created successfully with ID:', newComment.id);
-      
-      // Send email notification
-      try {
-        const review = await getReviewById(reviewId);
-        
-        if (review && review.user.email) {
-          // Skip sending notification if the comment author is the review owner
-          if (review.userId === userId) {
-            console.log('Skipping notification as comment author is review owner');
-          } else {
-            // Get the commenter's name - use current user data from withAuth
-            const commenterName = userRole ? 'A user' : 'A user';
-            
-            // Generate app URL
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                          `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
-            
-            // Send notification using helper method
-            await EmailService.sendCommentNotification(
-              reviewId,
-              review.title,
-              review.user.email,
-              review.user.name || 'User',
-              content,
-              commenterName,
-              appUrl
-            );
-            
-            console.log('Comment notification email sent to review author');
-          }
-        }
-      } catch (emailError) {
-        // Log but don't fail the request if email sending fails
-        console.error('Error sending comment notification email:', emailError);
-      }
-      
-      // Return the newly created comment
-      return res.status(201).json({
-        success: true,
-        data: {
-          id: newComment.id,
-          content: newComment.content,
-          reviewId: newComment.review_id,
-          userId: newComment.user_id,
-          createdAt: newComment.created_at
-        }
-      });
-    } catch (error) {
-      console.error('Unexpected error creating comment:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error',
-        error: 'An unexpected error occurred'
+// POST /api/comments
+if (req.method === 'POST') {
+  try {
+    const { content, reviewId } = req.body;
+    
+    if (!content || !reviewId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Content and review ID are required' 
       });
     }
+    
+    console.log('Adding new comment for review:', reviewId);
+    
+    // Validate content length
+    if (content.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment exceeds maximum length of 1000 characters'
+      });
+    }
+    
+    // Create the comment directly with supabase
+    const { data: newComment, error } = await supabase
+      .from('comments')
+      .insert({
+        content,
+        review_id: reviewId,
+        user_id: userId,
+        created_at: new Date().toISOString()
+      })
+      .select();
+
+    if (error) {
+      console.error('Error creating comment:', error);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error creating comment', 
+        error: error.message 
+      });
+    }
+    
+    if (!newComment || newComment.length === 0) {
+      console.error('No comment data returned after insert');
+      return res.status(500).json({
+        success: false,
+        message: 'Error creating comment: No data returned'
+      });
+    }
+    
+    const comment = newComment[0];
+    console.log('Comment created successfully with ID:', comment.id);
+    
+    // Get the user profile for the response
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+      
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+      // Continue anyway with limited user info
+    }
+    
+    // Return the newly created comment with user info
+    return res.status(201).json({
+      success: true,
+      data: {
+        id: comment.id,
+        content: comment.content,
+        reviewId: comment.review_id,
+        userId: comment.user_id,
+        createdAt: comment.created_at,
+        user: profile ? {
+          id: profile.id,
+          name: profile.name || 'Unknown User',
+          email: profile.email || '',
+          createdAt: profile.created_at,
+          role: profile.role || 'Member'
+        } : {
+          id: userId,
+          name: 'User',
+          email: '',
+          createdAt: new Date().toISOString(),
+          role: 'Member'
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Unexpected error creating comment:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error instanceof Error ? error.message : 'An unexpected error occurred'
+    });
   }
-  
-  // Handle unsupported methods
-  return res.status(405).json({ 
-    success: false, 
-    message: 'Method not allowed' 
-  });
 }
 
 // Import Supabase client
