@@ -49,16 +49,21 @@ const Reviews: NextPage = () => {
         // Get all review IDs
         const reviewIds = reviewsData.map(review => review.id);
         
-        // OPTIMIZED: Get comment counts for all reviews in a single query
-        const { data: commentCounts, error: countError } = await supabase
+        // Initialize count map with zeros
+        const countMap: Record<string, number> = {};
+        reviewIds.forEach(id => {
+          countMap[id] = 0;
+        });
+        
+        // OPTIMIZED: Fetch all comments for these reviews
+        const { data: comments, error: countError } = await supabase
           .from('comments')
-          .select('review_id, count(*)')
-          .in('review_id', reviewIds)
-          .group('review_id');
+          .select('review_id')
+          .in('review_id', reviewIds);
           
         if (countError) {
           console.error('Error fetching comment counts:', countError);
-          // Continue with no comment counts
+          // Continue with zero comment counts
           setReviews(reviewsData.map(review => ({
             ...review,
             commentCount: 0
@@ -67,12 +72,10 @@ const Reviews: NextPage = () => {
           return;
         }
         
-        // Create a map of review ID to comment count
-        const countMap: Record<string, number> = {};
-        
-        if (commentCounts) {
-          commentCounts.forEach(item => {
-            countMap[item.review_id] = parseInt(item.count);
+        // Count comments in JavaScript
+        if (comments && comments.length > 0) {
+          comments.forEach(comment => {
+            countMap[comment.review_id] = (countMap[comment.review_id] || 0) + 1;
           });
         }
         
