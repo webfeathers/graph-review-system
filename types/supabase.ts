@@ -2,7 +2,7 @@
 // Database types (matching Supabase snake_case)
 export type Role = 'Member' | 'Admin';
 
-export type DbProfile = {
+export interface DbProfile {
   id: string;
   name: string;
   email: string;
@@ -10,7 +10,7 @@ export type DbProfile = {
   role: Role;
 }
 
-export type DbReview = {
+export interface DbReview {
   id: string;
   title: string;
   description: string;
@@ -33,7 +33,7 @@ export type DbReview = {
   profiles?: DbProfile;
 }
 
-export type DbComment = {
+export interface DbComment {
   id: string;
   content: string;
   review_id: string;
@@ -44,7 +44,7 @@ export type DbComment = {
 }
 
 // Frontend types (using camelCase)
-export type Profile = {
+export interface Profile {
   id: string;
   name: string;
   email: string;
@@ -52,10 +52,9 @@ export type Profile = {
   role: Role;
 }
 
-export type Review = {
+export interface Review {
   id: string;
   title: string;
-  kantataProjectId?: string;
   description: string;
   graphImageUrl?: string;
   status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
@@ -65,6 +64,7 @@ export type Review = {
   // New fields
   accountName?: string;
   orgId?: string;
+  kantataProjectId?: string;
   segment?: 'Enterprise' | 'MidMarket';
   remoteAccess?: boolean;
   graphName?: string;
@@ -73,7 +73,7 @@ export type Review = {
   handoffLink?: string;
 }
 
-export type Comment = {
+export interface Comment {
   id: string;
   content: string;
   reviewId: string;
@@ -82,11 +82,11 @@ export type Comment = {
 }
 
 // With joined relationships
-export type ReviewWithProfile = Review & {
+export interface ReviewWithProfile extends Review {
   user: Profile;
 }
 
-export type CommentWithProfile = Comment & {
+export interface CommentWithProfile extends Comment {
   user: Profile;
 }
 
