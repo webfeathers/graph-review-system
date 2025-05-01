@@ -49,65 +49,84 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
     onSubmit: handleSubmit
   });
 
-  async function handleSubmit(values: CommentFormValues) {
-    try {
-      // Clear previous errors
-      setGeneralError(null);
-      
-      if (!user) {
-        setGeneralError('User not authenticated');
-        return;
-      }
-      
-      // Get current token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
-      // Simple spinner indicator that we're posting
-      const submitButton = document.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.textContent = 'Posting...';
-        submitButton.setAttribute('disabled', 'true');
-      }
-      
-      const response = await fetch('/api/comments', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          content: values.content, 
-          reviewId 
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to post comment');
-      }
-      
-      // Clear the form
-      form.resetForm();
-      
-      // Simply refresh the page to show the new comment
-      router.reload();
-    } catch (error) {
-      console.error('Error posting comment:', error);
-      
-      if (error instanceof Error) {
-        setGeneralError(error.message || 'Failed to post comment');
-      } else {
-        setGeneralError('An unexpected error occurred');
-      }
-      
-      form.setSubmitting(false);
-    }
+  async function try {
+  // Clear previous errors
+  setGeneralError(null);
+  
+  if (!user) {
+    setGeneralError('User not authenticated');
+    return;
   }
+  
+  // Get current token
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  
+  if (!token) {
+    throw new Error('No authentication token available');
+  }
+  
+  // Simple spinner indicator that we're posting
+  const submitButton = document.querySelector('button[type="submit"]');
+  if (submitButton) {
+    submitButton.textContent = 'Posting...';
+    submitButton.setAttribute('disabled', 'true');
+  }
+  
+  console.log('Submitting comment:', { 
+    content: values.content.substring(0, 20) + '...', 
+    reviewId 
+  });
+  
+  const response = await fetch('/api/comments', {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ 
+      content: values.content, 
+      reviewId 
+    }),
+  });
+  
+  // Get the response text for better debugging
+  const responseText = await response.text();
+  console.log('API Response:', {
+    status: response.status,
+    statusText: response.statusText,
+    body: responseText
+  });
+  
+  // Try to parse as JSON
+  let responseData;
+  try {
+    responseData = JSON.parse(responseText);
+  } catch (e) {
+    console.error('Failed to parse response as JSON:', e);
+    throw new Error(`Server responded with: ${responseText}`);
+  }
+  
+  if (!response.ok) {
+    throw new Error(responseData.message || `Error: ${response.status} ${response.statusText}`);
+  }
+  
+  // Clear the form
+  form.resetForm();
+  
+  // Simply refresh the page to show the new comment
+  router.reload();
+} catch (error) {
+  console.error('Error posting comment (full details):', error);
+  
+  if (error instanceof Error) {
+    setGeneralError(error.message || 'Failed to post comment');
+  } else {
+    setGeneralError('An unexpected error occurred');
+  }
+  
+  form.setSubmitting(false);
+}
 
   return (
     <div className="mt-8">
