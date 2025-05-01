@@ -2,7 +2,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from './supabase';
 import { Role } from '../types/supabase';
-import { parse } from 'cookie';
 
 /**
  * Type for the handler function that will be wrapped with authentication
@@ -66,30 +65,16 @@ async function getUserRoleWithCache(userId: string): Promise<Role | null> {
 
 /**
  * Get the authorization token from the request
- * First checks for a token in the Authorization header,
- * then falls back to the session cookie
+ * Only checks the Authorization header since we don't have cookie parsing
  * 
  * @param req The Next.js API request
  * @returns The token or null if not found
  */
 function getAuthToken(req: NextApiRequest): string | null {
-  // First check for Authorization header
+  // Check for Authorization header
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     return authHeader.substring(7);
-  }
-  
-  // Then check for session cookie
-  try {
-    const cookies = parse(req.headers.cookie || '');
-    const sessionCookie = cookies['gr_session'];
-    
-    if (sessionCookie) {
-      const sessionData = JSON.parse(sessionCookie);
-      return sessionData.access_token || null;
-    }
-  } catch (error) {
-    console.error('Error parsing session cookie:', error);
   }
   
   return null;

@@ -150,37 +150,6 @@ export class SessionService {
   }
   
   /**
-   * Set session in secure cookie through API
-   * 
-   * @param session The session to store
-   * @private
-   */
-  private static async storeSessionSecurely(session: Session | null): Promise<void> {
-    try {
-      if (!session) {
-        // Clear the session cookie
-        await fetch('/api/auth/session', {
-          method: 'DELETE',
-          credentials: 'same-origin'
-        });
-        return;
-      }
-      
-      // Store session in secure HttpOnly cookie
-      await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ session }),
-        credentials: 'same-origin'
-      });
-    } catch (error) {
-      console.error('Error storing session securely:', error);
-    }
-  }
-  
-  /**
    * Sign in with Google
    * 
    * @param redirectUrl Optional URL to redirect to after sign in
@@ -223,8 +192,6 @@ export class SessionService {
       
       if (!error) {
         this.currentSession = null;
-        // Clear session cookie
-        await this.storeSessionSecurely(null);
         this.notifyListeners('SIGNED_OUT', null, null);
       }
       
@@ -269,8 +236,6 @@ export class SessionService {
       if (data.session) {
         console.log('Token refreshed successfully');
         this.currentSession = data.session;
-        // Store the refreshed session in a secure cookie
-        await this.storeSessionSecurely(data.session);
         this.setupRefreshTimer(data.session);
         this.notifyListeners('TOKEN_REFRESHED', data.session, data.session.user);
         return data.session;
@@ -295,15 +260,12 @@ export class SessionService {
     switch (event) {
       case 'SIGNED_IN':
         eventType = 'SIGNED_IN';
-        await this.storeSessionSecurely(session);
         break;
       case 'SIGNED_OUT':
         eventType = 'SIGNED_OUT';
-        await this.storeSessionSecurely(null);
         break;
       case 'TOKEN_REFRESHED':
         eventType = 'TOKEN_REFRESHED';
-        await this.storeSessionSecurely(session);
         break;
       case 'USER_UPDATED':
         eventType = 'USER_UPDATED';
