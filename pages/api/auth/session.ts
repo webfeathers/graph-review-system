@@ -1,6 +1,5 @@
 // pages/api/auth/session.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { serialize, parse } from 'cookie';
 import { Session } from '@supabase/supabase-js';
 
 // Cookie options for secure session storage
@@ -14,6 +13,63 @@ const COOKIE_OPTIONS = {
 
 // The name of the cookie
 const SESSION_COOKIE_NAME = 'gr_session';
+
+/**
+ * Simple function to serialize a cookie without dependencies
+ */
+function serializeCookie(name: string, value: string, options: any = {}) {
+  let cookie = `${name}=${encodeURIComponent(value)}`;
+  
+  if (options.maxAge) {
+    cookie += `; Max-Age=${options.maxAge}`;
+  }
+  
+  if (options.expires) {
+    cookie += `; Expires=${options.expires.toUTCString()}`;
+  }
+  
+  if (options.httpOnly) {
+    cookie += '; HttpOnly';
+  }
+  
+  if (options.secure) {
+    cookie += '; Secure';
+  }
+  
+  if (options.path) {
+    cookie += `; Path=${options.path}`;
+  }
+  
+  if (options.sameSite) {
+    cookie += `; SameSite=${options.sameSite}`;
+  }
+  
+  return cookie;
+}
+
+/**
+ * Simple function to parse a cookie without dependencies
+ */
+function parseCookies(cookieString: string) {
+  const cookies: Record<string, string> = {};
+  
+  if (!cookieString) {
+    return cookies;
+  }
+  
+  cookieString.split(';').forEach(cookie => {
+    const [name, ...rest] = cookie.split('=');
+    const trimmedName = name?.trim();
+    if (!trimmedName) return;
+    
+    const value = rest.join('=').trim();
+    if (!value) return;
+    
+    cookies[trimmedName] = decodeURIComponent(value);
+  });
+  
+  return cookies;
+}
 
 /**
  * API endpoint to securely store and retrieve the session in an HTTP-only cookie
@@ -40,7 +96,7 @@ export default async function handler(
       };
       
       // Create a secure cookie with the session data
-      const sessionCookie = serialize(
+      const sessionCookie = serializeCookie(
         SESSION_COOKIE_NAME,
         JSON.stringify(sessionData),
         COOKIE_OPTIONS
@@ -60,7 +116,7 @@ export default async function handler(
   if (req.method === 'GET') {
     try {
       // Parse the cookies from the request
-      const cookies = parse(req.headers.cookie || '');
+      const cookies = parseCookies(req.headers.cookie || '');
       
       // Get the session cookie
       const sessionCookie = cookies[SESSION_COOKIE_NAME];
@@ -83,7 +139,7 @@ export default async function handler(
   if (req.method === 'DELETE') {
     try {
       // Create an expired cookie to clear the session
-      const clearedCookie = serialize(
+      const clearedCookie = serializeCookie(
         SESSION_COOKIE_NAME,
         '',
         {
