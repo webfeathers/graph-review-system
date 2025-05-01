@@ -49,86 +49,49 @@ const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialCommen
     onSubmit: handleSubmit
   });
 
-  async function handleSubmit(values: CommentFormValues) {
-    try {
-      // Clear previous errors
-      setGeneralError(null);
-      
-      if (!user) {
-        setGeneralError('User not authenticated');
-        return;
-      }
-      
-      // Get current token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
-      
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
-      // Simple spinner indicator that we're posting
-      const submitButton = document.querySelector('button[type="submit"]');
-      if (submitButton) {
-        submitButton.textContent = 'Posting...';
-        submitButton.setAttribute('disabled', 'true');
-      }
-      
-      console.log('Submitting comment:', { 
-        content: values.content.substring(0, 20) + '...', 
-        reviewId 
-      });
-      
-      const response = await fetch('/api/comments', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          content: values.content, 
-          reviewId 
-        }),
-      });
-      
-      // Get the response text for better debugging
-      const responseText = await response.text();
-      console.log('API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: responseText
-      });
-      
-      // Try to parse as JSON
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Failed to parse response as JSON:', e);
-        throw new Error(`Server responded with: ${responseText}`);
-      }
-      
-      if (!response.ok) {
-        throw new Error(responseData.message || `Error: ${response.status} ${response.statusText}`);
-      }
-      
-      // Clear the form
-      form.resetForm();
-      
-      // Simply refresh the page to show the new comment
-      router.reload();
-    } catch (error) {
-      console.error('Error posting comment:', error);
-      
-      if (error instanceof Error) {
-        setGeneralError(error.message || 'Failed to post comment');
-      } else {
-        setGeneralError('An unexpected error occurred');
-      }
-      
-      form.setSubmitting(false);
+  // Try this alternative approach in components/CommentSection.tsx
+async function handleSubmit(values: CommentFormValues) {
+  try {
+    setGeneralError(null);
+    
+    if (!user) {
+      setGeneralError('User not authenticated');
+      return;
     }
+    
+    console.log('Submitting comment directly via Supabase client');
+    
+    // Insert directly using Supabase client
+    const { data, error } = await supabase
+      .from('comments')
+      .insert({
+        content: values.content,
+        review_id: reviewId,
+        user_id: user.id,
+        created_at: new Date().toISOString()
+      })
+      .select();
+    
+    if (error) {
+      console.error('Supabase error:', error);
+      throw new Error(`Database error: ${error.message}`);
+    }
+    
+    console.log('Comment inserted successfully:', data);
+    form.resetForm();
+    router.reload();
+  } catch (error) {
+    console.error('Error posting comment:', error);
+    
+    if (error instanceof Error) {
+      setGeneralError(error.message || 'Failed to post comment');
+    } else {
+      setGeneralError('An unexpected error occurred');
+    }
+    
+    form.setSubmitting(false);
   }
+}
 
   return (
     <div className="mt-8">
