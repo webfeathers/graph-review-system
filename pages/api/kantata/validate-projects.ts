@@ -182,7 +182,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 // Use the service function to update the status
                 const updateResult = await updateKantataStatus(
                   review.kantata_project_id,
-                  'In Review',
+                  'In Development',
                   kantataApiToken
                 );
                 
@@ -191,7 +191,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 if (updateResult.success) {
                   message += '. Auto-corrected: Kantata status reset to In Review';
                   // Update the status in validation results
-                  kantataStatus.message = 'In Review';
+                  kantataStatus.message = 'In Development';
                 } else {
                   console.error('Failed to auto-correct Kantata status:', updateResult.message);
                   message += `. Failed to auto-correct: ${updateResult.message}`;
