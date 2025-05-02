@@ -1,7 +1,7 @@
 // pages/api/kantata/validate-projects.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../../lib/supabase';
-import { updateKantataStatus } from '../../../lib/kantataService';
+import { updateKantataStatus, updateKantataProjectStatus } from '../../../lib/kantataService';
 
 // Interface for validation result
 interface ValidationResult {
@@ -170,17 +170,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             
             // Add auto-correction here
             try {
-              console.log(`Auto-correcting Kantata project ${review.kantata_project_id} status from Live to In Review`);
+              console.log(`Auto-correcting Kantata project ${review.kantata_project_id} status from Live to In Development`);
               
               // Log environment variables for debugging
               console.log('NEXT_PUBLIC_KANTATA_API_TOKEN exists:', !!process.env.NEXT_PUBLIC_KANTATA_API_TOKEN);
-              console.log('NEXT_PUBLIC_KANTATA_STATUS_FIELD_ID exists:', !!process.env.NEXT_PUBLIC_KANTATA_STATUS_FIELD_ID);
               
               if (!kantataApiToken) {
                 message += '. Failed to auto-correct: Kantata API token not configured';
               } else {
-                // Use the service function to update the status
-                const updateResult = await updateKantataStatus(
+                // Use the new function to update the actual project status
+                const updateResult = await updateKantataProjectStatus(
                   review.kantata_project_id,
                   'In Development',
                   kantataApiToken
@@ -189,7 +188,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 console.log('Update result:', updateResult);
                 
                 if (updateResult.success) {
-                  message += '. Auto-corrected: Kantata status reset to In Review';
+                  message += '. Auto-corrected: Kantata status reset to In Development';
                   // Update the status in validation results
                   kantataStatus.message = 'In Development';
                 } else {

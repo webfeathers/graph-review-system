@@ -4,7 +4,7 @@
  */
 
 /**
- * Updates the status of a Kantata project
+ * Updates a custom field value for a Kantata project
  * @param kantataProjectId The Kantata project ID
  * @param status The new status to set
  * @param kantataApiToken The Kantata API token
@@ -176,6 +176,78 @@ export async function updateKantataStatus(
     return {
       success: false,
       message: 'Error updating Kantata status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+
+/**
+ * Updates the actual status of a Kantata project (not just a custom field)
+ * @param kantataProjectId The Kantata project ID
+ * @param status The new status to set (e.g., "In Development")
+ * @param kantataApiToken The Kantata API token
+ * @returns Result of the update operation
+ */
+export async function updateKantataProjectStatus(
+  kantataProjectId: string,
+  status: string,
+  kantataApiToken: string
+) {
+  try {
+    console.log(`Updating Kantata project status for ${kantataProjectId} to ${status}`);
+    
+    // The payload for updating project status
+    const updatePayload = {
+      workspace: {
+        status: status
+      }
+    };
+    
+    console.log('Update payload:', JSON.stringify(updatePayload));
+    
+    // Update the workspace (project) status
+    const updateResponse = await fetch(`https://api.mavenlink.com/api/v1/workspaces/${kantataProjectId}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${kantataApiToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatePayload)
+    });
+    
+    console.log('Update response status:', updateResponse.status);
+    
+    // Get the response text for debugging
+    const responseText = await updateResponse.text();
+    console.log('Update response text:', responseText);
+    
+    if (!updateResponse.ok) {
+      return {
+        success: false,
+        message: `Failed to update project status: ${updateResponse.status} ${updateResponse.statusText}`,
+        details: responseText
+      };
+    }
+    
+    try {
+      const responseData = JSON.parse(responseText);
+      return {
+        success: true,
+        message: `Successfully updated project status to ${status}`,
+        data: responseData
+      };
+    } catch (e) {
+      return {
+        success: true,
+        message: `Successfully updated project status to ${status}`,
+        data: { rawText: responseText }
+      };
+    }
+  } catch (error) {
+    console.error('Error updating Kantata project status:', error);
+    return {
+      success: false,
+      message: 'Error updating Kantata project status',
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
