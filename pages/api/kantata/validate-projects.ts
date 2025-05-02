@@ -178,23 +178,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               if (!kantataApiToken) {
                 message += '. Failed to auto-correct: Kantata API token not configured';
               } else {
-                // Use the new function to update the actual project status
-                const updateResult = await updateKantataStatus(
-                  review.kantata_project_id,
-                  'In Development',
-                  kantataApiToken
-                );
-
+                // Direct API call to update the Kantata project status
+                const kantataUpdateUrl = `https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}`;
                 
-                console.log('Update result:', updateResult);
+                // The status update payload - using the exact format from the Kantata API
+                const statusUpdatePayload = {
+                  workspace: {
+                    status_key: 305 // Status key for "In Development"
+                  }
+                };
                 
-                if (updateResult.success) {
+                const updateResponse = await fetch(kantataUpdateUrl, {
+                  method: 'PUT',
+                  headers: {
+                    'Authorization': `Bearer ${kantataApiToken}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(statusUpdatePayload)
+                });
+                
+                if (updateResponse.ok) {
+                  console.log('Successfully reset Kantata project status to In Development');
                   message += '. Auto-corrected: Kantata status reset to In Development';
-                  // Update the status in validation results
+                  
+                  // Update the status in validation results to reflect the change
                   kantataStatus.message = 'In Development';
                 } else {
-                  console.error('Failed to auto-correct Kantata status:', updateResult.message);
-                  message += `. Failed to auto-correct: ${updateResult.message}`;
+                  const errorText = await updateResponse.text();
+                  console.error('Failed to update Kantata project status:', errorText);
+                  message += `. Failed to auto-correct: API error ${updateResponse.status}`;
                 }
               }
             } catch (correctionError) {
