@@ -33,6 +33,7 @@ const AdminPage: NextPage = () => {
 
   const runValidation = async () => {
     try {
+      console.log("Starting validation process");
       setValidating(true);
       setMessage(null);
       setError(null);
@@ -46,6 +47,8 @@ const AdminPage: NextPage = () => {
         throw new Error('No authentication token available');
       }
       
+      console.log("Calling validation API endpoint");
+      
       // Call your API endpoint
       const response = await fetch('/api/kantata/validate-projects', {
         method: 'POST',
@@ -55,19 +58,56 @@ const AdminPage: NextPage = () => {
         }
       });
       
+      console.log("API response status:", response.status);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to validate projects');
+        const errorText = await response.text();
+        console.error('Error response text:', errorText);
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.message || 'Failed to validate projects');
+        } catch (e) {
+          throw new Error('Failed to validate projects: ' + errorText);
+        }
       }
       
-      const data = await response.json();
+      // Log the full response data for debugging
+      const responseText = await response.text();
+      console.log("Raw response:", responseText);
       
-      // Safely set results - make sure validationResults exists and is an array
+      // Parse the response manually to avoid double-parsing
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log("Parsed validation data:", data);
+      } catch (e) {
+        console.error("Failed to parse response JSON:", e);
+        throw new Error("Invalid response format from validation API");
+      }
+      
+      // Check the actual structure of the response
+      console.log("Response has message:", !!data.message);
+      console.log("Response has validationResults:", !!data.validationResults);
+      
+      // Safely set results - check what structure we actually have
       if (data && Array.isArray(data.validationResults)) {
         setResults(data.validationResults);
+      } else if (data && data.validationResults) {
+        // Maybe validationResults exists but isn't an array?
+        console.warn('validationResults is not an array:', data.validationResults);
+        setResults([]);
+      } else if (data && data.message && !data.validationResults) {
+        // Maybe the results are at the top level?
+        console.log("Checking for top-level results array");
+        if (Array.isArray(data)) {
+          setResults(data);
+        } else {
+          console.warn('Expected results array but got:', data);
+          setResults([]);
+        }
       } else {
-        console.warn('Expected validationResults array but got:', data);
-        // Initialize as empty array if not present or not an array
+        console.warn('Unexpected response structure:', data);
         setResults([]);
       }
       
