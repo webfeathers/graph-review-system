@@ -10,7 +10,13 @@ type ResponseData = {
   message?: string;
   data?: any;
   error?: string;
+  kantataUpdate?: {
+    success: boolean;
+    message: string;
+    error?: string;
+  } | null;
 };
+
 
 /**
  * Handler for review API operations
