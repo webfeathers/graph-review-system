@@ -58,7 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Get the Kantata API token from environment variables
-    const kantataApiToken = process.env.NEXT_PUBLIC_KANTATA_API_TOKEN;
+    const kantataApiToken = process.env.KANTATA_API_TOKEN;
     
     if (!kantataApiToken) {
       return res.status(500).json({ message: 'Kantata API token not configured' });
