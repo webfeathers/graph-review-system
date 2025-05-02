@@ -10,11 +10,6 @@ type ResponseData = {
   message?: string;
   data?: any;
   error?: string;
-  kantataUpdate?: {
-    success: boolean;
-    message: string;
-    error?: string;
-  } | null;
 };
 
 /**
@@ -241,164 +236,151 @@ async function reviewHandler(
   }
   
   // PATCH /api/reviews/[id] - for status updates
-    if (req.method === 'PATCH') {
-      try {
-        console.log('Processing PATCH request for status update');
+  if (req.method === 'PATCH') {
+    try {
+      console.log('Processing PATCH request for status update');
 
-        // First, fetch the review to check ownership and get previous status
-        const { data: review, error: reviewFetchError } = await supabase
-          .from('reviews')
-          .select('*')
-          .eq('id', id)
-          .single();
+      // First, fetch the review to check ownership and get previous status
+      const { data: review, error: reviewFetchError } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          profiles:user_id (
+            id,
+            name,
+            email,
+            created_at
+          )
+        `)
+        .eq('id', id)
+        .single();
 
-        if (reviewFetchError) {
-          console.error('Error fetching review for update:', reviewFetchError);
-          return res.status(500).json({ 
-            success: false, 
-            message: 'Error fetching review', 
-            error: 'Database query failed' 
-          });
-        }
-
-        if (!review) {
-          console.log('Review not found with ID:', id);
-          return res.status(404).json({ 
-            success: false, 
-            message: 'Review not found' 
-          });
-        }
-
-        // Store previous status for notification
-        const previousStatus = review.status;
-
-        // Get the status from the request body
-        const { status } = req.body;
-
-        // Validate status value
-        if (!status || !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
-          console.log('Invalid status value provided:', status);
-          return res.status(400).json({ 
-            success: false, 
-            message: 'Invalid status value' 
-          });
-        }
-
-        // Only allow admin users to set status to 'Approved'
-        if (status === 'Approved' && userRole !== 'Admin') {
-          console.log('Authorization failed: Admin privileges required for approval');
-          return res.status(403).json({ 
-            success: false, 
-            message: 'Only administrators can approve reviews' 
-          });
-        }
-        
-        console.log(`Updating review status to: ${status}`);
-        
-        // Try direct update through Supabase without using service role
-        const { data: updatedReview, error: updateError } = await supabase
-          .from('reviews')
-          .update({ status })
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('Error updating review status:', updateError);
-          
-          // Log detailed error information
-          console.error('Error details:', JSON.stringify({
-            code: updateError.code,
-            details: updateError.details,
-            hint: updateError.hint,
-            message: updateError.message
-          }, null, 2));
-          
-          // Try fallback method using API
-          console.log('Trying fallback update method...');
-
-          // Get token for API request
-          const { data: sessionData } = await supabase.auth.getSession();
-          const token = sessionData?.session?.access_token;
-          
-          if (!token) {
-            return res.status(500).json({
-              success: false,
-              message: 'Update failed and could not authenticate for fallback method',
-              error: updateError.message
-            });
-          }
-          
-          // Call the admin API as a fallback
-          const response = await fetch(`/api/admin/update-review-status`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              reviewId: id,
-              status
-            })
-          });
-          
-          if (!response.ok) {
-            const responseData = await response.json().catch(() => ({}));
-            return res.status(response.status).json({
-              success: false,
-              message: 'All update methods failed',
-              error: responseData.message || response.statusText,
-              originalError: updateError.message
-            });
-          }
-          
-          const responseData = await response.json();
-          
-          return res.status(200).json({
-            success: true,
-            message: 'Status updated using fallback method',
-            data: responseData.data,
-            fallbackUsed: true
-          });
-        }
-        
-        if (!updatedReview) {
-          console.error('Status update succeeded but review not found in result');
-          return res.status(500).json({
-            success: false,
-            message: 'Update succeeded but could not retrieve the updated review'
-          });
-        }
-
-        console.log('Review status updated successfully');
-
-        return res.status(200).json({
-          success: true,
-          data: updatedReview
-        });
-      } catch (error) {
-        console.error('Unexpected error in PATCH review:', error);
+      if (reviewFetchError) {
+        console.error('Error fetching review for update:', reviewFetchError);
         return res.status(500).json({ 
           success: false, 
-          message: 'Internal server error',
-          error: error instanceof Error ? error.message : 'An unexpected error occurred'
+          message: 'Error fetching review', 
+          error: 'Database query failed' 
         });
       }
-    }
+
+      if (!review) {
+        console.log('Review not found with ID:', id);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Review not found' 
+        });
+      }
+
+      // Store previous status for notification
+      const previousStatus = review.status;
+
+      // Get the status from the request body
+      const { status } = req.body;
+
+      // Validate status value
+      if (!status || !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
+        console.log('Invalid status value provided:', status);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Invalid status value' 
+        });
+      }
+
+      // Only allow admin users to set status to 'Approved'
+      if (status === 'Approved' && userRole !== 'Admin') {
+        console.log('Authorization failed: Admin privileges required for approval');
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Only administrators can approve reviews' 
+        });
+      }
+      
+      console.log(`Updating review status to: ${status}`);
+      
+      // OPTIMIZED: Update the review status with a single operation that returns the updated data
+      const updateData = {
+        status,
+        updated_at: new Date().toISOString()
+      };
+      
+      // Update the review status
+      const { data: updatedReview, error: updateError } = await supabase
+        .from('reviews')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating review status:', updateError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error updating review', 
+          error: 'Database update failed' 
+        });
+      }
+      
+      if (!updatedReview) {
+        console.error('Status update succeeded but review not found in result');
+        return res.status(500).json({
+          success: false,
+          message: 'Update succeeded but could not retrieve the updated review'
+        });
+      }
+      
+      // Send email notification if status changed
+      if (previousStatus !== status) {
+        try {
+          // Get the review owner's email and profile info
+          const reviewOwner = review.profiles;
+          
+          // Skip notification if no owner email or missing info
+          if (reviewOwner && reviewOwner.email) {
+            // Generate app URL
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
+              `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+
+            // Get the name of the person who changed the status
+            let changerName = 'A User';
+            
+            // Don't try to fetch user profile here - we might already have role from withAuth
+            if (userRole === 'Admin') {
+              changerName = 'An Administrator';
+            }
+
+            // Send notification using helper method
+            await EmailService.sendStatusChangeNotification(
+              id,
+              review.title,
+              reviewOwner.email,
+              reviewOwner.name || 'User',
+              previousStatus,
+              status,
+              changerName,
+              appUrl
+            );
+
+            console.log('Status change notification email sent to review author');
+          }
+        } catch (emailError) {
+          // Log but don't fail the request if email sending fails
+          console.error('Error sending status change notification email:', emailError);
+        }
+      }
 
       console.log('Review status updated successfully');
 
       return res.status(200).json({
         success: true,
-        data: updatedReview,
-        kantataUpdate: kantataUpdateResult
+        data: updatedReview
       });
     } catch (error) {
       console.error('Unexpected error in PATCH review:', error);
       return res.status(500).json({ 
         success: false, 
         message: 'Internal server error',
-        error: error instanceof Error ? error.message : 'An unexpected error occurred'
+        error: 'An unexpected error occurred'
       });
     }
   }
