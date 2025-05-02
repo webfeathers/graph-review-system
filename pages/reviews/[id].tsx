@@ -84,6 +84,7 @@ const ReviewPage: NextPage = () => {
         },
         body: JSON.stringify({ status: newStatus })
       });
+      console.log(headers);
       
       if (!response.ok) {
         const errorData = await response.json();
