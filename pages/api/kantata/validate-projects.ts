@@ -191,7 +191,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     const { data: reviewAuthor, error: authorError } = await supabase
                       .from('profiles')
                       .select('name, email')
-                      .eq('id', review.user_id)
+                      .eq('id', review.user_id || review.userId) // Try both property names
                       .single();
                       
                     if (authorError) {
