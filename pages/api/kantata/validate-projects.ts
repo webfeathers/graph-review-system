@@ -185,20 +185,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                   message += '. Auto-corrected: Kantata status reset to In Development';
                   kantataStatus.message = 'In Development';
                   
-                  // Send notification emails to the Kantata Project Owner and Graph Review submitter
+                  // Send notification emails
                   try {
-                    // 1. Get the Graph Review submitter information
-                    const { data: reviewAuthor, error: authorError } = await supabase
-                      .from('profiles')
-                      .select('name, email')
-                      .eq('id', review.user_id || review.userId) // Try both property names
+                    // 1. Get the Graph Review information including the submitter's email
+                    const { data: reviewData, error: reviewError } = await supabase
+                      .from('reviews')
+                      .select(`
+                        title,
+                        profiles:user_id (
+                          name,
+                          email
+                        )
+                      `)
+                      .eq('id', review.id)
                       .single();
                       
-                    if (authorError) {
-                      console.error('Error getting review author info:', authorError);
+                    if (reviewError) {
+                      console.error('Error getting review details:', reviewError);
+                      message += '. Could not send notification (review details not found)';
+                      continue; // Skip to next review
                     }
                     
-                    // 2. Get the Kantata Project Owner information (this requires an additional API call)
+                    const reviewSubmitterName = reviewData.profiles?.name || 'Graph Review Submitter';
+                    const reviewSubmitterEmail = reviewData.profiles?.email;
+                    
+                    // 2. Get the Kantata Project Owner information
                     const kantataProjectUrl = `https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}?include=participants`;
                     const projectResponse = await fetch(kantataProjectUrl, {
                       method: 'GET',
@@ -210,12 +221,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     
                     let projectOwnerEmail = null;
                     let projectOwnerName = 'Project Owner';
+                    let projectTitle = review.kantata_project_id; // Default to ID if name not found
                     
                     if (projectResponse.ok) {
                       const projectData = await projectResponse.json();
                       
+                      // Get project title
+                      if (projectData.workspaces && 
+                          projectData.workspaces[review.kantata_project_id]) {
+                        projectTitle = projectData.workspaces[review.kantata_project_id].title || projectTitle;
+                      }
+                      
                       // Find the lead/owner from participants
-                      // Note: This part might need adjustment based on Kantata's actual API structure
                       if (projectData.workspaces && 
                           projectData.workspaces[review.kantata_project_id] && 
                           projectData.workspaces[review.kantata_project_id].lead_id &&
@@ -238,15 +255,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     const reviewUrl = `${appUrl}/reviews/${review.id}`;
                     const kantataProjectUrl = `https://leandata.mavenlink.com/workspaces/${review.kantata_project_id}`;
                     
+                    let notificationsSent = [];
+                    
                     // Send email to the Graph Review submitter
-                    if (reviewAuthor && reviewAuthor.email) {
+                    if (reviewSubmitterEmail) {
                       await EmailService.sendEmail({
-                        to: reviewAuthor.email,
+                        to: reviewSubmitterEmail,
                         subject: `Graph Review Status Alert: Kantata Project Status Reset`,
                         html: `
                           <h1>Graph Review Status Alert</h1>
-                          <p>Hello ${reviewAuthor.name || 'there'},</p>
-                          <p>The Kantata project linked to your graph review "${review.title}" has been automatically reset from "Live" to "In Development" status.</p>
+                          <p>Hello ${reviewSubmitterName},</p>
+                          <p>The Kantata project linked to your graph review "${reviewData.title}" has been automatically reset from "Live" to "In Development" status.</p>
                           <p><strong>Reason:</strong> Kantata projects should not be marked as "Live" until the associated Graph Review is approved.</p>
                           <p><strong>Action Required:</strong> Please complete the Graph Review approval process before changing the Kantata project status to "Live".</p>
                           <div style="margin: 20px 0;">
@@ -256,18 +275,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                           <p>Thank you,<br>LeanData Graph Review System</p>
                         `
                       });
+                      notificationsSent.push('review submitter');
                     }
                     
                     // Send email to the Kantata Project Owner (if different from the submitter)
-                    if (projectOwnerEmail && 
-                        (!reviewAuthor || reviewAuthor.email !== projectOwnerEmail)) {
+                    if (projectOwnerEmail && projectOwnerEmail !== reviewSubmitterEmail) {
                       await EmailService.sendEmail({
                         to: projectOwnerEmail,
                         subject: `Graph Review Status Alert: Kantata Project Status Reset`,
                         html: `
                           <h1>Graph Review Status Alert</h1>
                           <p>Hello ${projectOwnerName},</p>
-                          <p>The Kantata project "${projectData?.workspaces?.[review.kantata_project_id]?.title || review.kantata_project_id}" that you own has been automatically reset from "Live" to "In Development" status.</p>
+                          <p>The Kantata project "${projectTitle}" that you own has been automatically reset from "Live" to "In Development" status.</p>
                           <p><strong>Reason:</strong> Kantata projects should not be marked as "Live" until the associated Graph Review is approved.</p>
                           <p><strong>Action Required:</strong> Please ensure the associated Graph Review is approved before changing the Kantata project status to "Live".</p>
                           <div style="margin: 20px 0;">
@@ -277,9 +296,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                           <p>Thank you,<br>LeanData Graph Review System</p>
                         `
                       });
+                      notificationsSent.push('project owner');
                     }
                     
-                    message += '. Notifications sent to the graph review submitter' + (projectOwnerEmail && projectOwnerEmail !== reviewAuthor?.email ? ' and project owner' : '');
+                    if (notificationsSent.length > 0) {
+                      message += `. Notifications sent to ${notificationsSent.join(' and ')}`;
+                    } else {
+                      message += '. No notifications sent (email addresses not found)';
+                    }
                     
                   } catch (notificationError) {
                     console.error('Error sending notifications:', notificationError);
