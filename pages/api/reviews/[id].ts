@@ -240,7 +240,7 @@ async function reviewHandler(
     }
   }
   
-  PATCH /api/reviews/[id] - for status updates
+  // PATCH /api/reviews/[id] - for status updates
     if (req.method === 'PATCH') {
       try {
         console.log('Processing PATCH request for status update');
