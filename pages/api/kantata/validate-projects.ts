@@ -168,49 +168,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             isValid = false;
             message = 'Invalid: Kantata project is Live but Graph Review is not Approved';
             
-            // Add auto-correction here
+            // Auto-correct the Kantata project status
             try {
-              console.log(`Auto-correcting Kantata project ${review.kantata_project_id} status from Live to In Development`);
-              
-              // Log environment variables for debugging
-              console.log('NEXT_PUBLIC_KANTATA_API_TOKEN exists:', !!process.env.NEXT_PUBLIC_KANTATA_API_TOKEN);
-              
               if (!kantataApiToken) {
                 message += '. Failed to auto-correct: Kantata API token not configured';
               } else {
-                // Direct API call to update the Kantata project status
-                const kantataUpdateUrl = `https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}`;
+                // Use the clean updateKantataStatus function
+                const updateResult = await updateKantataStatus(
+                  review.kantata_project_id,
+                  'In Development',
+                  kantataApiToken
+                );
                 
-                // The status update payload - using the exact format from the Kantata API
-                const statusUpdatePayload = {
-                  workspace: {
-                    status_key: 305 // Status key for "In Development"
-                  }
-                };
-                
-                const updateResponse = await fetch(kantataUpdateUrl, {
-                  method: 'PUT',
-                  headers: {
-                    'Authorization': `Bearer ${kantataApiToken}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(statusUpdatePayload)
-                });
-                
-                if (updateResponse.ok) {
-                  console.log('Successfully reset Kantata project status to In Development');
+                if (updateResult.success) {
                   message += '. Auto-corrected: Kantata status reset to In Development';
-                  
-                  // Update the status in validation results to reflect the change
+                  // Update the status in validation results
                   kantataStatus.message = 'In Development';
                 } else {
-                  const errorText = await updateResponse.text();
-                  console.error('Failed to update Kantata project status:', errorText);
-                  message += `. Failed to auto-correct: API error ${updateResponse.status}`;
+                  message += `. Failed to auto-correct: ${updateResult.message}`;
                 }
               }
             } catch (correctionError) {
-              console.error('Error during auto-correction:', correctionError);
               message += `. Failed to auto-correct: ${correctionError instanceof Error ? correctionError.message : 'Unknown error'}`;
             }
           }
