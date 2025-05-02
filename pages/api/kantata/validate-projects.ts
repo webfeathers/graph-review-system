@@ -1,7 +1,7 @@
 // pages/api/kantata/validate-projects.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../../lib/supabase';
-import { updateKantataStatus, updateKantataProjectStatus } from '../../../lib/kantataService';
+import { updateKantataStatus } from '../../../lib/kantataService';
 
 // Interface for validation result
 interface ValidationResult {
