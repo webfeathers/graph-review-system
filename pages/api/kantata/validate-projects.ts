@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../../lib/supabase';
 import { updateKantataStatus } from '../../../lib/kantataService';
+import { EmailService } from '../../../lib/emailService';
 
 // Interface for validation result
 interface ValidationResult {
@@ -173,7 +174,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               if (!kantataApiToken) {
                 message += '. Failed to auto-correct: Kantata API token not configured';
               } else {
-                // Use the clean updateKantataStatus function
+                // Update the Kantata project status
                 const updateResult = await updateKantataStatus(
                   review.kantata_project_id,
                   'In Development',
@@ -182,8 +183,108 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 
                 if (updateResult.success) {
                   message += '. Auto-corrected: Kantata status reset to In Development';
-                  // Update the status in validation results
                   kantataStatus.message = 'In Development';
+                  
+                  // Send notification emails to the Kantata Project Owner and Graph Review submitter
+                  try {
+                    // 1. Get the Graph Review submitter information
+                    const { data: reviewAuthor, error: authorError } = await supabase
+                      .from('profiles')
+                      .select('name, email')
+                      .eq('id', review.user_id)
+                      .single();
+                      
+                    if (authorError) {
+                      console.error('Error getting review author info:', authorError);
+                    }
+                    
+                    // 2. Get the Kantata Project Owner information (this requires an additional API call)
+                    const kantataProjectUrl = `https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}?include=participants`;
+                    const projectResponse = await fetch(kantataProjectUrl, {
+                      method: 'GET',
+                      headers: {
+                        'Authorization': `Bearer ${kantataApiToken}`,
+                        'Accept': 'application/json'
+                      }
+                    });
+                    
+                    let projectOwnerEmail = null;
+                    let projectOwnerName = 'Project Owner';
+                    
+                    if (projectResponse.ok) {
+                      const projectData = await projectResponse.json();
+                      
+                      // Find the lead/owner from participants
+                      // Note: This part might need adjustment based on Kantata's actual API structure
+                      if (projectData.workspaces && 
+                          projectData.workspaces[review.kantata_project_id] && 
+                          projectData.workspaces[review.kantata_project_id].lead_id &&
+                          projectData.users) {
+                        
+                        const leadId = projectData.workspaces[review.kantata_project_id].lead_id;
+                        const lead = projectData.users[leadId];
+                        
+                        if (lead) {
+                          projectOwnerEmail = lead.email_address;
+                          projectOwnerName = `${lead.first_name} ${lead.last_name}`.trim();
+                        }
+                      }
+                    } else {
+                      console.error('Error fetching Kantata project details:', await projectResponse.text());
+                    }
+                    
+                    // 3. Send email notifications
+                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://graph-review-system-3a7t.vercel.app';
+                    const reviewUrl = `${appUrl}/reviews/${review.id}`;
+                    const kantataProjectUrl = `https://leandata.mavenlink.com/workspaces/${review.kantata_project_id}`;
+                    
+                    // Send email to the Graph Review submitter
+                    if (reviewAuthor && reviewAuthor.email) {
+                      await EmailService.sendEmail({
+                        to: reviewAuthor.email,
+                        subject: `Graph Review Status Alert: Kantata Project Status Reset`,
+                        html: `
+                          <h1>Graph Review Status Alert</h1>
+                          <p>Hello ${reviewAuthor.name || 'there'},</p>
+                          <p>The Kantata project linked to your graph review "${review.title}" has been automatically reset from "Live" to "In Development" status.</p>
+                          <p><strong>Reason:</strong> Kantata projects should not be marked as "Live" until the associated Graph Review is approved.</p>
+                          <p><strong>Action Required:</strong> Please complete the Graph Review approval process before changing the Kantata project status to "Live".</p>
+                          <div style="margin: 20px 0;">
+                            <a href="${reviewUrl}" style="background-color: #2db670; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">View Graph Review</a>
+                            <a href="${kantataProjectUrl}" style="background-color: #42529e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">View Kantata Project</a>
+                          </div>
+                          <p>Thank you,<br>LeanData Graph Review System</p>
+                        `
+                      });
+                    }
+                    
+                    // Send email to the Kantata Project Owner (if different from the submitter)
+                    if (projectOwnerEmail && 
+                        (!reviewAuthor || reviewAuthor.email !== projectOwnerEmail)) {
+                      await EmailService.sendEmail({
+                        to: projectOwnerEmail,
+                        subject: `Graph Review Status Alert: Kantata Project Status Reset`,
+                        html: `
+                          <h1>Graph Review Status Alert</h1>
+                          <p>Hello ${projectOwnerName},</p>
+                          <p>The Kantata project "${projectData?.workspaces?.[review.kantata_project_id]?.title || review.kantata_project_id}" that you own has been automatically reset from "Live" to "In Development" status.</p>
+                          <p><strong>Reason:</strong> Kantata projects should not be marked as "Live" until the associated Graph Review is approved.</p>
+                          <p><strong>Action Required:</strong> Please ensure the associated Graph Review is approved before changing the Kantata project status to "Live".</p>
+                          <div style="margin: 20px 0;">
+                            <a href="${reviewUrl}" style="background-color: #2db670; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">View Graph Review</a>
+                            <a href="${kantataProjectUrl}" style="background-color: #42529e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">View Kantata Project</a>
+                          </div>
+                          <p>Thank you,<br>LeanData Graph Review System</p>
+                        `
+                      });
+                    }
+                    
+                    message += '. Notifications sent to the graph review submitter' + (projectOwnerEmail && projectOwnerEmail !== reviewAuthor?.email ? ' and project owner' : '');
+                    
+                  } catch (notificationError) {
+                    console.error('Error sending notifications:', notificationError);
+                    message += '. Status updated but failed to send notifications';
+                  }
                 } else {
                   message += `. Failed to auto-correct: ${updateResult.message}`;
                 }
