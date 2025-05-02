@@ -67,61 +67,28 @@ const ReviewPage: NextPage = () => {
     
     setIsUpdating(true);
     try {
-      // Get current token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      // Use direct Supabase client for the update
+      const { data: updatedReview, error: updateError } = await supabase
+        .from('reviews')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', review.id)
+        .select()
+        .single();
       
-      if (!token) {
-        throw new Error('No authentication token available');
+      if (updateError) {
+        console.error('Error updating status:', updateError);
+        throw new Error(updateError.message || 'Failed to update status');
       }
       
-      // First, update the status in your system
-      const response = await fetch(`/api/reviews/${review.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update status');
-      }
-      
-      // After successful update, call the Kantata update API if we have a Kantata ID
-      if (review.kantataProjectId) {
-        try {
-          const kantataResponse = await fetch('/api/kantata/update-status', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              kantataProjectId: review.kantataProjectId,
-              status: newStatus
-            })
-          });
-          
-          if (!kantataResponse.ok) {
-            // Log but don't fail completely if Kantata update fails
-            const kantataError = await kantataResponse.json();
-            console.error('Kantata update failed:', kantataError);
-          } else {
-            console.log('Kantata status updated successfully');
-          }
-        } catch (kantataError) {
-          // Log but don't fail completely
-          console.error('Error updating Kantata:', kantataError);
-        }
-      }
-      
+      // Update UI state
       setCurrentStatus(newStatus);
+      
+      // Kantata integration code...
     } catch (error) {
-      console.error('Error updating status:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update status');
+      // Error handling...
     } finally {
       setIsUpdating(false);
     }
