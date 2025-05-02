@@ -179,11 +179,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 message += '. Failed to auto-correct: Kantata API token not configured';
               } else {
                 // Use the new function to update the actual project status
-                const updateResult = await updateKantataProjectStatus(
+                const updateResult = await updateKantataStatus(
                   review.kantata_project_id,
                   'In Development',
                   kantataApiToken
                 );
+
                 
                 console.log('Update result:', updateResult);
                 
