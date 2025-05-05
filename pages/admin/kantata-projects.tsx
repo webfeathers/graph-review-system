@@ -37,6 +37,10 @@ const KantataProjectsPage: NextPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [hasReviewFilter, setHasReviewFilter] = useState<string>('all');
   
+  // Sorting state
+  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
   // Auth redirect
   useEffect(() => {
     if (authLoading) return;
@@ -96,9 +100,22 @@ const KantataProjectsPage: NextPage = () => {
     }
   };
   
-  // Filter projects based on selected filters
+  // Handle sorting
+  const handleSort = (field: string) => {
+    // If clicking the same field, toggle direction
+    if (field === sortField) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // If clicking a new field, set it and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+  
+  // Get filtered and sorted projects
   const getFilteredProjects = () => {
-    return projects.filter(project => {
+    // First filter
+    const filtered = projects.filter(project => {
       // Filter by status
       if (statusFilter !== 'all') {
         if (statusFilter === 'in-development' && project.status?.message !== 'In Development') {
@@ -124,6 +141,35 @@ const KantataProjectsPage: NextPage = () => {
       
       return true;
     });
+    
+    // Then sort
+    return [...filtered].sort((a, b) => {
+      let comparison = 0;
+      
+      // Sort by the selected field
+      switch (sortField) {
+        case 'title':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case 'status':
+          comparison = (a.status?.message || '').localeCompare(b.status?.message || '');
+          break;
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+        case 'leadName':
+          comparison = (a.leadName || '').localeCompare(b.leadName || '');
+          break;
+        case 'hasGraphReview':
+          comparison = (a.hasGraphReview === b.hasGraphReview) ? 0 : a.hasGraphReview ? -1 : 1;
+          break;
+        default:
+          comparison = 0;
+      }
+      
+      // Apply direction
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
   };
   
   // Get status color class
@@ -140,6 +186,27 @@ const KantataProjectsPage: NextPage = () => {
       default:
         return 'bg-yellow-200 text-yellow-800';
     }
+  };
+  
+  // Get a sort icon based on field and direction
+  const getSortIcon = (field: string) => {
+    if (field !== sortField) {
+      return (
+        <svg className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
+    }
+    
+    return sortDirection === 'asc' ? (
+      <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    );
   };
   
   // Display loading state
@@ -240,20 +307,50 @@ const KantataProjectsPage: NextPage = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Project
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                    onClick={() => handleSort('title')}
+                  >
+                    <div className="flex items-center">
+                      Project
+                      <span className="ml-2">{getSortIcon('title')}</span>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                    onClick={() => handleSort('status')}
+                  >
+                    <div className="flex items-center">
+                      Status
+                      <span className="ml-2">{getSortIcon('status')}</span>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                    onClick={() => handleSort('createdAt')}
+                  >
+                    <div className="flex items-center">
+                      Created
+                      <span className="ml-2">{getSortIcon('createdAt')}</span>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Lead
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                    onClick={() => handleSort('leadName')}
+                  >
+                    <div className="flex items-center">
+                      Lead
+                      <span className="ml-2">{getSortIcon('leadName')}</span>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Graph Review
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
+                    onClick={() => handleSort('hasGraphReview')}
+                  >
+                    <div className="flex items-center">
+                      Graph Review
+                      <span className="ml-2">{getSortIcon('hasGraphReview')}</span>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
