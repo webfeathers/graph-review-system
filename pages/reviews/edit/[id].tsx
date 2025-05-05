@@ -72,6 +72,8 @@ const EditReview: NextPage = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
+  const [newLeadId, setNewLeadId] = useState<string>('');
+
   // Load review data on mount
   useEffect(() => {
     // Only run once on mount
@@ -170,6 +172,7 @@ const EditReview: NextPage = () => {
         setHandoffLink(transformedReview.handoffLink || '');
         setKantataProjectId(transformedReview.kantataProjectId || ''); // Set Kantata Project ID
         
+        setNewLeadId(transformedReview.projectLeadId || '');
         // Set image URL if it exists
         if (transformedReview.graphImageUrl) {
           setGraphImageUrl(transformedReview.graphImageUrl);
@@ -440,6 +443,21 @@ const EditReview: NextPage = () => {
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
               Title<span className="text-red-600 ml-1">*</span>
             </label>
+            {/* Project Lead Selector */}
+<div className="mb-4">
+  <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
+    Project Lead
+  </label>
+  <ProjectLeadSelector
+    value={newLeadId}
+    onChange={setNewLeadId}
+    disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin())}
+  />
+  <p className="mt-1 text-sm text-gray-500">
+    The person responsible for this graph review.
+    {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can change the Project Lead."}
+  </p>
+</div>
             <input
               id="title"
               type="text"
