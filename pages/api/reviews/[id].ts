@@ -48,6 +48,13 @@ async function reviewHandler(
             email,
             created_at,
             role
+          ),
+          project_lead:project_lead_id (
+            id,
+            name,
+            email,
+            created_at,
+            role
           )
         `)
         .eq('id', id)
@@ -94,7 +101,7 @@ async function reviewHandler(
       // Check if the review exists and get the owner
       const { data: review, error: initialFetchError } = await supabase
         .from('reviews')
-        .select('user_id, status')
+        .select('user_id, status, project_lead_id')
         .eq('id', id)
         .single();
       
@@ -140,7 +147,8 @@ async function reviewHandler(
         graphName,
         useCase,
         customerFolder,
-        handoffLink
+        handoffLink,
+        projectLeadId // New field for project lead
       } = req.body;
       
       // Validate required fields
@@ -167,6 +175,16 @@ async function reviewHandler(
         });
       }
       
+      // Check authorization for project lead change
+      if (projectLeadId !== undefined && 
+          projectLeadId !== review.project_lead_id && 
+          !isAdmin) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Only administrators can change the Project Lead' 
+        });
+      }
+      
       console.log('Received update data:', { 
         title, 
         description, 
@@ -179,7 +197,8 @@ async function reviewHandler(
         graphName,
         useCase,
         customerFolder,
-        handoffLink
+        handoffLink,
+        projectLeadId
       });
       
       // Prepare update data with snake_case field names for Supabase
@@ -196,6 +215,7 @@ async function reviewHandler(
         use_case: useCase,
         customer_folder: customerFolder,
         handoff_link: handoffLink,
+        project_lead_id: projectLeadId, // New field
         updated_at: new Date().toISOString()
       };
       
@@ -235,10 +255,10 @@ async function reviewHandler(
     }
   }
   
-  // PATCH /api/reviews/[id] - for status updates
+  // PATCH /api/reviews/[id] - for status and project lead updates
   if (req.method === 'PATCH') {
     try {
-      console.log('Processing PATCH request for status update');
+      console.log('Processing PATCH request for partial update');
 
       // First, fetch the review to check ownership and get previous status
       const { data: review, error: reviewFetchError } = await supabase
@@ -274,37 +294,63 @@ async function reviewHandler(
 
       // Store previous status for notification
       const previousStatus = review.status;
-
-      // Get the status from the request body
-      const { status } = req.body;
-
-      // Validate status value
-      if (!status || !['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
-        console.log('Invalid status value provided:', status);
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Invalid status value' 
-        });
-      }
-
-      // Only allow admin users to set status to 'Approved'
-      if (status === 'Approved' && userRole !== 'Admin') {
-        console.log('Authorization failed: Admin privileges required for approval');
-        return res.status(403).json({ 
-          success: false, 
-          message: 'Only administrators can approve reviews' 
-        });
-      }
       
-      console.log(`Updating review status to: ${status}`);
+      // Get the update data from the request body
+      const { status, projectLeadId } = req.body;
       
-      // OPTIMIZED: Update the review status with a single operation that returns the updated data
-      const updateData = {
-        status,
+      // Build update data object
+      const updateData: any = {
         updated_at: new Date().toISOString()
       };
       
-      // Update the review status
+      // Handle status update
+      if (status !== undefined) {
+        // Validate status value
+        if (!['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
+          console.log('Invalid status value provided:', status);
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Invalid status value' 
+          });
+        }
+
+        // Only allow admin users to set status to 'Approved'
+        if (status === 'Approved' && userRole !== 'Admin') {
+          console.log('Authorization failed: Admin privileges required for approval');
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Only administrators can approve reviews' 
+          });
+        }
+        
+        updateData.status = status;
+      }
+      
+      // Handle project lead update
+      if (projectLeadId !== undefined) {
+        // Only allow admin users to change project lead
+        if (userRole !== 'Admin') {
+          console.log('Authorization failed: Admin privileges required to change project lead');
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Only administrators can change the Project Lead' 
+          });
+        }
+        
+        updateData.project_lead_id = projectLeadId;
+      }
+      
+      // If no valid updates, return error
+      if (Object.keys(updateData).length <= 1) { // Only has updated_at
+        return res.status(400).json({ 
+          success: false, 
+          message: 'No valid fields to update' 
+        });
+      }
+      
+      console.log(`Updating review with data:`, updateData);
+      
+      // Update the review
       const { data: updatedReview, error: updateError } = await supabase
         .from('reviews')
         .update(updateData)
@@ -313,7 +359,7 @@ async function reviewHandler(
         .single();
 
       if (updateError) {
-        console.error('Error updating review status:', updateError);
+        console.error('Error updating review:', updateError);
         return res.status(500).json({ 
           success: false, 
           message: 'Error updating review', 
@@ -330,7 +376,7 @@ async function reviewHandler(
       }
       
       // Send email notification if status changed
-      if (previousStatus !== status) {
+      if (status !== undefined && previousStatus !== status) {
         try {
           // Get the review owner's email and profile info
           const reviewOwner = review.profiles;
@@ -368,8 +414,14 @@ async function reviewHandler(
           console.error('Error sending status change notification email:', emailError);
         }
       }
+      
+      // Send email notification if project lead changed
+      if (projectLeadId !== undefined && projectLeadId !== review.project_lead_id) {
+        // Here you could add email notification for project lead change
+        console.log('Project lead updated from', review.project_lead_id, 'to', projectLeadId);
+      }
 
-      console.log('Review status updated successfully');
+      console.log('Review updated successfully');
 
       return res.status(200).json({
         success: true,

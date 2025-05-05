@@ -8,10 +8,11 @@ import StatusBadge from '../../components/StatusBadge';
 import CommentSection from '../../components/commentSection';
 import { useAuth } from '../../components/AuthProvider';
 import { getReviewById, updateReviewStatus, getCommentsByReviewId } from '../../lib/supabaseUtils';
-import { ReviewWithProfile, CommentWithProfile } from '../../types/supabase';
+import { ReviewWithProfile, CommentWithProfile, Profile } from '../../types/supabase';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorDisplay } from '../../components/ErrorDisplay';
 import { supabase } from '../../lib/supabase';
+import ProjectLeadSelector from '../../components/ProjectLeadSelector';
 
 const ReviewPage: NextPage = () => {
   const router = useRouter();
@@ -24,6 +25,12 @@ const ReviewPage: NextPage = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Project Lead related state
+  const [projectLead, setProjectLead] = useState<Profile | null>(null);
+  const [isChangingLead, setIsChangingLead] = useState(false);
+  const [newLeadId, setNewLeadId] = useState<string>('');
+  const [updatingLead, setUpdatingLead] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -38,11 +45,37 @@ const ReviewPage: NextPage = () => {
         setLoading(true);
         setError(null);
         
+        // Fetch review data
         const reviewData = await getReviewById(id as string);
         setReview(reviewData);
         setCurrentStatus(reviewData.status);
         setIsAuthor(reviewData.userId === user.id);
+        
+        // If review has projectLeadId, fetch the lead's profile
+        if (reviewData.projectLeadId) {
+          try {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('id, name, email, role, created_at')
+              .eq('id', reviewData.projectLeadId)
+              .single();
+              
+            if (error) throw error;
+            
+            setProjectLead({
+              id: data.id,
+              name: data.name || 'Unknown User',
+              email: data.email || '',
+              createdAt: data.created_at,
+              role: data.role || 'Member'
+            });
+          } catch (err) {
+            console.error('Error fetching project lead:', err);
+            // Don't set error state here to avoid blocking the whole page
+          }
+        }
 
+        // Fetch comments
         const commentsData = await getCommentsByReviewId(id as string);
         setComments(commentsData);
       } catch (error) {
@@ -86,11 +119,74 @@ const ReviewPage: NextPage = () => {
       // Update UI state
       setCurrentStatus(newStatus);
       
-      // Kantata integration code...
-    } catch (error) {
-      // Error handling...
+      // Handle Kantata integration if needed
+      // (existing code would go here)
+    } catch (err) {
+      console.error('Error updating status:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setIsUpdating(false);
+    }
+  };
+  
+  // Handler to change project lead
+  const handleChangeProjectLead = async () => {
+    if (!newLeadId || !review) return;
+    
+    try {
+      setUpdatingLead(true);
+      
+      // Get token for authentication
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Update the review via API
+      const response = await fetch(`/api/reviews/${review.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          projectLeadId: newLeadId
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update project lead');
+      }
+      
+      // Update UI with new project lead info
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, email, role, created_at')
+        .eq('id', newLeadId)
+        .single();
+        
+      if (error) throw error;
+      
+      setProjectLead({
+        id: data.id,
+        name: data.name || 'Unknown User',
+        email: data.email || '',
+        createdAt: data.created_at,
+        role: data.role || 'Member'
+      });
+      
+      // Reset UI state
+      setIsChangingLead(false);
+      setNewLeadId('');
+      
+    } catch (err) {
+      console.error('Error changing project lead:', err);
+      setError(err instanceof Error ? err.message : 'Failed to update project lead');
+    } finally {
+      setUpdatingLead(false);
     }
   };
 
@@ -200,9 +296,72 @@ const ReviewPage: NextPage = () => {
             </div>
           </div>
           
-          <div className="text-sm text-gray-500 mb-4">
-            <p>Submitted by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</p>
-            <p>Last updated: {new Date(review.updatedAt).toLocaleDateString()}</p>
+          {/* Project Info Section - NEW */}
+          <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+            <h3 className="text-lg font-medium mb-3 text-gray-700">Project Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="mb-4">
+                  <span className="font-medium">Created by:</span>{' '}
+                  <span>{review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</span>
+                </div>
+                
+                <div className="mb-4">
+                  <span className="font-medium">Last updated:</span>{' '}
+                  <span>{new Date(review.updatedAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+              
+              <div>
+                {/* Project Lead section */}
+                <div className="mb-4">
+                  <span className="font-medium">Project Lead:</span>{' '}
+                  {projectLead ? (
+                    <span>{projectLead.name} ({projectLead.email})</span>
+                  ) : (
+                    <span className="text-gray-500">Not assigned</span>
+                  )}
+                  
+                  {/* Admin can change project lead */}
+                  {isAdmin() && (
+                    <div className="mt-2">
+                      {!isChangingLead ? (
+                        <button
+                          onClick={() => setIsChangingLead(true)}
+                          className="text-blue-500 text-sm hover:underline"
+                        >
+                          Change Project Lead
+                        </button>
+                      ) : (
+                        <div className="flex items-center mt-2">
+                          <ProjectLeadSelector
+                            value={newLeadId}
+                            onChange={setNewLeadId}
+                            className="text-sm py-1"
+                          />
+                          <button
+                            onClick={handleChangeProjectLead}
+                            disabled={!newLeadId || updatingLead}
+                            className="ml-2 px-2 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50"
+                          >
+                            {updatingLead ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsChangingLead(false);
+                              setNewLeadId('');
+                            }}
+                            className="ml-2 px-2 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           
           <div className="bg-white p-6 rounded-lg shadow-sm mb-6">

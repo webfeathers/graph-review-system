@@ -30,10 +30,17 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount 
           />
         </div>
       )}
+
+      
     
       <div className="flex justify-between items-center text-sm text-gray-500">
         <div>
-          <span>Created on {new Date(review.createdAt).toLocaleDateString()} by {review.user.name}</span>
+          <div>Created by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</div>
+          {review.projectLead && (
+            <div className="mt-1">
+              Project Lead: {review.projectLead.name}
+            </div>
+          )}
           
           {/* Comment count badge */}
           <div className="mt-1 flex items-center">
@@ -49,6 +56,8 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount 
         </Link>
       </div>
     </div>
+
+
   );
 };
 

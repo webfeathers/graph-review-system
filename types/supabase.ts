@@ -31,6 +31,7 @@ export interface DbReview {
   handoff_link?: string;
   // For joined data
   profiles?: DbProfile;
+  project_lead_id?: string; // New field for Project Lead
 }
 
 export interface DbComment {
@@ -71,6 +72,7 @@ export interface Review {
   useCase?: string;
   customerFolder?: string;
   handoffLink?: string;
+  projectLeadId?: string; // New field for Project Lead
 }
 
 export interface Comment {
@@ -110,7 +112,8 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     graphName: dbReview.graph_name || '',
     useCase: dbReview.use_case || '',
     customerFolder: dbReview.customer_folder || '',
-    handoffLink: dbReview.handoff_link || ''
+    handoffLink: dbReview.handoff_link || '',
+    projectLeadId: dbReview.project_lead_id || ''
   };
 }
 
@@ -146,7 +149,8 @@ export function frontendToDbReview(review: Review): DbReview {
     graph_name: review.graphName,
     use_case: review.useCase,
     customer_folder: review.customerFolder,
-    handoff_link: review.handoffLink
+    handoff_link: review.handoffLink,
+    project_lead_id: review.projectLeadId
   };
 }
 
