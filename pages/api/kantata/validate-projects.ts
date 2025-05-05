@@ -188,15 +188,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                   // Send notification emails
                   try {
                     // 1. Get the Graph Review information including the submitter's email
+                    // First get just the review title
                     const { data: reviewData, error: reviewError } = await supabase
                       .from('reviews')
-                      .select(`
-                        title,
-                        profiles:user_id (
-                          name,
-                          email
-                        )
-                      `)
+                      .select('title, user_id')
                       .eq('id', review.id)
                       .single();
                       
@@ -206,9 +201,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                       continue; // Skip to next review
                     }
                     
-                    // Fix: Correctly access profile fields
-                    const reviewSubmitterName = reviewData.profiles?.name || 'Graph Review Submitter';
-                    const reviewSubmitterEmail = reviewData.profiles?.email;
+                    // Then get the profile information separately
+                    const { data: profileData } = await supabase
+                      .from('profiles')
+                      .select('name, email')
+                      .eq('id', reviewData.user_id)
+                      .single();
+                    
+                    // Use safe access with defaults
+                    const reviewSubmitterName = profileData?.name || 'Graph Review Submitter';
+                    const reviewSubmitterEmail = profileData?.email;
                     
                     // 2. Get the Kantata Project Owner information
                     const kantataProjectUrl = `https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}?include=participants`;
