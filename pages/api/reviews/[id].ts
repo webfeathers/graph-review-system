@@ -277,6 +277,7 @@ async function reviewHandler(
   }
   
 // PATCH /api/reviews/[id] - for status and project lead updates
+// PATCH /api/reviews/[id] - for status and project lead updates
 if (req.method === 'PATCH') {
   try {
     console.log('Processing PATCH request for partial update');
@@ -354,7 +355,7 @@ if (req.method === 'PATCH') {
       updateData.status = status;
     }
     
-    // Handle project lead update
+    // Handle project lead update - restructured to avoid the scoping issue
     if (projectLeadId !== undefined) {
       // Direct database check for admin role
       const { data: adminCheck, error: adminCheckError } = await supabase
@@ -379,10 +380,12 @@ if (req.method === 'PATCH') {
           success: false, 
           message: 'Only administrators can change the Project Lead' 
         });
+      } else {
+        // This is now correctly in scope
+        updateData.project_lead_id = projectLeadId;
       }
-      
-      updateData.project_lead_id = projectLeadId;
     }
+    
     
     // If no valid updates, return error
     if (Object.keys(updateData).length <= 1) { // Only has updated_at
