@@ -131,12 +131,9 @@ async function handler(
       const createdAt = new Date(project.createdAt).getTime();
       const isRecent = createdAt >= sixtyDaysAgoTimestamp;
       
-      // Check status - not Complete or Confirmed, or is In Development or Live
+      // Check status - specifically exclude 'Complete' or 'Completed' statuses
       const status = project.status?.message || '';
-      const isActive = (
-        !['Complete', 'Confirmed'].includes(status) ||
-        ['In Development', 'Live'].includes(status)
-      );
+      const isActive = !['Complete', 'Completed', 'Confirmed'].includes(status);
       
       return isRecent && isActive;
     });
