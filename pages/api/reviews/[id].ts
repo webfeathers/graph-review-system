@@ -277,7 +277,6 @@ async function reviewHandler(
   }
   
 // PATCH /api/reviews/[id] - for status and project lead updates
-// PATCH /api/reviews/[id] - for status and project lead updates
 if (req.method === 'PATCH') {
   try {
     console.log('Processing PATCH request for partial update');
@@ -327,12 +326,13 @@ if (req.method === 'PATCH') {
       requestBody: req.body
     });
     
-    // Build update data object
+    // Initialize update data structure
     const updateData: any = {
       updated_at: new Date().toISOString()
     };
     
-    // Handle status update
+    // Check for status update
+    let statusChanged = false;
     if (status !== undefined) {
       // Validate status value
       if (!['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
@@ -353,9 +353,11 @@ if (req.method === 'PATCH') {
       }
       
       updateData.status = status;
+      statusChanged = true;
     }
     
-    // Handle project lead update - restructured to avoid the scoping issue
+    // Check for project lead update
+    let projectLeadChanged = false;
     if (projectLeadId !== undefined) {
       // Direct database check for admin role
       const { data: adminCheck, error: adminCheckError } = await supabase
@@ -364,31 +366,33 @@ if (req.method === 'PATCH') {
         .eq('id', userId)
         .single();
         
-      const isAdmin = !adminCheckError && adminCheck && adminCheck.role === 'Admin';
+      const isDirectAdmin = !adminCheckError && adminCheck && adminCheck.role === 'Admin';
+      const isRoleAdmin = userRole === 'Admin';
       
       console.log('Admin check for project lead update:', {
         userId,
         providedUserRole: userRole,
-        directDbCheck: isAdmin,
+        isRoleAdmin,
+        directDbCheck: isDirectAdmin,
         adminCheckData: adminCheck,
         adminCheckError
       });
       
       // Only allow admin users to change project lead
-      if (!isAdmin) {
+      if (!isDirectAdmin && !isRoleAdmin) {
         return res.status(403).json({ 
           success: false, 
           message: 'Only administrators can change the Project Lead' 
         });
-      } else {
-        // This is now correctly in scope
-        updateData.project_lead_id = projectLeadId;
       }
+      
+      // If we get here, user is admin, so we can update
+      updateData.project_lead_id = projectLeadId;
+      projectLeadChanged = true;
     }
     
-    
     // If no valid updates, return error
-    if (Object.keys(updateData).length <= 1) { // Only has updated_at
+    if (!statusChanged && !projectLeadChanged) {
       return res.status(400).json({ 
         success: false, 
         message: 'No valid fields to update' 
@@ -415,15 +419,14 @@ if (req.method === 'PATCH') {
     }
     
     if (!updatedReview) {
-      console.error('Status update succeeded but review not found in result');
+      console.error('Update succeeded but review not found in result');
       return res.status(500).json({
         success: false,
         message: 'Update succeeded but could not retrieve the updated review'
       });
     }
     
-    // The rest of the code remains the same...
-    // (email notifications, etc.)
+    // Continue with the existing code for email notifications...
 
     return res.status(200).json({
       success: true,
