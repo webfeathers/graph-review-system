@@ -176,13 +176,34 @@ async function reviewHandler(
       }
       
       // Check authorization for project lead change
-      if (projectLeadId !== undefined && 
-          projectLeadId !== review.project_lead_id && 
-          !isAdmin) {
-        return res.status(403).json({ 
-          success: false, 
-          message: 'Only administrators can change the Project Lead' 
+      // When checking the project lead update permissions
+      if (projectLeadId !== undefined) {
+        // Direct database check for admin role
+        const { data: adminCheck, error: adminCheckError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .single();
+          
+        const isAdmin = !adminCheckError && adminCheck && adminCheck.role === 'Admin';
+        
+        console.log('Admin check for project lead update:', {
+          userId,
+          providedUserRole: userRole,
+          directDbCheck: isAdmin,
+          adminCheckData: adminCheck,
+          adminCheckError
         });
+        
+        // Only allow admin users to change project lead
+        if (!isAdmin) {
+          return res.status(403).json({ 
+            success: false, 
+            message: 'Only administrators can change the Project Lead' 
+          });
+        }
+        
+        updateData.project_lead_id = projectLeadId;
       }
       
       console.log('Received update data:', { 
@@ -259,6 +280,11 @@ async function reviewHandler(
   if (req.method === 'PATCH') {
     try {
       console.log('Processing PATCH request for partial update');
+      console.log('PATCH request with auth info:', {
+        userId,
+        userRole,
+        requestBody: req.body
+      });
 
       // First, fetch the review to check ownership and get previous status
       const { data: review, error: reviewFetchError } = await supabase
@@ -330,7 +356,10 @@ async function reviewHandler(
       if (projectLeadId !== undefined) {
         // Only allow admin users to change project lead
         if (userRole !== 'Admin') {
-          console.log('Authorization failed: Admin privileges required to change project lead');
+          console.log('Authorization failed: Admin check failed', {
+            userRole,
+            isAdmin: userRole === 'Admin' 
+          });
           return res.status(403).json({ 
             success: false, 
             message: 'Only administrators can change the Project Lead' 
@@ -339,6 +368,7 @@ async function reviewHandler(
         
         updateData.project_lead_id = projectLeadId;
       }
+
       
       // If no valid updates, return error
       if (Object.keys(updateData).length <= 1) { // Only has updated_at
