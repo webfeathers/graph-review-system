@@ -32,6 +32,10 @@ const ReviewPage: NextPage = () => {
   const [newLeadId, setNewLeadId] = useState<string>('');
   const [updatingLead, setUpdatingLead] = useState(false);
 
+  console.log('Request received with project lead ID:', req.body.projectLeadId);
+
+
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
