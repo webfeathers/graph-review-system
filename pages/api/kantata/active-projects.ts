@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAdminAuth } from '../../../lib/apiHelpers';
 import { createClient } from '@supabase/supabase-js';
+import { Role } from '../../../types/supabase';
 
 // Define the interfaces
 interface KantataStatus {
@@ -34,7 +35,7 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
   userId: string,
-  userRole: string
+  userRole?: Role
 ) {
   // Only allow GET method
   if (req.method !== 'GET') {
