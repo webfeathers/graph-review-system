@@ -37,6 +37,75 @@ async function reviewHandler(
     try {
       console.log('Fetching review with ID:', id);
       
+
+       // Start with a simple query without joins to verify basic access
+    const { data: basicReview, error: basicError } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('id', id)
+    .single();
+    
+  if (basicError) {
+    console.error('Error fetching basic review data:', basicError);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Error fetching review - basic query failed', 
+      error: basicError.message || 'Database query failed',
+      details: basicError
+    });
+  }
+  
+  // If basic query succeeds, try fetching the user profile
+  const { data: userProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', basicReview.user_id)
+    .single();
+    
+  if (profileError) {
+    console.error('Error fetching user profile:', profileError);
+    // We can still return the basic review without profile
+  }
+  
+  // If project_lead_id exists, try fetching the project lead profile
+  let projectLead = null;
+  if (basicReview.project_lead_id) {
+    const { data: leadProfile, error: leadError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', basicReview.project_lead_id)
+      .single();
+      
+    if (leadError) {
+      console.error('Error fetching project lead profile:', leadError);
+    } else {
+      projectLead = leadProfile;
+    }
+  }
+  
+  // Manually construct the response with the data we have
+  const reviewData = {
+    ...basicReview,
+    profiles: userProfile || null,
+    project_lead: projectLead
+  };
+  
+  return res.status(200).json({
+    success: true,
+    data: reviewData
+  });
+  
+} catch (error) {
+  console.error('Unexpected error in GET review:', error);
+  return res.status(500).json({ 
+    success: false, 
+    message: 'Internal server error',
+    error: error instanceof Error ? error.message : 'An unexpected error occurred'
+  });
+}
+}
+
+
       // Use a single query with join to get the review and profile
       const { data: review, error } = await supabase
         .from('reviews')
