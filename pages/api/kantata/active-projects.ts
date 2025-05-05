@@ -104,13 +104,18 @@ async function handler(
         leadName = `${lead.first_name} ${lead.last_name}`.trim();
       }
 
+      // Initialize with all required properties to satisfy TypeScript
       return {
         id: id,
         title: project.title || 'Untitled Project',
         status: project.status || { message: 'Unknown', key: 0, color: '#ccc' },
         createdAt: project.created_at || '',
         leadId: project.lead_id,
-        leadName
+        leadName,
+        // Initialize with default values for properties we'll set later
+        hasGraphReview: false,
+        graphReviewId: undefined,
+        graphReviewStatus: undefined
       };
     });
     
@@ -174,9 +179,8 @@ async function handler(
           project.hasGraphReview = true;
           project.graphReviewId = reviewInfo.id;
           project.graphReviewStatus = reviewInfo.status;
-        } else {
-          project.hasGraphReview = false;
         }
+        // No need for an else case as hasGraphReview is already initialized to false
       });
     }
     
