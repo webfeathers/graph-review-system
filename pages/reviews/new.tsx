@@ -37,6 +37,7 @@ interface ReviewFormValues {
   useCase: string;
   customerFolder: string;
   handoffLink: string;
+  projectLeadId: string;
 }
 
 const NewReview: NextPage = () => {
@@ -93,7 +94,8 @@ const NewReview: NextPage = () => {
       graphName: '',
       useCase: '',
       customerFolder: '',
-      handoffLink: ''
+      handoffLink: '',
+      projectLeadId: '' // Default to empty, will be set to creator if not specified
     },
     validationSchema: {
       title: reviewValidationSchema.title,
@@ -251,6 +253,23 @@ const NewReview: NextPage = () => {
           )}
   
           <Form onSubmit={form.handleSubmit}>
+
+          <div className="mb-4">
+            <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
+              Project Lead
+            </label>
+            <ProjectLeadSelector
+              value={form.values.projectLeadId}
+              onChange={(value) => form.setFieldValue('projectLeadId', value)}
+              disabled={!isAdmin && user?.id !== form.values.projectLeadId}
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              The person responsible for this graph review.
+              {!isAdmin && " Only admins can assign to someone else."}
+            </p>
+          </div>
+
+
             <TextInput
               id="title"
               name="title"

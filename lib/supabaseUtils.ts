@@ -286,7 +286,9 @@ export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' |
     graph_name: reviewData.graphName,
     use_case: reviewData.useCase,
     customer_folder: reviewData.customerFolder,
-    handoff_link: reviewData.handoffLink
+    handoff_link: reviewData.handoffLink,
+    project_lead_id: reviewData.projectLeadId || reviewData.userId // Default to creator if not specified
+
   };
 
   const { data, error } = await supabase
