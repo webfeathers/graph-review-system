@@ -78,7 +78,9 @@ const EditReview: NextPage = () => {
     const fetchReview = async () => {
       // Skip if no id, still loading auth, or no user
       if (!id || authLoading || !user) return;
-      
+      if (transformedReview.projectLeadId) {
+        setNewLeadId(transformedReview.projectLeadId);
+      }
       try {
         console.log('Fetching review data for ID:', id);
         setLoading(true);
@@ -88,7 +90,7 @@ const EditReview: NextPage = () => {
         const token = sessionData.session?.access_token;
         
         if (!token) {
-          throw new Error('No authentication token available');
+          throw new Error('No authentication token available'rgid);
         }
         
         // Fetch the review data via API
@@ -494,7 +496,21 @@ const EditReview: NextPage = () => {
               placeholder="Enter the organization ID"
             />
           </div>
-          
+          {/* Add this after the OrgID field or wherever appropriate */}
+          <div className="mb-4">
+            <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
+              Project Lead
+            </label>
+            <ProjectLeadSelector
+              value={newLeadId}
+              onChange={setNewLeadId}
+              disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin())}
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              The person responsible for this graph review.
+              {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can change the Project Lead."}
+            </p>
+          </div>
           {/* Kantata Project ID - Added field */}
           <div className="mb-4">
             <label htmlFor="kantataProjectId" className="block text-sm font-medium text-gray-700 mb-1">
