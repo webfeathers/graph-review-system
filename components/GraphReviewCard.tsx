@@ -1,12 +1,13 @@
 // components/GraphReviewCard.tsx
+
 import React from 'react';
 import Link from 'next/link';
-import { Review, ReviewWithProfile } from '../types/supabase';
+import { ReviewWithProfile } from '../types/supabase';
 import StatusBadge from './StatusBadge';
 
 interface GraphReviewCardProps {
   review: ReviewWithProfile;
-  commentCount?: number; // New prop for comment count
+  commentCount?: number;
 }
 
 const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount = 0 }) => {
@@ -30,8 +31,6 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount 
           />
         </div>
       )}
-
-      
     
       <div className="flex justify-between items-center text-sm text-gray-500">
         <div>
@@ -56,8 +55,6 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount 
         </Link>
       </div>
     </div>
-
-
   );
 };
 

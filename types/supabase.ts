@@ -86,7 +86,9 @@ export interface Comment {
 // With joined relationships
 export interface ReviewWithProfile extends Review {
   user: Profile;
+  projectLead?: Profile; // Add this line for Project Lead
 }
+
 
 export interface CommentWithProfile extends Comment {
   user: Profile;
@@ -117,18 +119,30 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
   };
 }
 
-export function dbToFrontendReviewWithProfile(dbReview: DbReview & { profiles?: DbProfile }): ReviewWithProfile {
+export function dbToFrontendReviewWithProfile(dbReview: DbReview & { 
+  profiles?: DbProfile,
+  project_lead?: DbProfile // Add this parameter
+}): ReviewWithProfile {
   const review = dbToFrontendReview(dbReview);
   
   if (!dbReview.profiles) {
     throw new Error('Profile data is missing from the database result');
   }
   
-  return {
+  // Create the base result with the user
+  const result: ReviewWithProfile = {
     ...review,
     user: dbToFrontendProfile(dbReview.profiles)
   };
+  
+  // Add project lead if available
+  if (dbReview.project_lead) {
+    result.projectLead = dbToFrontendProfile(dbReview.project_lead);
+  }
+  
+  return result;
 }
+
 
 export function frontendToDbReview(review: Review): DbReview {
   return {
