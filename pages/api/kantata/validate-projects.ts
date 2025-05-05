@@ -213,8 +213,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     const reviewSubmitterEmail = profileData?.email;
                     
                     // 2. Get the Kantata Project Owner information
-                    const kantataProjectUrl = `https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}?include=participants`;
-                    const projectResponse = await fetch(kantataProjectUrl, {
+                    const kantataProjectDetailsUrl = `https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}?include=participants`;
+                    const projectResponse = await fetch(kantataProjectDetailsUrl, {
                       method: 'GET',
                       headers: {
                         'Authorization': `Bearer ${kantataApiToken}`,
@@ -254,9 +254,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     }
                     
                     // 3. Send email notifications
-                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://graph-review-system-3a7t.vercel.app';
-                    const reviewUrl = `${appUrl}/reviews/${review.id}`;
-                    const kantataProjectUrl = `https://leandata.mavenlink.com/workspaces/${review.kantata_project_id}`;
+                    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://graph-review-system-3a7t.vercel.app';
+                    const reviewDetailUrl = `${appBaseUrl}/reviews/${review.id}`;
+                    const kantataWebUrl = `https://leandata.mavenlink.com/workspaces/${review.kantata_project_id}`;
                     
                     let notificationsSent = [];
                     
@@ -272,8 +272,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                           <p><strong>Reason:</strong> Kantata projects should not be marked as "Live" until the associated Graph Review is approved.</p>
                           <p><strong>Action Required:</strong> Please complete the Graph Review approval process before changing the Kantata project status to "Live".</p>
                           <div style="margin: 20px 0;">
-                            <a href="${reviewUrl}" style="background-color: #2db670; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">View Graph Review</a>
-                            <a href="${kantataProjectUrl}" style="background-color: #42529e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">View Kantata Project</a>
+                            <a href="${reviewDetailUrl}" style="background-color: #2db670; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">View Graph Review</a>
+                            <a href="${kantataWebUrl}" style="background-color: #42529e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">View Kantata Project</a>
                           </div>
                           <p>Thank you,<br>LeanData Graph Review System</p>
                         `
@@ -293,8 +293,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                           <p><strong>Reason:</strong> Kantata projects should not be marked as "Live" until the associated Graph Review is approved.</p>
                           <p><strong>Action Required:</strong> Please ensure the associated Graph Review is approved before changing the Kantata project status to "Live".</p>
                           <div style="margin: 20px 0;">
-                            <a href="${reviewUrl}" style="background-color: #2db670; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">View Graph Review</a>
-                            <a href="${kantataProjectUrl}" style="background-color: #42529e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">View Kantata Project</a>
+                            <a href="${reviewDetailUrl}" style="background-color: #2db670; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block; margin-right: 10px;">View Graph Review</a>
+                            <a href="${kantataWebUrl}" style="background-color: #42529e; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">View Kantata Project</a>
                           </div>
                           <p>Thank you,<br>LeanData Graph Review System</p>
                         `
