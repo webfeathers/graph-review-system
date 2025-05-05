@@ -57,6 +57,29 @@ const NewReview: NextPage = () => {
     }
   }, [user, authLoading, router]);
 
+  useEffect(() => {
+    // Skip if not authenticated or router isn't ready yet
+    if (!user || !router.isReady) return;
+    
+    // Get query parameters for prefilling
+    const { kantataProjectId, title } = router.query;
+    
+    // Only update if the form exists and parameters are present
+    if (kantataProjectId && typeof kantataProjectId === 'string' && 
+        form && form.setFieldValue) {
+      // Update the Kantata Project ID field without affecting validation state
+      form.setFieldValue('kantataProjectId', kantataProjectId);
+    }
+    
+    if (title && typeof title === 'string' && 
+        form && form.setFieldValue) {
+      // Decode the title and update the field
+      form.setFieldValue('title', decodeURIComponent(title));
+    }
+    
+    // Only run this effect when user, router.isReady, or query params change
+  }, [user, router.isReady, router.query.kantataProjectId, router.query.title]);
+
   // Initialize form
   const form = useForm<ReviewFormValues>({
     initialValues: {
