@@ -24,6 +24,7 @@ import {
   StorageBucket
 } from '../../constants';
 import { createReview } from '../../lib/supabaseUtils';
+import ProjectLeadSelector from '../../components/ProjectLeadSelector';
 
 interface ReviewFormValues {
   title: string;
@@ -206,7 +207,9 @@ const NewReview: NextPage = () => {
           graphName: values.graphName,
           useCase: values.useCase,
           customerFolder: values.customerFolder,
-          handoffLink: values.handoffLink
+          handoffLink: values.handoffLink,
+          projectLeadId: values.projectLeadId || user.id // Use specified Project Lead or default to creator
+
         });
         
         console.log('Review created successfully:', result);
