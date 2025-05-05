@@ -206,6 +206,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                       continue; // Skip to next review
                     }
                     
+                    // Fix: Correctly access profile fields
                     const reviewSubmitterName = reviewData.profiles?.name || 'Graph Review Submitter';
                     const reviewSubmitterEmail = reviewData.profiles?.email;
                     
