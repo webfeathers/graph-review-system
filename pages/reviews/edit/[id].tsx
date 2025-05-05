@@ -24,6 +24,9 @@ import {
 import { ReviewWithProfile, Role } from '../../../types/supabase';
 import { reviewValidationSchema } from '../../../lib/validationSchemas';
 import { validateForm } from '../../../lib/validationUtils';
+import ProjectLeadSelector from '../../../components/ProjectLeadSelector';
+
+
 
 
 
@@ -80,9 +83,7 @@ const EditReview: NextPage = () => {
     const fetchReview = async () => {
       // Skip if no id, still loading auth, or no user
       if (!id || authLoading || !user) return;
-      if (transformedReview.projectLeadId) {
-        setNewLeadId(transformedReview.projectLeadId);
-      }
+     
       try {
         console.log('Fetching review data for ID:', id);
         setLoading(true);
@@ -92,7 +93,7 @@ const EditReview: NextPage = () => {
         const token = sessionData.session?.access_token;
         
         if (!token) {
-          throw new Error('No authentication token available'rgid);
+          throw new Error('No authentication token available');
         }
         
         // Fetch the review data via API
@@ -354,7 +355,8 @@ const EditReview: NextPage = () => {
           useCase,
           customerFolder,
           handoffLink,
-          kantataProjectId // Added Kantata Project ID to submission
+          kantataProjectId,
+          projectLeadId: newLeadId 
         })
       });
       
@@ -443,21 +445,7 @@ const EditReview: NextPage = () => {
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
               Title<span className="text-red-600 ml-1">*</span>
             </label>
-            {/* Project Lead Selector */}
-<div className="mb-4">
-  <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
-    Project Lead
-  </label>
-  <ProjectLeadSelector
-    value={newLeadId}
-    onChange={setNewLeadId}
-    disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin())}
-  />
-  <p className="mt-1 text-sm text-gray-500">
-    The person responsible for this graph review.
-    {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can change the Project Lead."}
-  </p>
-</div>
+            
             <input
               id="title"
               type="text"
