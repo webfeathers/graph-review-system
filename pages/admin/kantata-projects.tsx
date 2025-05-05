@@ -6,6 +6,8 @@ import { Button } from '../../components/Button';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorDisplay } from '../../components/ErrorDisplay';
 import { withRoleProtection } from '../../components/withRoleProtection';
+import { useAuth } from '../../components/AuthProvider';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
 
@@ -27,16 +29,29 @@ interface KantataProject {
 
 const KantataProjectsPage: NextPage = () => {
   // State
+  const { user, loading: authLoading, isAdmin } = useAuth();
+  const router = useRouter();
   const [projects, setProjects] = useState<KantataProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [hasReviewFilter, setHasReviewFilter] = useState<string>('all');
   
+  // Auth redirect
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+  }, [user, authLoading, router]);
+  
   // Fetch projects on mount
   useEffect(() => {
+    if (authLoading || !user) return;
     fetchProjects();
-  }, []);
+  }, [authLoading, user]);
   
   // Fetch projects from API
   const fetchProjects = async () => {
