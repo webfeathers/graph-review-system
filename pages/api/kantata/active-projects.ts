@@ -3,25 +3,28 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAdminAuth } from '../../../lib/apiHelpers';
 import { createClient } from '@supabase/supabase-js';
 
+// Define the interfaces
+interface KantataStatus {
+  key: number;
+  message: string;
+  color: string;
+}
+
 interface KantataProject {
   id: string;
   title: string;
-  status: {
-    key: number;
-    message: string;
-    color: string;
-  };
+  status: KantataStatus;
   createdAt: string;
   leadName?: string;
   leadId?: string;
-  participants?: Array<{
-    id: string;
-    name: string;
-    email: string;
-  }>;
   hasGraphReview: boolean;
-  graphReviewId?: string;
-  graphReviewStatus?: string;
+  graphReviewId?: string | null;
+  graphReviewStatus?: string | null;
+}
+
+interface KantataApiResponse {
+  workspaces: Record<string, any>;
+  users: Record<string, any>;
 }
 
 /**
@@ -43,7 +46,6 @@ async function handler(
 
   try {
     // Initialize Supabase client directly in the serverless function
-    // This avoids the issue with importing the supabase client
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -64,11 +66,10 @@ async function handler(
     
     console.log(`Fetching Kantata projects created after ${sixtyDaysAgo.toISOString()}`);
 
-    // Construct the Kantata API URL with optional filters
-    // Note: Adjust these parameters based on actual Kantata API documentation
+    // Construct the Kantata API URL
     const kantataApiUrl = `https://api.mavenlink.com/api/v1/workspaces?include=participants&per_page=100`;
     
-    // Make request to Kantata API to get projects
+    // Make request to Kantata API
     const kantataResponse = await fetch(kantataApiUrl, {
       method: 'GET',
       headers: {
@@ -87,41 +88,44 @@ async function handler(
     }
     
     // Parse Kantata project data
-    const kantataData = await kantataResponse.json();
+    const kantataData: KantataApiResponse = await kantataResponse.json();
     
     // Extract and process projects
     const workspaces = kantataData.workspaces || {};
     const users = kantataData.users || {};
     
-    // Convert the object of projects to an array
-    const projectsArray = Object.keys(workspaces).map(id => {
-      const project = workspaces[id];
+    // Process projects
+    const projects: KantataProject[] = [];
+    
+    Object.keys(workspaces).forEach(id => {
+      const workspace = workspaces[id];
       
       // Get lead information if available
-      let leadName = undefined;
-      if (project.lead_id && users[project.lead_id]) {
-        const lead = users[project.lead_id];
+      let leadName: string | undefined = undefined;
+      if (workspace.lead_id && users[workspace.lead_id]) {
+        const lead = users[workspace.lead_id];
         leadName = `${lead.first_name} ${lead.last_name}`.trim();
       }
 
-      // Initialize with all required properties to satisfy TypeScript
-      return {
+      // Create project object
+      const project: KantataProject = {
         id: id,
-        title: project.title || 'Untitled Project',
-        status: project.status || { message: 'Unknown', key: 0, color: '#ccc' },
-        createdAt: project.created_at || '',
-        leadId: project.lead_id,
+        title: workspace.title || 'Untitled Project',
+        status: workspace.status || { message: 'Unknown', key: 0, color: '#ccc' },
+        createdAt: workspace.created_at || '',
+        leadId: workspace.lead_id,
         leadName,
-        // Initialize with default values for properties we'll set later
         hasGraphReview: false,
-        graphReviewId: undefined,
-        graphReviewStatus: undefined
+        graphReviewId: null,
+        graphReviewStatus: null
       };
+      
+      projects.push(project);
     });
     
     // Filter for active projects created in the last 60 days
     const sixtyDaysAgoTimestamp = sixtyDaysAgo.getTime();
-    const activeProjects = projectsArray.filter(project => {
+    const activeProjects = projects.filter(project => {
       // Check creation date
       const createdAt = new Date(project.createdAt).getTime();
       const isRecent = createdAt >= sixtyDaysAgoTimestamp;
@@ -136,19 +140,18 @@ async function handler(
       return isRecent && isActive;
     });
     
-    console.log(`Found ${activeProjects.length} active projects out of ${projectsArray.length} total projects`);
+    console.log(`Found ${activeProjects.length} active projects out of ${projects.length} total projects`);
     
-    // Query Graph Review database to see which projects have reviews
-    // Get all the project IDs to check
-    const projectIds = activeProjects.map(project => project.id);
-    
-    // If there are no projects, return empty array
-    if (projectIds.length === 0) {
+    // If there are no active projects, return empty array
+    if (activeProjects.length === 0) {
       return res.status(200).json({
         success: true,
         projects: []
       });
     }
+    
+    // Get all project IDs to check for reviews
+    const projectIds = activeProjects.map(project => project.id);
     
     // Query for reviews that reference these Kantata project IDs
     const { data: reviewsData, error: reviewsError } = await supabase
@@ -172,16 +175,15 @@ async function handler(
         }
       });
       
-      // Enhance projects with review information
-      activeProjects.forEach(project => {
+      // Update projects with review information
+      for (const project of activeProjects) {
         const reviewInfo = reviewMap[project.id];
         if (reviewInfo) {
           project.hasGraphReview = true;
           project.graphReviewId = reviewInfo.id;
           project.graphReviewStatus = reviewInfo.status;
         }
-        // No need for an else case as hasGraphReview is already initialized to false
-      });
+      }
     }
     
     return res.status(200).json({
