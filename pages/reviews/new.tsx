@@ -42,7 +42,7 @@ interface ReviewFormValues {
 }
 
 const NewReview: NextPage = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [graphImage, setGraphImage] = useState<File | null>(null);
@@ -264,11 +264,11 @@ const NewReview: NextPage = () => {
             <ProjectLeadSelector
               value={form.values.projectLeadId}
               onChange={(value) => form.setFieldValue('projectLeadId', value)}
-              disabled={!isAdmin && user?.id !== form.values.projectLeadId}
+              disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && user?.id !== form.values.projectLeadId}
             />
             <p className="mt-1 text-sm text-gray-500">
               The person responsible for this graph review.
-              {!isAdmin && " Only admins can assign to someone else."}
+              {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can assign to someone else."}
             </p>
           </div>
 
