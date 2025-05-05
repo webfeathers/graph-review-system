@@ -1,6 +1,7 @@
 // pages/api/kantata/active-projects.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAdminAuth } from '../../../lib/apiHelpers';
+import { createClient } from '@supabase/supabase-js';
 
 interface KantataProject {
   id: string;
@@ -41,6 +42,12 @@ async function handler(
   }
 
   try {
+    // Initialize Supabase client directly in the serverless function
+    // This avoids the issue with importing the supabase client
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    
     // Get the Kantata API token from environment variables
     const kantataApiToken = process.env.NEXT_PUBLIC_KANTATA_API_TOKEN;
     
