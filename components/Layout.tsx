@@ -40,12 +40,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   <a href="/reviews/new" className="hover:underline">
     New Review
   </a>
-  {/* Only show Admin link for users with Admin role */}
+  {/* Only show Admin links for users with Admin role */}
+  {/* Admin Section with Dropdown */}
   {isAdmin() && (
-    <a href="/admin" className="hover:underline">
-      Admin
-    </a>
+    <div className="relative group inline-block">
+      <a href="/admin" className="hover:underline flex items-center">
+        Admin
+        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </a>
+      <div className="absolute left-0 hidden group-hover:block bg-white shadow-lg rounded-md p-2 mt-1 z-10 min-w-max">
+        <a href="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md">
+          Dashboard
+        </a>
+        <a href="/admin/kantata-projects" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md">
+          Kantata Projects
+        </a>
+      </div>
+    </div>
   )}
+
+
+
   <button onClick={handleLogout} className="hover:underline">
     Logout
   </button>
