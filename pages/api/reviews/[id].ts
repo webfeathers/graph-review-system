@@ -275,8 +275,8 @@ async function reviewHandler(
       });
     }
   }
-  
-// PATCH /api/reviews/[id] - for status and project lead updates
+
+// PATCH handler for updates to review status and project lead
 if (req.method === 'PATCH') {
   try {
     console.log('Processing PATCH request for partial update');
@@ -319,20 +319,18 @@ if (req.method === 'PATCH') {
     // Get the update data from the request body
     const { status, projectLeadId } = req.body;
     
-    // Add this debug logging
     console.log('PATCH request with auth info:', {
       userId,
       userRole,
       requestBody: req.body
     });
     
-    // Initialize update data structure
-    const updateData: any = {
+    // Initialize the update data object
+    const updateData: Record<string, any> = {
       updated_at: new Date().toISOString()
     };
     
-    // Check for status update
-    let statusChanged = false;
+    // Process status update if provided
     if (status !== undefined) {
       // Validate status value
       if (!['Submitted', 'In Review', 'Needs Work', 'Approved'].includes(status)) {
@@ -352,54 +350,53 @@ if (req.method === 'PATCH') {
         });
       }
       
+      // Add status to update data
       updateData.status = status;
-      statusChanged = true;
     }
     
-    // Check for project lead update
-    let projectLeadChanged = false;
+    // Process project lead update if provided
     if (projectLeadId !== undefined) {
-      // Direct database check for admin role
-      const { data: adminCheck, error: adminCheckError } = await supabase
+      // Check admin status
+      const isAdmin = userRole === 'Admin';
+      
+      // Additional direct database check for admin role
+      const { data: adminData, error: adminError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', userId)
         .single();
-        
-      const isDirectAdmin = !adminCheckError && adminCheck && adminCheck.role === 'Admin';
-      const isRoleAdmin = userRole === 'Admin';
       
-      console.log('Admin check for project lead update:', {
-        userId,
-        providedUserRole: userRole,
-        isRoleAdmin,
-        directDbCheck: isDirectAdmin,
-        adminCheckData: adminCheck,
-        adminCheckError
+      const directAdminCheck = !adminError && adminData && adminData.role === 'Admin';
+      
+      console.log('Admin status check:', {
+        userRole,
+        isAdmin,
+        directAdminCheck,
+        adminData,
+        adminError
       });
       
-      // Only allow admin users to change project lead
-      if (!isDirectAdmin && !isRoleAdmin) {
+      // Only admins can change project lead
+      if (!isAdmin && !directAdminCheck) {
         return res.status(403).json({ 
           success: false, 
           message: 'Only administrators can change the Project Lead' 
         });
       }
       
-      // If we get here, user is admin, so we can update
+      // Add project lead to update data
       updateData.project_lead_id = projectLeadId;
-      projectLeadChanged = true;
     }
     
-    // If no valid updates, return error
-    if (!statusChanged && !projectLeadChanged) {
+    // Check if there are any updates to make
+    if (Object.keys(updateData).length <= 1) { // Only has updated_at
       return res.status(400).json({ 
         success: false, 
         message: 'No valid fields to update' 
       });
     }
     
-    console.log(`Updating review with data:`, updateData);
+    console.log('Sending update to database:', updateData);
     
     // Update the review
     const { data: updatedReview, error: updateError } = await supabase
@@ -426,7 +423,51 @@ if (req.method === 'PATCH') {
       });
     }
     
-    // Continue with the existing code for email notifications...
+    // Send email notification if status changed
+    if (status !== undefined && previousStatus !== status) {
+      try {
+        // Get the review owner's email and profile info
+        const reviewOwner = review.profiles;
+        
+        // Skip notification if no owner email or missing info
+        if (reviewOwner && reviewOwner.email) {
+          // Generate app URL
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 
+            `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}`;
+
+          // Get the name of the person who changed the status
+          let changerName = 'A User';
+          
+          // Don't try to fetch user profile here - we might already have role from withAuth
+          if (userRole === 'Admin') {
+            changerName = 'An Administrator';
+          }
+
+          // Send notification using helper method
+          await EmailService.sendStatusChangeNotification(
+            id,
+            review.title,
+            reviewOwner.email,
+            reviewOwner.name || 'User',
+            previousStatus,
+            status,
+            changerName,
+            appUrl
+          );
+
+          console.log('Status change notification email sent to review author');
+        }
+      } catch (emailError) {
+        // Log but don't fail the request if email sending fails
+        console.error('Error sending status change notification email:', emailError);
+      }
+    }
+    
+    // Send email notification if project lead changed
+    if (projectLeadId !== undefined && projectLeadId !== review.project_lead_id) {
+      // Here you could add email notification for project lead change
+      console.log('Project lead updated from', review.project_lead_id, 'to', projectLeadId);
+    }
 
     return res.status(200).json({
       success: true,
