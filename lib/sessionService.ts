@@ -157,10 +157,17 @@ export class SessionService {
    */
   static async signInWithGoogle(redirectUrl?: string): Promise<{ data: any, error: any }> {
     try {
+      // Always use localhost:3000 in development
+      const isDev = process.env.NODE_ENV === 'development';
+      const baseUrl = isDev ? 'http://localhost:3000' : (redirectUrl || window.location.origin);
+      const finalRedirectUrl = `${baseUrl}/dashboard`;
+      
+      console.log('Using redirect URL:', finalRedirectUrl);
+      
       return await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl || window.location.origin
+          redirectTo: finalRedirectUrl
         }
       });
     } catch (error) {
