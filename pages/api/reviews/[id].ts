@@ -10,6 +10,7 @@ type ResponseData = {
   message?: string;
   data?: any;
   error?: string;
+  details?: any; // Add this line to include the details property
 };
 
 /**
@@ -49,8 +50,8 @@ async function reviewHandler(
         return res.status(500).json({ 
           success: false, 
           message: 'Error fetching review - basic query failed', 
-          error: basicError.message || 'Database query failed',
-          details: basicError
+          error: basicError.message || 'Database query failed'
+          // Removed the details property to match the ResponseData type
         });
       }
       
