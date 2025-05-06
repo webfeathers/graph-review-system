@@ -1,15 +1,18 @@
 // components/AuthProvider.tsx integrated with SessionService
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, SupabaseClient } from '@supabase/supabase-js';
 import { Role } from '../types/supabase';
 import { ProfileService } from '../lib/profileService';
 import { SessionService, SessionEvent } from '../lib/sessionService';
+import { supabase } from '../lib/supabase'; // Import the existing client
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/env';
 
 type AuthContextType = {
   session: Session | null;
   user: User | null;
   userRole: Role | null;
+  supabaseClient: SupabaseClient;
   signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   loading: boolean;
@@ -114,7 +117,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const initialUser = SessionService.getUser();
         
         if (!isUnmounted) {
-          // Set initial state first
+          // Set initial state
           setSession(initialSession);
           setUser(initialUser);
           setLoading(false);
@@ -212,39 +215,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     newSession: Session | null, 
     newUser: User | null
   ) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Session event:", event);
-    }
+    console.log(`AuthProvider received session event: ${event}`);
+    setSession(newSession);
+    setUser(newUser);
     
-    // Batch state updates based on event type
-    switch (event) {
-      case 'SIGNED_IN':
-      case 'TOKEN_REFRESHED':
-        if (newUser) {
-          const role = await loadUserRole(newUser.id);
-          // Batch updates
-          setSession(newSession);
-          setUser(newUser);
-          setUserRole(role);
-        }
-        break;
-      
-      case 'SIGNED_OUT':
-        // Batch updates for sign out
-        setSession(null);
-        setUser(null);
-        setUserRole(null);
-        break;
-        
-      default:
-        console.warn('Unhandled session event:', event);
+    if (newUser) {
+      setUserRole(await loadUserRole(newUser.id));
+    } else {
+      setUserRole(null);
     }
   };
 
-  // Function to check if current user is admin
-  const isAdmin = (): boolean => {
+  // <<< Wrap isAdmin in useCallback, dependent on userRole >>>
+  const isAdmin = useCallback((): boolean => {
     return userRole === 'Admin';
-  };
+  }, [userRole]);
 
   // Function to refresh the user's role from the database
   const refreshUserRole = async (): Promise<Role | null> => {
@@ -376,19 +361,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Memoize the context value
+  const contextValue = useMemo(() => ({
+    session,
+    user,
+    userRole,
+    supabaseClient: supabase, // Use the imported client
+    signInWithGoogle,
+    signOut,
+    loading,
+    ensureUserProfile,
+    isAdmin,
+    refreshUserRole,
+    invalidateRoleCache
+  }), [
+    session,
+    user,
+    userRole,
+    loading,
+    isAdmin
+  ]);
+
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      user, 
-      userRole,
-      signInWithGoogle,
-      signOut, 
-      loading,
-      ensureUserProfile,
-      isAdmin,
-      refreshUserRole,
-      invalidateRoleCache
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

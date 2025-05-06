@@ -3,6 +3,7 @@ import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
 
 // Components and Hooks
 import { 
@@ -81,38 +82,30 @@ const ReviewPage: NextPage = () => {
   }, [id, user, authLoading]);
 
   const handleStatusChange = async (newStatus: ReviewWithProfile['status']) => {
-    if (!user || !review || newStatus === currentStatus || isUpdating) return;
+    if (!user || !review) return;
     
-    // Only allow admins to set the Approved status
-    if (newStatus === 'Approved' && !isAdmin()) {
-      setError('Only administrators can approve reviews');
-      return;
-    }
-    
-    setIsUpdating(true);
     try {
-      // Use direct Supabase client for the update
-      const { data: updatedReview, error: updateError } = await supabase
+      setIsUpdating(true);
+      setError(null);
+
+      // Update status in database
+      const { error: updateError } = await supabase
         .from('reviews')
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', review.id)
-        .select()
-        .single();
-      
-      if (updateError) {
-        console.error('Error updating status:', updateError);
-        throw new Error(updateError.message || 'Failed to update status');
-      }
-      
-      // Update UI state
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      // Update local state instead of reloading
       setCurrentStatus(newStatus);
-      
+      setReview(prev => prev ? { ...prev, status: newStatus } : null);
+
+      // Show success message
+      toast.success('Status updated successfully');
     } catch (err) {
       console.error('Error updating status:', err);
       setError(err instanceof Error ? err.message : 'Failed to update status');
+      toast.error('Failed to update status');
     } finally {
       setIsUpdating(false);
     }

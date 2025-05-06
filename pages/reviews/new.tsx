@@ -23,7 +23,7 @@ import {
   MAX_FILE_SIZES,
   StorageBucket
 } from '../../constants';
-import { createReview, validateKantataProject } from '../../lib/supabaseUtils';
+import { createReview } from '../../lib/supabaseUtils';
 import ProjectLeadSelector from '../../components/ProjectLeadSelector';
 import { withRoleProtection } from '../../components/withRoleProtection';
 import React from 'react';
@@ -44,7 +44,7 @@ interface ReviewFormValues {
 }
 
 const NewReview: NextPage = () => {
-  const { user, loading: authLoading, isAdmin } = useAuth();
+  const { user, loading: authLoading, isAdmin, supabaseClient } = useAuth();
   const router = useRouter();
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,16 +54,11 @@ const NewReview: NextPage = () => {
   const [graphImageTouched, setGraphImageTouched] = useState<boolean>(false);
   const [renderError, setRenderError] = useState<string | null>(null);
 
-  // Memoize the validation schema
-  const validationSchema = useMemo(() => ({
-    title: reviewValidationSchema.title,
-    description: reviewValidationSchema.description,
-    accountName: reviewValidationSchema.accountName,
-    kantataProjectId: reviewValidationSchema.kantataProjectId,
-    customerFolder: reviewValidationSchema.customerFolder,
-    handoffLink: reviewValidationSchema.handoffLink,
-    projectLeadId: reviewValidationSchema.projectLeadId
-  }), []); // Empty deps since schema never changes
+  // --- START: Kantata Validation State ---
+  const [isValidatingKantata, setIsValidatingKantata] = useState(false);
+  const [kantataValidationError, setKantataValidationError] = useState<string | null>(null);
+  const [kantataValidationStatus, setKantataValidationStatus] = useState<'idle' | 'valid' | 'invalid' | 'validating'>('idle');
+  // --- END: Kantata Validation State ---
 
   // Memoize initial values
   const initialValues = useMemo(() => ({
@@ -81,99 +76,177 @@ const NewReview: NextPage = () => {
     projectLeadId: user?.id || ''
   }), [router.query.kantataProjectId, user?.id]);
 
-  // Memoize submit handler
-  const handleSubmit = useCallback(async (values: ReviewFormValues) => {
+  // Memoize the validation schema (excluding Kantata)
+  const validationSchema = useMemo(() => ({
+    title: reviewValidationSchema.title,
+    description: reviewValidationSchema.description,
+    accountName: reviewValidationSchema.accountName,
+    customerFolder: reviewValidationSchema.customerFolder,
+    handoffLink: reviewValidationSchema.handoffLink,
+    projectLeadId: reviewValidationSchema.projectLeadId
+  }), []);
+
+  // --- Define Handlers BEFORE useForm ---
+
+  // Kantata Validation Function
+  const handleKantataValidation = useCallback(async (kantataProjectId: string | undefined): Promise<{isValid: boolean; message: string}> => {
+    if (!kantataProjectId) {
+      setKantataValidationError(null);
+      setKantataValidationStatus('idle');
+      return { isValid: true, message: '' };
+    }
+    setIsValidatingKantata(true);
+    setKantataValidationError(null);
+    setKantataValidationStatus('validating');
+    
     try {
-      if (isSubmitting) return;
-      setIsSubmitting(true);
-      setGeneralError(null);
-
-      console.log('Form submission values:', values);
-
+      // Get the current session/token
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError) {
-        console.error('Error getting session:', sessionError);
-        throw new Error('Authentication error. Please try again.');
+      if (sessionError || !session) {
+        console.error("Error getting session for validation:", sessionError);
+        throw new Error('Authentication session error.');
       }
+      
+      const token = session.access_token;
 
-      if (!session?.user) {
-        throw new Error('You must be logged in to create a review');
+      const response = await fetch('/api/kantata/validate-project', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Add the Authorization header
+        },
+        body: JSON.stringify({ kantataProjectId }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setKantataValidationError(result.message || 'Validation failed');
+        setKantataValidationStatus('invalid');
+        return { isValid: false, message: result.message };
+      } else {
+        setKantataValidationError(null);
+        setKantataValidationStatus('valid');
+        // Cannot auto-populate title here easily without form access
+        return { isValid: true, message: result.message };
       }
+    } catch (error) {
+      console.error('Kantata validation API call failed:', error);
+      const message = error instanceof Error ? error.message : 'Network error during validation';
+      setKantataValidationError(message);
+      setKantataValidationStatus('invalid');
+      return { isValid: false, message };
+    } finally {
+      setIsValidatingKantata(false);
+    }
+  }, []); // No other dependencies needed
 
-      const currentUserId = session.user.id;
-      console.log('Current user ID from session:', currentUserId);
+  // Submit Handler (receives values from useForm)
+  const handleSubmit = useCallback(async (values: ReviewFormValues) => {
+    // Check submission/validation status first
+    if (isSubmitting || isValidatingKantata) return;
+    setIsSubmitting(true);
+    setGeneralError(null);
+    setKantataValidationError(null);
 
-      if (!values.projectLeadId) {
-        values.projectLeadId = currentUserId;
+    console.log('Form submission values:', values);
+
+    // <<< Check if supabaseClient is available before proceeding >>>
+    if (!supabaseClient) {
+      console.error("Supabase client not available during submit.");
+      setGeneralError("Authentication client error. Please try refreshing.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Trigger Kantata Validation on Submit
+    if (values.kantataProjectId) {
+      const validationResult = await handleKantataValidation(values.kantataProjectId);
+      if (!validationResult.isValid) {
+        setIsSubmitting(false); // Stop submission
+        return;
       }
+    }
 
+    // Proceed with review creation logic...
+    try {
       const { data: projectLead, error: projectLeadError } = await supabase
         .from('profiles')
-        .select('id, name, email')
-        .eq('id', values.projectLeadId)
+        .select('id') // Only need ID
+        .eq('id', values.projectLeadId || user!.id) // Use user ID if lead not set
         .single();
 
       if (projectLeadError || !projectLead) {
-        console.error('Error checking project lead:', projectLeadError);
-        throw new Error('Invalid Project Lead selected');
+        throw new Error('Invalid Project Lead selected or not found');
       }
-
-      if (values.kantataProjectId) {
-        const kantataValidation = await validateKantataProject(values.kantataProjectId);
-        if (!kantataValidation.isValid) {
-          throw new Error(`Invalid Kantata Project: ${kantataValidation.message}`);
-        }
-        
-        if (kantataValidation.projectData) {
-          values.title = values.title || kantataValidation.projectData.title;
-        }
-      }
-
-      console.log('Found project lead:', projectLead);
-
+      
       const reviewData = {
         ...values,
-        userId: currentUserId,
+        userId: user!.id, // Use user from useAuth context directly
         status: 'Submitted' as const,
-        projectLeadId: projectLead.id,
+        projectLeadId: projectLead.id, 
         segment: values.segment as 'Enterprise' | 'MidMarket'
       };
 
-      const newReview = await createReview(reviewData);
-      console.log('Review created successfully:', newReview);
-
+      // <<< Pass the supabaseClient from context to createReview >>>
+      const newReview = await createReview(reviewData, supabaseClient);
       if (!newReview?.id) {
         throw new Error('Failed to create review - no ID returned');
       }
+      router.push(`/reviews/${newReview.id}`);
 
-      window.location.href = `/reviews/${newReview.id}`;
     } catch (error: any) {
       console.error('Error creating review:', error);
       setGeneralError(error.message || 'Failed to create review');
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting]);
+  // <<< Add supabaseClient to dependency array >>>
+  }, [isSubmitting, isValidatingKantata, router, handleKantataValidation, supabaseClient, user]); 
 
-  // Create form instance with memoized values
+  // --- Initialize useForm AFTER handlers are defined ---
   const form = useForm<ReviewFormValues>({
     initialValues,
-    validationSchema,
+    validationSchema: {}, // Bypass internal validation for schema fields
     validateOnChange: false,
     validateOnBlur: true,
-    onSubmit: handleSubmit
+    onSubmit: handleSubmit, // Pass the handler directly
   });
 
-  // Handle URL parameters once when router is ready
+  // --- Effects ---
+
+  // Validate Kantata on Blur
+  useEffect(() => {
+    const kantataInput = document.querySelector('input[name="kantataProjectId"]');
+    if (!kantataInput) return;
+
+    const handleBlur = () => {
+      // Only validate if the field has been touched
+      if (form.touched.kantataProjectId) {
+          handleKantataValidation(form.values.kantataProjectId);
+      }
+    };
+
+    kantataInput.addEventListener('blur', handleBlur);
+    return () => {
+      kantataInput.removeEventListener('blur', handleBlur);
+    };
+  // Dependencies: form values/touched state and the stable validation function
+  }, [form.touched.kantataProjectId, form.values.kantataProjectId, handleKantataValidation]);
+
+  // Handle URL parameters
   useEffect(() => {
     if (!router.isReady) return;
-    
-    const { title } = router.query;
+    const { title, kantataProjectId } = router.query;
     if (title && typeof title === 'string') {
       form.setFieldValue('title', decodeURIComponent(title));
     }
-  }, [router.isReady]);
+    // Also set Kantata ID from query param if present
+    if (kantataProjectId && typeof kantataProjectId === 'string') {
+      form.setFieldValue('kantataProjectId', kantataProjectId);
+      // Optionally trigger validation if populated from query
+      // handleKantataValidation(kantataProjectId); 
+    }
+  }, [router.isReady, router.query, form.setFieldValue]); // Add router.query and form.setFieldValue
 
   // Handle image change
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,6 +288,14 @@ const NewReview: NextPage = () => {
   }
 
   if (!user) return null;
+
+  // Disable submit button logic
+  const buttonShouldBeDisabled = 
+    isSubmitting || 
+    isValidatingKantata ||
+    kantataValidationStatus === 'invalid' || 
+    !supabaseClient || // <<< Disable submit if client isn't ready >>>
+    Object.keys(form.errors).length > 0;
 
   try {
     return (
@@ -280,19 +361,25 @@ const NewReview: NextPage = () => {
               error={form.errors.accountName}
               touched={form.touched.accountName}
               required
-              />
+              maxLength={FIELD_LIMITS.ACCOUNT_NAME_MAX_LENGTH}
+            />
             <TextInput
               id="kantataProjectId"
               name="kantataProjectId"
-              label="Kantata Project ID"
+              label="Kantata Project ID (Optional)"
               placeholder="Enter associated Kantata (Mavenlink) project ID"
               value={form.values.kantataProjectId || ''}
               onChange={form.handleChange('kantataProjectId')}
               onBlur={form.handleBlur('kantataProjectId')}
               error={form.errors.kantataProjectId}
               touched={form.touched.kantataProjectId}
-              required
+              maxLength={FIELD_LIMITS.KANTATA_PROJECT_ID_MAX_LENGTH}
               helpText="Link this review to a Kantata (Mavenlink) project"
+              className={
+                kantataValidationStatus === 'validating' ? 'border-yellow-500' : 
+                kantataValidationStatus === 'invalid' ? 'border-red-500' : 
+                kantataValidationStatus === 'valid' ? 'border-green-500' : ''
+              }
             />
 
             <TextInput
@@ -305,6 +392,7 @@ const NewReview: NextPage = () => {
               onBlur={form.handleBlur('orgId')}
               error={form.errors.orgId}
               touched={form.touched.orgId}
+              maxLength={FIELD_LIMITS.ORG_ID_MAX_LENGTH}
             />
   
             <SelectInput
@@ -341,6 +429,7 @@ const NewReview: NextPage = () => {
               onBlur={form.handleBlur('graphName')}
               error={form.errors.graphName}
               touched={form.touched.graphName}
+              maxLength={FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH}
             />
   
             <TextArea
@@ -369,6 +458,7 @@ const NewReview: NextPage = () => {
               error={form.errors.useCase}
               touched={form.touched.useCase}
               rows={4}
+              maxLength={FIELD_LIMITS.USE_CASE_MAX_LENGTH}
             />
   
             <TextInput
@@ -381,6 +471,8 @@ const NewReview: NextPage = () => {
               onBlur={form.handleBlur('customerFolder')}
               error={form.errors.customerFolder}
               touched={form.touched.customerFolder}
+              maxLength={FIELD_LIMITS.CUSTOMER_FOLDER_MAX_LENGTH}
+              type="url"
             />
   
             <TextInput
@@ -393,6 +485,8 @@ const NewReview: NextPage = () => {
               onBlur={form.handleBlur('handoffLink')}
               error={form.errors.handoffLink}
               touched={form.touched.handoffLink}
+              maxLength={FIELD_LIMITS.HANDOFF_LINK_MAX_LENGTH}
+              type="url"
             />
   
             <FileInput
@@ -418,10 +512,10 @@ const NewReview: NextPage = () => {
               </button>
               
               <SubmitButton
-                isSubmitting={isSubmitting}
+                isSubmitting={isSubmitting || isValidatingKantata}
                 label="Submit Review"
                 submittingLabel="Submitting..."
-                disabled={isSubmitting}
+                disabled={buttonShouldBeDisabled}
                 className="mt-6"
               />
             </div>

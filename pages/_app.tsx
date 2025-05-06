@@ -4,6 +4,7 @@ import type { AppProps } from 'next/app';
 import AuthProvider from '../components/AuthProvider';
 import { useEffect } from 'react'; // Add this import
 import { useRouter } from 'next/router'; // Add this import too
+import { Toaster } from 'react-hot-toast';
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter(); // Add this
@@ -34,9 +35,12 @@ function MyApp({ Component, pageProps }: AppProps) {
   }, [router.events]);
 
   return (
-    <AuthProvider>
-      <Component {...pageProps} />
-    </AuthProvider>
+    <>
+      <Toaster position="top-right" />
+      <AuthProvider>
+        <Component {...pageProps} />
+      </AuthProvider>
+    </>
   );
 }
 

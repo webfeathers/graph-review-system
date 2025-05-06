@@ -5,15 +5,29 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, validateEnvironment, IS_DEV } from './
 // Validate environment on initialization
 validateEnvironment();
 
+// Check if we have the required keys
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  throw new Error(
+    'Missing required Supabase environment variables. ' +
+    'Please check your .env.local file and ensure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set.'
+  );
+}
+
+// Create the Supabase client
 export const supabase = createClient(
-  SUPABASE_URL || '',  // Fallback to empty string to prevent runtime errors
-  SUPABASE_ANON_KEY || ''
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
 );
 
 // Add a console warning in development if using without proper setup
-if (IS_DEV && (!SUPABASE_URL || !SUPABASE_ANON_KEY)) {
-  console.warn(
-    'Supabase client initialized with missing credentials. ' +
-    'API calls will fail. Check your environment variables.'
-  );
+if (IS_DEV) {
+  console.log('Supabase URL:', SUPABASE_URL);
+  console.log('Supabase key available:', SUPABASE_ANON_KEY ? 'Yes' : 'No');
 }

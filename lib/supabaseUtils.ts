@@ -1,5 +1,6 @@
 // lib/supabaseUtils.ts
 import { supabase } from './supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { 
   Review, Comment, Profile, ReviewWithProfile, CommentWithProfile,
   dbToFrontendReview, dbToFrontendComment, dbToFrontendProfile,
@@ -293,29 +294,20 @@ export const getCommentsByReviewId = async (reviewId: string) => {
 /**
  * Create a new review
  * 
- * @param reviewData The review data to create
- * @returns The created review
+ * @param reviewData Data for the new review
+ * @param client The Supabase client instance scoped to the authenticated user
+ * @returns The newly created review
  */
-export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) {
+export async function createReview(
+  reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>,
+  client: SupabaseClient
+) {
   console.log('Creating review with data:', reviewData);
-  console.log('Project Lead ID from review data:', reviewData.projectLeadId);
+  console.log('[createReview] Received client:', typeof client, Object.keys(client || {}));
   
-  // Validate Project Lead ID
-  if (!reviewData.projectLeadId) {
-    console.error('Missing Project Lead ID');
-    throw new Error('Project Lead ID is required');
-  }
-
-  // Validate that Project Lead exists
-  const { data: projectLead, error: projectLeadError } = await supabase
-    .from('profiles')
-    .select('id, name, email, role')
-    .eq('id', reviewData.projectLeadId)
-    .single();
-
-  if (projectLeadError || !projectLead) {
-    console.error('Invalid Project Lead ID:', reviewData.projectLeadId);
-    throw new Error('Invalid Project Lead ID');
+  if (!client || typeof client.from !== 'function') {
+     console.error('[createReview] Invalid client object received!');
+     throw new Error('Internal server error: Invalid database client provided.');
   }
 
   // Convert the camelCase to snake_case for the database
@@ -335,45 +327,34 @@ export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' |
     customer_folder: reviewData.customerFolder,
     handoff_link: reviewData.handoffLink,
     project_lead_id: reviewData.projectLeadId,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
   };
 
-  // First create the review
-  const { data: newReview, error: createError } = await supabase
-    .from('reviews')
-    .insert(dbReviewData)
-    .select('*')
-    .single();
+  // Use the PASSED-IN, request-scoped client for the insert operation
+  try {
+      const { data: newReview, error: createError } = await client
+        .from('reviews')
+        .insert(dbReviewData)
+        .select('*')
+        .single();
+        
+      if (createError) {
+        console.error('Error creating review:', createError);
+        if (createError.message.includes('violates row-level security policy')) {
+          throw new Error('Permission denied: Cannot create review due to security policy.');
+        }
+        throw new Error(`Failed to create review: ${createError.message}`);
+      }
 
-  if (createError) {
-    console.error('Error creating review:', createError);
-    throw new Error(`Failed to create review: ${createError.message}`);
+      if (!newReview) {
+        throw new Error('Review creation failed - no data returned');
+      }
+      
+      return dbToFrontendReview(newReview);
+      
+  } catch (error) {
+     console.error('[createReview] Error during client.from/insert/select:', error);
+     throw error; 
   }
-
-  if (!newReview) {
-    throw new Error('Review creation failed - no data returned');
-  }
-
-  // Now fetch the complete review with profiles in a separate query
-  const { data: reviewWithProfiles, error: fetchError } = await supabase
-    .from('reviews')
-    .select(`
-      *,
-      profiles:user_id (*),
-      project_lead:profiles!project_lead_id (*)
-    `)
-    .eq('id', newReview.id)
-    .single();
-
-  if (fetchError) {
-    console.error('Error fetching complete review:', fetchError);
-    // Return basic review if we can't fetch the complete one
-    return dbToFrontendReview(newReview);
-  }
-
-  // Transform to frontend format
-  return dbToFrontendReviewWithProfile(reviewWithProfiles);
 }
 
 /**

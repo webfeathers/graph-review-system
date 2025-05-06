@@ -51,13 +51,14 @@ async function handler(
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     
-    // Get the Kantata API token from environment variables
-    const kantataApiToken = process.env.NEXT_PUBLIC_KANTATA_API_TOKEN;
+    // Get the Kantata API token from environment variables (use server-side variable)
+    const kantataApiToken = process.env.KANTATA_API_TOKEN; // Use the non-public variable name
     
     if (!kantataApiToken) {
+      console.error("KANTATA_API_TOKEN not found in environment variables."); // Add specific log
       return res.status(500).json({
         success: false,
-        message: 'Kantata API token not configured'
+        message: 'Kantata API token not configured' 
       });
     }
 

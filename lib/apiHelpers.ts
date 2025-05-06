@@ -2,6 +2,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from './supabase';
 import { Role } from '../types/supabase';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './env';
 
 /**
  * Type for the handler function that will be wrapped with authentication
@@ -10,6 +12,7 @@ export type AuthenticatedHandler = (
   req: NextApiRequest, 
   res: NextApiResponse, 
   userId: string,
+  supabaseClient: SupabaseClient,
   userRole?: Role
 ) => Promise<void>;
 
@@ -106,11 +109,18 @@ export function withAuth(
     }
     
     try {
-      // Verify the token with Supabase
-      const { data: { user }, error } = await supabase.auth.getUser(token);
+      // Create a Supabase client scoped to this request using the user's token
+      const supabaseClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      
+      console.log('[withAuth] Created supabaseClient:', typeof supabaseClient, Object.keys(supabaseClient || {}));
+
+      // Verify the token with Supabase using the request-scoped client
+      const { data: { user }, error } = await supabaseClient.auth.getUser();
       
       if (error || !user) {
-        console.error('Authentication error:', error);
+        console.error('[withAuth] supabaseClient.auth.getUser failed:', error);
         return res.status(401).json({ 
           success: false, 
           message: 'Invalid or expired authentication token' 
@@ -142,12 +152,12 @@ export function withAuth(
           });
         }
         
-        // Call the handler with the authenticated user ID and their role
-        return await handler(req, res, user.id, userRole);
+        // Call the handler with the authenticated user ID, SCOPED client, and their role
+        return await handler(req, res, user.id, supabaseClient, userRole);
       }
       
-      // If no role check required, just call the handler with the user ID
-      return await handler(req, res, user.id);
+      // If no role check required, STILL call handler with 5 args, passing undefined for role
+      return await handler(req, res, user.id, supabaseClient, undefined);
     } catch (error) {
       // Sanitize error details before sending to client
       console.error('Error in authentication middleware:', error);
