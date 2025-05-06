@@ -20,7 +20,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <div className="min-h-screen flex flex-col font-['Montserrat',sans-serif]">
       <header className="bg-[#FFFFFF] Xtext-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <a href="/" className="flex items-center">
+          <a href="/dashboard" className="flex items-center">
             <img 
               src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/avatars/ld-logo.png" 
               alt="Logo" 
