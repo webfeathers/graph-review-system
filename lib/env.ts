@@ -32,6 +32,11 @@ export function validateEnvironment(): void {
     { name: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: SUPABASE_ANON_KEY },
   ];
 
+  // Only validate service role key on server side
+  if (typeof window === 'undefined') {
+    requiredVars.push({ name: 'SUPABASE_SERVICE_ROLE_KEY', value: SUPABASE_SERVICE_KEY });
+  }
+
   const missingVars = requiredVars.filter(v => !v.value);
 
   if (missingVars.length > 0) {
@@ -48,4 +53,13 @@ export function validateEnvironment(): void {
       throw new Error(errorMessage);
     }
   }
+}
+
+// Only validate client-side required variables
+if (!SUPABASE_URL) {
+  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_URL');
+}
+
+if (!SUPABASE_ANON_KEY) {
+  throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY');
 }

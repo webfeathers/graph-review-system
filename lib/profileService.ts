@@ -180,18 +180,73 @@ export class ProfileService {
       const token = session.session?.access_token;
 
       if (!token) {
-        throw new Error('No authentication token available for API fallback');
+        console.log('No session token found, redirecting to login...');
+        // Redirect to login page
+        window.location.href = '/auth/signin';
+        return null;
+      }
+
+      // Get user data from Supabase auth
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser(token);
+      
+      if (userError || !authUser) {
+        console.log('Failed to get user data, redirecting to login...');
+        // Redirect to login page
+        window.location.href = '/auth/signin';
+        return null;
       }
 
       // Prepare the data
-      const userData = (user as User).user_metadata || {};
-      const email = (user as User).email || '';
+      const userData = authUser.user_metadata || {};
+      const email = authUser.email || '';
       
-      const payload = profileData || {
-        id: user.id,
-        name: userData.name || userData.full_name || (email ? email.split('@')[0] : 'User'),
-        email: email || ''
+      // Split the name into first and last name
+      let firstName = '';
+      let lastName = '';
+      
+      // Try to get name from various sources, prioritizing Google account data
+      const fullName = userData.full_name || 
+                      userData.name || 
+                      profileData?.name || 
+                      (email ? email.split('@')[0] : 'User');
+      
+      // Split name and ensure we have both first and last name
+      const nameParts = fullName.split(' ');
+      if (nameParts.length > 1) {
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(' ');
+      } else {
+        // If only one name part, use it as first name and generate a last name
+        firstName = nameParts[0] || 'User';
+        lastName = 'User'; // Default last name if none provided
+      }
+
+      // Ensure we have all required fields
+      if (!firstName || !lastName || !email) {
+        console.error('Missing required fields:', { firstName, lastName, email });
+        throw new Error('Missing required fields for profile creation');
+      }
+
+      // Check if user is an admin based on email domain
+      const isAdmin = email.endsWith('@leandata.com');
+
+      console.log('User data:', {
+        email,
+        firstName,
+        lastName,
+        userData,
+        profileData,
+        isAdmin
+      });
+
+      const payload = {
+        firstName,
+        lastName,
+        email,
+        role: isAdmin ? 'Admin' : (profileData?.role || userData.role || 'Member')
       };
+
+      console.log('Sending profile data to API:', payload);
 
       // Call the API
       const response = await fetch('/api/auth/ensure-profile', {
@@ -200,37 +255,47 @@ export class ProfileService {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload),
-        credentials: 'same-origin'
+        body: JSON.stringify(payload)
       });
 
+      const responseData = await response.json();
+
       if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
+        if (response.status === 401) {
+          console.log('Unauthorized, redirecting to login...');
+          // Redirect to login page
+          window.location.href = '/auth/signin';
+          return null;
+        }
+        console.error('API response error:', responseData);
+        throw new Error(`API request failed: ${responseData.message || response.statusText}`);
       }
 
-      const result = await response.json();
-      
-      if (!result.success || !result.profile) {
-        throw new Error(result.message || 'API failed to create profile');
+      if (!responseData.success) {
+        throw new Error(responseData.message || 'Failed to create profile via API');
       }
 
-      console.log('Profile created successfully via API');
-      
-      // Return the profile in frontend format
       const profile = {
-        id: result.profile.id,
-        name: result.profile.name,
-        email: result.profile.email,
-        createdAt: result.profile.created_at,
-        role: result.profile.role as Role || 'Member'
+        id: responseData.profile.id,
+        name: responseData.profile.name,
+        email: responseData.profile.email,
+        createdAt: responseData.profile.created_at,
+        role: responseData.profile.role as Role || 'Member'
       };
-      
+
       // Add to cache
       this.addProfileToCache(profile);
-      
+
+      // Don't redirect here - let the AuthProvider handle it
       return profile;
     } catch (error) {
-      console.error('API profile creation fallback failed:', error);
+      console.error('Error in createProfileViaAPI:', error);
+      // Check if it's an authentication error
+      if (error instanceof Error && error.message.includes('Unauthorized')) {
+        console.log('Authentication error, redirecting to login...');
+        // Redirect to login page
+        window.location.href = '/auth/signin';
+      }
       return null;
     }
   }

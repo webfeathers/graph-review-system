@@ -125,6 +125,18 @@ const Reviews: NextPage = () => {
     }
   };
 
+  // Add navigation handler
+  const handleViewDiscussion = async (reviewId: string) => {
+    console.log('View Discussion clicked for review:', reviewId);
+    try {
+      await router.push(`/reviews/${reviewId}`);
+    } catch (error) {
+      console.error('Navigation failed:', error);
+      // Fallback to window.location if router.push fails
+      window.location.href = `/reviews/${reviewId}`;
+    }
+  };
+
   // List view component for a single review
   const ReviewListItem = ({ review, commentCount }: { review: ReviewWithProfile, commentCount: number }) => (
     <div className="py-4 px-2 flex">
@@ -137,12 +149,19 @@ const Reviews: NextPage = () => {
       <div className="flex-grow flex flex-col md:flex-row md:items-center">
         <div className="flex-grow mb-2 md:mb-0">
           <div className="flex items-start justify-between">
-            <Link href={`/reviews/${review.id}`} className="text-lg font-semibold text-blue-600 hover:underline">
+            <button 
+              onClick={() => handleViewDiscussion(review.id)} 
+              className="text-lg font-semibold text-blue-600 hover:underline text-left"
+            >
               {review.title}
-            </Link>
+            </button>
           </div>
           <div className="text-sm text-gray-500 mt-1">
-            By {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}
+            By {review.user.name} on {new Date(review.createdAt).toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
           </div>
           <div className="flex items-center text-sm text-gray-500 mt-1">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -151,12 +170,12 @@ const Reviews: NextPage = () => {
             <span>{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
           </div>
         </div>
-        <Link 
-          href={`/reviews/${review.id}`} 
+        <button 
+          onClick={() => handleViewDiscussion(review.id)}
           className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm self-start md:self-center"
         >
           View Discussion
-        </Link>
+        </button>
       </div>
     </div>
   );
@@ -195,12 +214,15 @@ const Reviews: NextPage = () => {
               </button>
             </div>
             
-            <Link
-              href="/reviews/new"
+            <button
+              onClick={() => {
+                console.log('New Review clicked');
+                window.location.href = '/reviews/new';
+              }}
               className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
             >
               New Review
-            </Link>
+            </button>
           </div>
         </div>
         

@@ -18,8 +18,9 @@ export const REVIEW_STATUSES = Object.values(ReviewStatus);
  * Storage bucket names in Supabase
  */
 export enum StorageBucket {
+  AVATARS = 'avatars',
   GRAPH_IMAGES = 'graph-images',
-  USER_AVATARS = 'user-avatars',
+  USER_AVATARS = 'user-avatars'
 }
 
 /**
@@ -27,8 +28,7 @@ export enum StorageBucket {
  */
 export const MAX_FILE_SIZES = {
   IMAGE: 5 * 1024 * 1024, // 5MB
-  AVATAR: 2 * 1024 * 1024, // 2MB
-};
+} as const;
 
 /**
  * Allowed image MIME types
@@ -37,8 +37,8 @@ export const ALLOWED_IMAGE_TYPES = [
   'image/jpeg',
   'image/png',
   'image/gif',
-  'image/webp',
-];
+  'image/webp'
+] as const;
 
 /**
  * Form field limits
@@ -77,3 +77,9 @@ export const AUTH = {
   TOKEN_STORAGE_KEY: 'graph-review-auth-token',
   SESSION_EXPIRY: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
 };
+
+export const STORAGE_BUCKETS = {
+  AVATARS: StorageBucket.AVATARS,
+  GRAPH_IMAGES: StorageBucket.GRAPH_IMAGES,
+  USER_AVATARS: StorageBucket.USER_AVATARS
+} as const;

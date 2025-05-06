@@ -1,20 +1,55 @@
 /** @type {import('next').NextConfig} */
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   
   // For standalone builds with Node.js dependencies
   output: 'standalone',
   
-  // Prevent webpack from trying to bundle node modules
+  // Optimize webpack configuration
   webpack: (config, { isServer }) => {
     if (isServer) {
       // Keep Node.js modules as external when running on the server
-      // This fixes issues with modules like nodemailer
       config.externals = [...config.externals, 'nodemailer'];
     }
     
+    // Basic optimization settings
+    config.optimization = {
+      ...config.optimization,
+      moduleIds: 'deterministic',
+      splitChunks: {
+        chunks: 'all',
+        minSize: 20000,
+        maxSize: 244000,
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendor',
+            chunks: 'all',
+          },
+        },
+      },
+    };
+
+    // Basic cache configuration
+    config.cache = {
+      type: 'filesystem',
+      version: '1',
+      cacheDirectory: path.resolve(__dirname, '.next/cache'),
+      store: 'pack',
+      buildDependencies: {
+        config: [__filename],
+      },
+    };
+    
     return config;
+  },
+  
+  // Enable experimental features for better performance
+  experimental: {
+    optimizeCss: true,
+    scrollRestoration: true,
   },
 }
 

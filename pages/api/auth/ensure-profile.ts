@@ -1,6 +1,6 @@
 // pages/api/auth/ensure-profile.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '../../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { Role } from '../../../types/supabase';
 
 type ResponseData = {
@@ -8,6 +8,30 @@ type ResponseData = {
   message: string;
   profile?: any;
 };
+
+// Validate required environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error(
+    'Missing required Supabase environment variables. ' +
+    'Please check your .env.local file and ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.'
+  );
+}
+
+// Create a Supabase client with the service role key for API routes
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  },
+  global: {
+    headers: {
+      'apikey': supabaseServiceKey
+    }
+  }
+});
 
 export default async function handler(
   req: NextApiRequest,
@@ -44,152 +68,106 @@ export default async function handler(
       });
     }
 
-    // Get user ID and other profile data
-    const { userId: requestedUserId } = req.body;
-    
-    // If a specific user ID is requested, ensure it matches the authenticated user
-    // or throw an error - this prevents users from modifying other users' profiles
-    const userId = requestedUserId || user.id;
-    
-    if (requestedUserId && requestedUserId !== user.id) {
-      // Check if the user is an admin (allowed to modify other profiles)
-      const { data: adminCheck } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-        
-      if (!adminCheck || adminCheck.role !== 'Admin') {
-        return res.status(403).json({ 
-          success: false, 
-          message: 'Forbidden - Cannot modify other user profiles' 
-        });
-      }
+    // Log user data for debugging
+    console.log('Authenticated user:', {
+      id: user.id,
+      email: user.email,
+      role: user.role
+    });
+
+    const { firstName, lastName, email, role } = req.body;
+
+    // Validate required fields
+    if (!firstName || !lastName || !email) {
+      console.error('Missing required fields:', { firstName, lastName, email });
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: firstName, lastName, and email are required'
+      });
     }
 
-    // Extract profile data from request body or user object
-    const userData = user.user_metadata || {};
-    const { 
-      name: bodyName, 
-      email: bodyEmail, 
-      role: bodyRole 
-    } = req.body;
-    
-    let name = bodyName || userData.name || userData.full_name;
-    
-    // If no name found in metadata, try to create one from email
-    if (!name && user.email) {
-      name = user.email.split('@')[0];
-    }
-    
-    // Fallback name if nothing else works
-    if (!name) {
-      name = 'User';
-    }
-    
-    const email = bodyEmail || user.email || '';
-    
-    // Only allow setting role to Admin if the current user is an admin
-    let role: Role = 'Member';
-    if (bodyRole === 'Admin') {
-      const { data: adminCheck } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-        
-      if (adminCheck && adminCheck.role === 'Admin') {
-        role = 'Admin';
-      }
+    // Validate role if provided
+    if (role && !['Admin', 'Member'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid role. Must be either "Admin" or "Member"'
+      });
     }
 
-    // Check if profile exists
-    const { data: existingProfile, error: profileError } = await supabase
+    // Check if profile already exists
+    const { data: existingProfile, error: fetchError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
       .single();
-      
-    if (!profileError && existingProfile) {
-      // Profile already exists - check if it needs updating
-      const needsUpdate = (
-        (!existingProfile.name && name) || 
-        (!existingProfile.email && email) ||
-        (bodyRole === 'Admin' && role === 'Admin' && existingProfile.role !== 'Admin')
-      );
-      
-      if (needsUpdate) {
-        // Update the existing profile with new data
-        const updateData: any = {};
-        
-        if (!existingProfile.name && name) updateData.name = name;
-        if (!existingProfile.email && email) updateData.email = email;
-        if (bodyRole === 'Admin' && role === 'Admin' && existingProfile.role !== 'Admin') {
-          updateData.role = 'Admin';
-        }
-        
-        const { data: updatedProfile, error: updateError } = await supabase
-          .from('profiles')
-          .update(updateData)
-          .eq('id', userId)
-          .select()
-          .single();
-          
-        if (updateError) {
-          console.error('Error updating profile:', updateError);
-          return res.status(500).json({ 
-            success: false, 
-            message: `Failed to update profile: ${updateError.message}` 
-          });
-        }
-        
-        return res.status(200).json({
-          success: true,
-          message: 'Profile updated successfully',
-          profile: updatedProfile
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching profile:', fetchError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error checking existing profile'
+      });
+    }
+
+    if (existingProfile) {
+      // Update existing profile
+      const { data: updatedProfile, error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          name: `${firstName} ${lastName}`.trim(),
+          email,
+          role: role || existingProfile.role
+        })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating profile:', updateError);
+        return res.status(500).json({
+          success: false,
+          message: 'Error updating profile'
         });
       }
-      
-      // Profile exists and is complete
+
       return res.status(200).json({
         success: true,
-        message: 'Profile already exists',
-        profile: existingProfile
+        message: 'Profile updated successfully',
+        profile: updatedProfile
+      });
+    } else {
+      // Create new profile
+      const { data: newProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert({
+          id: user.id,
+          name: `${firstName} ${lastName}`.trim(),
+          email,
+          role: role || 'Member',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error('Error creating profile:', createError);
+        return res.status(500).json({
+          success: false,
+          message: 'Error creating profile'
+        });
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: 'Profile created successfully',
+        profile: newProfile
       });
     }
-    
-    // Create a new profile
-    const { data: newProfile, error: createError } = await supabase
-      .from('profiles')
-      .insert({
-        id: userId,
-        name,
-        email,
-        created_at: new Date().toISOString(),
-        role
-      })
-      .select()
-      .single();
-      
-    if (createError) {
-      console.error('Error creating profile:', createError);
-      return res.status(500).json({ 
-        success: false, 
-        message: `Failed to create profile: ${createError.message}` 
-      });
-    }
-    
-    return res.status(201).json({
-      success: true,
-      message: 'Profile created successfully',
-      profile: newProfile
-    });
-    
-  } catch (error: any) {
-    console.error('Unexpected error in ensure-profile API:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: `Internal server error: ${error.message}` 
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
     });
   }
 }

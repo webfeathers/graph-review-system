@@ -65,15 +65,14 @@ export async function getReviews(userId?: string) {
         id: review.id,
         title: review.title,
         description: review.description,
-        graphImageUrl: review.graph_image_url,
         status: review.status,
         userId: review.user_id,
-        createdAt: review.created_at,
-        updatedAt: review.updated_at,
+        createdAt: review.created_at || new Date().toISOString(),
+        updatedAt: review.updated_at || new Date().toISOString(),
         accountName: review.account_name,
         orgId: review.org_id,
         kantataProjectId: review.kantata_project_id,
-        segment: review.segment,
+        segment: review.segment as 'Enterprise' | 'MidMarket',
         remoteAccess: review.remote_access,
         graphName: review.graph_name,
         useCase: review.use_case,
@@ -180,11 +179,10 @@ export async function getReviewById(id: string) {
       id: review.id,
       title: review.title,
       description: review.description,
-      graphImageUrl: review.graph_image_url,
       status: review.status,
       userId: review.user_id,
-      createdAt: review.created_at,
-      updatedAt: review.updated_at,
+      createdAt: review.created_at || new Date().toISOString(),
+      updatedAt: review.updated_at || new Date().toISOString(),
       accountName: review.account_name,
       orgId: review.org_id,
       kantataProjectId: review.kantata_project_id,
@@ -314,7 +312,6 @@ export async function createReview(
   const dbReviewData = {
     title: reviewData.title,
     description: reviewData.description,
-    graph_image_url: reviewData.graphImageUrl,
     status: reviewData.status,
     user_id: reviewData.userId,
     account_name: reviewData.accountName,
@@ -327,6 +324,7 @@ export async function createReview(
     customer_folder: reviewData.customerFolder,
     handoff_link: reviewData.handoffLink,
     project_lead_id: reviewData.projectLeadId,
+    graph_image_url: reviewData.graphImageUrl
   };
 
   // Use the PASSED-IN, request-scoped client for the insert operation
@@ -524,7 +522,23 @@ export async function updateProjectLead(reviewId: string, newLeadId: string, use
 
     // Transform the data to the expected format
     return {
-      ...updatedReview,
+      id: updatedReview.id,
+      title: updatedReview.title,
+      description: updatedReview.description,
+      status: updatedReview.status,
+      userId: updatedReview.user_id,
+      createdAt: updatedReview.created_at,
+      updatedAt: updatedReview.updated_at,
+      accountName: updatedReview.account_name,
+      orgId: updatedReview.org_id,
+      kantataProjectId: updatedReview.kantata_project_id,
+      segment: updatedReview.segment,
+      remoteAccess: updatedReview.remote_access,
+      graphName: updatedReview.graph_name,
+      useCase: updatedReview.use_case,
+      customerFolder: updatedReview.customer_folder,
+      handoffLink: updatedReview.handoff_link,
+      projectLeadId: updatedReview.project_lead_id,
       user: updatedReview.profiles ? {
         id: updatedReview.profiles.id,
         name: updatedReview.profiles.name || 'Unknown User',

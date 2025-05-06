@@ -1,37 +1,13 @@
 // pages/api/kantata/active-projects.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAdminAuth } from '../../../lib/apiHelpers';
-import { createClient } from '@supabase/supabase-js';
 import { Role } from '../../../types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 
-// Define the interfaces
-interface KantataStatus {
-  key: number;
-  message: string;
-  color: string;
-}
+// Cache for active projects
+const activeProjectsCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-interface KantataProject {
-  id: string;
-  title: string;
-  status: KantataStatus;
-  createdAt: string;
-  leadName?: string;
-  leadId?: string;
-  hasGraphReview: boolean;
-  graphReviewId?: string | null;
-  graphReviewStatus?: string | null;
-}
-
-interface KantataApiResponse {
-  workspaces: Record<string, any>;
-  users: Record<string, any>;
-}
-
-/**
- * API endpoint to fetch active Kantata projects
- */
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -39,109 +15,91 @@ async function handler(
   supabaseClient: SupabaseClient,
   userRole?: Role
 ) {
-  // Only allow GET method
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    // Get the Kantata API token from environment variables
     const kantataApiToken = process.env.KANTATA_API_TOKEN;
-    
     if (!kantataApiToken) {
       return res.status(500).json({ message: 'Kantata API token not configured' });
     }
-    
-    // Log token existence for debugging (don't log the actual token!)
-    console.log('Kantata API token exists:', !!kantataApiToken);
 
-    // Get all reviews to get unique Kantata project IDs
-    console.log('Fetching all reviews...');
-    const { data: allReviews, error: allReviewsError } = await supabaseClient
-      .from('reviews')
-      .select('*');
-
-    if (allReviewsError) {
-      console.error('Error fetching all reviews:', allReviewsError);
-      throw new Error(`Error fetching all reviews: ${allReviewsError.message}`);
+    // Check cache first
+    const cacheKey = `active-projects-${userId}`;
+    const cached = activeProjectsCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return res.status(200).json(cached.data);
     }
 
-    // Calculate the date 60 days ago
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-    const sixtyDaysAgoStr = sixtyDaysAgo.toISOString().split('T')[0];
-
-    // Get active projects from Kantata
-    const kantataResponse = await fetch('https://api.mavenlink.com/api/v1/workspaces.json', {
-      headers: {
-        'Authorization': `Bearer ${kantataApiToken}`,
-        'Content-Type': 'application/json'
+    // Fetch all workspaces from Kantata
+    const kantataResponse = await fetch(
+      'https://api.mavenlink.com/api/v1/workspaces',
+      {
+        headers: {
+          'Authorization': `Bearer ${kantataApiToken}`,
+          'Accept': 'application/json'
+        },
+        signal: AbortSignal.timeout(10000) // 10 second timeout
       }
-    });
+    );
 
     if (!kantataResponse.ok) {
-      throw new Error(`Failed to fetch Kantata projects: ${kantataResponse.status}`);
+      throw new Error(`Kantata API error: ${kantataResponse.status}`);
     }
 
-    const kantataData = await kantataResponse.json();
-    const projects = kantataData.workspaces || {};
+    const data = await kantataResponse.json();
+    const workspaces = data.workspaces || {};
 
-    // Filter for active projects
-    const activeProjects = Object.entries(projects)
-      .filter(([_, project]: [string, any]) => {
-        const updatedAt = new Date(project.updated_at);
-        return updatedAt >= sixtyDaysAgo;
-      })
-      .map(([id, project]: [string, any]) => ({
-        id,
-        title: project.title,
-        status: project.status || { message: 'Unknown', key: 0, color: '#ccc' },
-        updatedAt: project.updated_at,
-        leadName: project.primary_maven_name || 'No Lead Assigned',
-        leadId: project.primary_maven_id
-      }));
-
-    console.log(`Found ${activeProjects.length} active projects`);
-    
-    // Query for reviews that reference these Kantata project IDs
-    const { data: reviewsData, error: reviewsError } = await supabaseClient
+    // Get all reviews to check which ones have Graph Reviews
+    const { data: reviews, error: reviewsError } = await supabaseClient
       .from('reviews')
-      .select('id, kantata_project_id, status')
-      .in('kantata_project_id', activeProjects.map(p => p.id));
-
+      .select('id, title, status, kantata_project_id');
+      
     if (reviewsError) {
-      console.error('Error fetching reviews:', reviewsError);
       throw new Error(`Error fetching reviews: ${reviewsError.message}`);
     }
 
     // Create a map of Kantata project IDs to review data
-    const reviewMap = new Map(
-      (reviewsData || []).map(review => [review.kantata_project_id, review])
-    );
-
-    // Add review information to active projects
-    const projectsWithReviews = activeProjects.map(project => ({
-      ...project,
-      hasGraphReview: reviewMap.has(project.id),
-      graphReviewId: reviewMap.get(project.id)?.id || null,
-      graphReviewStatus: reviewMap.get(project.id)?.status || null
-    }));
-
-    return res.status(200).json({
-      success: true,
-      message: `Found ${projectsWithReviews.length} active projects`,
-      projects: projectsWithReviews
+    const reviewMap = new Map();
+    reviews?.forEach(review => {
+      if (review.kantata_project_id) {
+        reviewMap.set(review.kantata_project_id, review);
+      }
     });
+
+    // Transform the workspaces data
+    const projects = Object.entries(workspaces).map(([id, workspace]: [string, any]) => {
+      const review = reviewMap.get(id);
+      return {
+        id: review?.id || id,
+        title: workspace.title,
+        kantataProjectId: id,
+        kantataStatus: workspace.status,
+        lastUpdated: workspace.updated_at,
+        hasGraphReview: !!review,
+        graphReviewStatus: review?.status,
+        graphReviewId: review?.id
+      };
+    });
+
+    const apiResponse = {
+      message: `Found ${projects.length} projects`,
+      projects
+    };
+
+    // Cache the results
+    activeProjectsCache.set(cacheKey, { data: apiResponse, timestamp: Date.now() });
+
+    return res.status(200).json(apiResponse);
     
   } catch (error) {
     console.error('Error in active-projects API:', error);
     return res.status(500).json({
-      success: false,
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
       projects: []
     });
   }
 }
 
-// Export with admin authentication
 export default withAdminAuth(handler);

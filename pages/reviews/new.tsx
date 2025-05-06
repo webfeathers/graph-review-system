@@ -27,6 +27,7 @@ import { createReview } from '../../lib/supabaseUtils';
 import ProjectLeadSelector from '../../components/ProjectLeadSelector';
 import { withRoleProtection } from '../../components/withRoleProtection';
 import React from 'react';
+import { createValidator, required, minLength } from '../../lib/validationUtils';
 
 interface ReviewFormValues {
   title: string;
@@ -48,10 +49,6 @@ const NewReview: NextPage = () => {
   const router = useRouter();
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [graphImage, setGraphImage] = useState<File | null>(null);
-  const [graphImageUrl, setGraphImageUrl] = useState<string>('');
-  const [graphImageError, setGraphImageError] = useState<string | null>(null);
-  const [graphImageTouched, setGraphImageTouched] = useState<boolean>(false);
   const [renderError, setRenderError] = useState<string | null>(null);
 
   // --- START: Kantata Validation State ---
@@ -83,7 +80,15 @@ const NewReview: NextPage = () => {
     accountName: reviewValidationSchema.accountName,
     customerFolder: reviewValidationSchema.customerFolder,
     handoffLink: reviewValidationSchema.handoffLink,
-    projectLeadId: reviewValidationSchema.projectLeadId
+    projectLeadId: reviewValidationSchema.projectLeadId,
+    kantataProjectId: reviewValidationSchema.kantataProjectId,
+    graphName: createValidator(
+      required('Graph name is required'),
+      minLength(3, 'Graph name must be at least 3 characters')
+    ),
+    useCase: createValidator(
+      minLength(10, 'Use case must be at least 10 characters if provided')
+    )
   }), []);
 
   // --- Define Handlers BEFORE useForm ---
@@ -144,6 +149,17 @@ const NewReview: NextPage = () => {
   const handleSubmit = useCallback(async (values: ReviewFormValues) => {
     // Check submission/validation status first
     if (isSubmitting || isValidatingKantata) return;
+
+    // Validate required fields
+    const requiredFields = ['title', 'description', 'accountName', 'graphName', 'projectLeadId'];
+    const missingFields = requiredFields.filter(field => !values[field as keyof ReviewFormValues]);
+    
+    if (missingFields.length > 0) {
+      setGeneralError(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setIsSubmitting(true);
     setGeneralError(null);
     setKantataValidationError(null);
@@ -154,6 +170,7 @@ const NewReview: NextPage = () => {
     if (!supabaseClient) {
       console.error("Supabase client not available during submit.");
       setGeneralError("Authentication client error. Please try refreshing.");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setIsSubmitting(false);
       return;
     }
@@ -162,6 +179,7 @@ const NewReview: NextPage = () => {
     if (values.kantataProjectId) {
       const validationResult = await handleKantataValidation(values.kantataProjectId);
       if (!validationResult.isValid) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         setIsSubmitting(false); // Stop submission
         return;
       }
@@ -192,11 +210,14 @@ const NewReview: NextPage = () => {
       if (!newReview?.id) {
         throw new Error('Failed to create review - no ID returned');
       }
-      router.push(`/reviews/${newReview.id}`);
+      
+      // Use window.location.href for full page transition
+      window.location.href = `/reviews/${newReview.id}?success=true&message=${encodeURIComponent('Review created successfully')}`;
 
     } catch (error: any) {
       console.error('Error creating review:', error);
       setGeneralError(error.message || 'Failed to create review');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } finally {
       setIsSubmitting(false);
     }
@@ -212,7 +233,19 @@ const NewReview: NextPage = () => {
     onSubmit: handleSubmit, // Pass the handler directly
   });
 
-  // --- Effects ---
+  // Add effect to scroll to top when generalError changes
+  useEffect(() => {
+    if (generalError) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [generalError]);
+
+  // Add effect to scroll to top when kantataValidationError changes
+  useEffect(() => {
+    if (kantataValidationError) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [kantataValidationError]);
 
   // Validate Kantata on Blur
   useEffect(() => {
@@ -247,41 +280,6 @@ const NewReview: NextPage = () => {
       // handleKantataValidation(kantataProjectId); 
     }
   }, [router.isReady, router.query, form.setFieldValue]); // Add router.query and form.setFieldValue
-
-  // Handle image change
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setGraphImageTouched(true);
-    setGraphImageError(null);
-    
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      
-      // Validate file type
-      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-        setGraphImageError(`File must be a valid image (${ALLOWED_IMAGE_TYPES.map(type => type.split('/')[1].toUpperCase()).join(', ')})`);
-        return;
-      }
-      
-      // Validate file size
-      if (file.size > MAX_FILE_SIZES.IMAGE) {
-        setGraphImageError(`File size must be less than ${MAX_FILE_SIZES.IMAGE / (1024 * 1024)}MB`);
-        return;
-      }
-      
-      setGraphImage(file);
-      setGraphImageUrl(URL.createObjectURL(file));
-    } else {
-      setGraphImage(null);
-      setGraphImageUrl('');
-    }
-  };
-
-  // Clear image
-  const handleClearImage = () => {
-    setGraphImage(null);
-    setGraphImageUrl('');
-    setGraphImageError(null);
-  };
 
   if (authLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
@@ -487,19 +485,6 @@ const NewReview: NextPage = () => {
               touched={form.touched.handoffLink}
               maxLength={FIELD_LIMITS.HANDOFF_LINK_MAX_LENGTH}
               type="url"
-            />
-  
-            <FileInput
-              id="graphImage"
-              name="graphImage"
-              label="Graph Image (Optional)"
-              accept="image/*"
-              onChange={handleImageChange}
-              error={graphImageError}
-              touched={graphImageTouched}
-              preview={graphImageUrl}
-              onClearFile={handleClearImage}
-              helpText={`Supported formats: ${ALLOWED_IMAGE_TYPES.map(type => type.split('/')[1].toUpperCase()).join(', ')}. Maximum size: ${MAX_FILE_SIZES.IMAGE / (1024 * 1024)}MB.`}
             />
   
             <div className="flex items-center justify-between mt-8">

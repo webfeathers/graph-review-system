@@ -14,7 +14,6 @@ export interface DbReview {
   id: string;
   title: string;
   description: string;
-  graph_image_url?: string;
   status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
   user_id: string;
   created_at: string;
@@ -29,6 +28,7 @@ export interface DbReview {
   customer_folder?: string;
   handoff_link?: string;
   project_lead_id?: string;
+  graph_image_url?: string;
 }
 
 export interface DbComment {
@@ -52,14 +52,13 @@ export interface Review {
   id: string;
   title: string;
   description: string;
-  graphImageUrl?: string;
   status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
   userId: string;
   createdAt: string;
   updatedAt: string;
   accountName?: string;
-  kantataProjectId?: string;
   orgId?: string;
+  kantataProjectId?: string;
   segment?: 'Enterprise' | 'MidMarket';
   remoteAccess?: boolean;
   graphName?: string;
@@ -67,6 +66,7 @@ export interface Review {
   customerFolder?: string;
   handoffLink?: string;
   projectLeadId?: string;
+  graphImageUrl?: string;
 }
 
 export interface Comment {
@@ -78,7 +78,25 @@ export interface Comment {
 }
 
 // With joined relationships
-export interface ReviewWithProfile extends Review {
+export interface ReviewWithProfile {
+  id: string;
+  title: string;
+  description: string;
+  status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+  accountName?: string;
+  orgId?: string;
+  kantataProjectId?: string;
+  segment?: 'Enterprise' | 'MidMarket';
+  remoteAccess?: boolean;
+  graphName?: string;
+  useCase?: string;
+  customerFolder?: string;
+  handoffLink?: string;
+  projectLeadId?: string;
+  graphImageUrl?: string;
   user: Profile;
   projectLead?: Profile;
   comments?: CommentWithProfile[];
@@ -94,21 +112,21 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     id: dbReview.id,
     title: dbReview.title,
     description: dbReview.description,
-    graphImageUrl: dbReview.graph_image_url,
     status: dbReview.status,
     userId: dbReview.user_id,
     createdAt: dbReview.created_at,
     updatedAt: dbReview.updated_at,
     accountName: dbReview.account_name,
-    kantataProjectId: dbReview.kantata_project_id,
     orgId: dbReview.org_id,
+    kantataProjectId: dbReview.kantata_project_id,
     segment: dbReview.segment,
     remoteAccess: dbReview.remote_access,
     graphName: dbReview.graph_name,
     useCase: dbReview.use_case,
     customerFolder: dbReview.customer_folder,
     handoffLink: dbReview.handoff_link,
-    projectLeadId: dbReview.project_lead_id
+    projectLeadId: dbReview.project_lead_id,
+    graphImageUrl: dbReview.graph_image_url
   };
 }
 
@@ -141,21 +159,21 @@ export function frontendToDbReview(review: Review): DbReview {
     id: review.id,
     title: review.title,
     description: review.description,
-    graph_image_url: review.graphImageUrl,
     status: review.status,
     user_id: review.userId,
     created_at: review.createdAt,
     updated_at: review.updatedAt,
     account_name: review.accountName,
-    kantata_project_id: review.kantataProjectId,
     org_id: review.orgId,
+    kantata_project_id: review.kantataProjectId,
     segment: review.segment,
     remote_access: review.remoteAccess,
     graph_name: review.graphName,
     use_case: review.useCase,
     customer_folder: review.customerFolder,
     handoff_link: review.handoffLink,
-    project_lead_id: review.projectLeadId
+    project_lead_id: review.projectLeadId,
+    graph_image_url: review.graphImageUrl
   };
 }
 
@@ -191,3 +209,47 @@ export function dbToFrontendProfile(dbProfile: DbProfile): Profile {
     role: dbProfile.role
   };
 }
+
+export const transformReview = (dbReview: Review): ReviewWithProfile => ({
+  id: dbReview.id,
+  title: dbReview.title,
+  description: dbReview.description,
+  status: dbReview.status,
+  userId: dbReview.userId,
+  createdAt: dbReview.createdAt,
+  updatedAt: dbReview.updatedAt,
+  accountName: dbReview.accountName,
+  orgId: dbReview.orgId,
+  kantataProjectId: dbReview.kantataProjectId,
+  segment: dbReview.segment,
+  remoteAccess: dbReview.remoteAccess,
+  graphName: dbReview.graphName,
+  useCase: dbReview.useCase,
+  customerFolder: dbReview.customerFolder,
+  handoffLink: dbReview.handoffLink,
+  projectLeadId: dbReview.projectLeadId,
+  graphImageUrl: dbReview.graphImageUrl,
+  user: {} as Profile,
+  projectLead: undefined
+});
+
+export const transformReviewToDb = (review: ReviewWithProfile): Review => ({
+  id: review.id,
+  title: review.title,
+  description: review.description,
+  status: review.status,
+  userId: review.userId,
+  createdAt: review.createdAt,
+  updatedAt: review.updatedAt,
+  accountName: review.accountName,
+  orgId: review.orgId,
+  kantataProjectId: review.kantataProjectId,
+  segment: review.segment,
+  remoteAccess: review.remoteAccess,
+  graphName: review.graphName,
+  useCase: review.useCase,
+  customerFolder: review.customerFolder,
+  handoffLink: review.handoffLink,
+  projectLeadId: review.projectLeadId,
+  graphImageUrl: review.graphImageUrl
+});

@@ -1,4 +1,5 @@
 // lib/supabase.ts
+// Test comment to verify edit access
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, validateEnvironment, IS_DEV } from './env';
 
@@ -13,21 +14,22 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   );
 }
 
-// Create the Supabase client
-export const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true
+// Create a single supabase client for interacting with your database
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true
+  },
+  global: {
+    headers: {
+      'apikey': SUPABASE_ANON_KEY
     }
   }
-);
+});
 
-// Add a console warning in development if using without proper setup
-if (IS_DEV) {
+// Only log in development and only once
+if (IS_DEV && !process.env.SUPABASE_LOGGED) {
   console.log('Supabase URL:', SUPABASE_URL);
   console.log('Supabase key available:', SUPABASE_ANON_KEY ? 'Yes' : 'No');
+  process.env.SUPABASE_LOGGED = 'true';
 }

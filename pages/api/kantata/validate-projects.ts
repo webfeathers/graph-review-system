@@ -43,6 +43,121 @@ interface WorkspaceDataResponse {
   };
 }
 
+// Cache for Kantata workspace data
+const workspaceCache = new Map<string, { data: WorkspaceDataResponse; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Batch size for parallel processing
+const BATCH_SIZE = 5;
+
+async function fetchWorkspaceData(projectId: string, kantataApiToken: string): Promise<WorkspaceDataResponse> {
+  const cached = workspaceCache.get(projectId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+
+  const kantataApiUrl = `https://api.mavenlink.com/api/v1/workspaces/${projectId}`;
+  const response = await fetch(kantataApiUrl, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${kantataApiToken}`,
+      'Accept': 'application/json'
+    },
+    signal: AbortSignal.timeout(10000)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Kantata API error: ${response.status}`);
+  }
+
+  const data = await response.json() as WorkspaceDataResponse;
+  workspaceCache.set(projectId, { data, timestamp: Date.now() });
+  return data;
+}
+
+async function processReviewBatch(
+  reviews: any[],
+  kantataApiToken: string
+): Promise<ValidationResult[]> {
+  return Promise.all(reviews.map(async (review) => {
+    const result: ValidationResult = {
+      reviewId: review.id,
+      reviewTitle: review.title,
+      reviewStatus: review.status,
+      kantataProjectId: review.kantata_project_id || 'N/A',
+      kantataStatus: { message: 'Unknown', key: 0, color: '#ccc' },
+      isValid: false,
+      message: 'Not validated',
+      statusUpdated: false
+    };
+
+    if (!review.kantata_project_id) {
+      result.message = 'No Kantata project ID associated';
+      return result;
+    }
+
+    try {
+      const projectData = await fetchWorkspaceData(review.kantata_project_id, kantataApiToken);
+      const workspace = projectData.workspaces?.[review.kantata_project_id];
+
+      if (!workspace) {
+        result.message = 'Invalid project data from Kantata';
+        return result;
+      }
+
+      result.kantataStatus = workspace.status || { message: 'Unknown', key: 0, color: '#ccc' };
+      const isLive = workspace.status?.message === 'Live';
+      const isApproved = review.status === 'Approved';
+
+      if (isLive && !isApproved) {
+        result.isValid = false;
+        result.message = 'Project is Live in Kantata but review is not Approved';
+        
+        try {
+          const updateResponse = await fetch(`https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${kantataApiToken}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              workspace: {
+                status_key: 305
+              }
+            })
+          });
+
+          if (updateResponse.ok) {
+            result.statusUpdated = true;
+            result.message += ' - Status updated to In Development';
+            result.kantataStatus = { message: 'In Development', key: 305, color: 'green' };
+          } else {
+            const errorText = await updateResponse.text();
+            console.error('Failed to update Kantata status:', errorText);
+            result.message += ' - Failed to update status';
+          }
+        } catch (updateError) {
+          console.error('Error updating Kantata status:', updateError);
+          result.message += ' - Error updating status';
+        }
+      } else if (!isLive && isApproved) {
+        result.isValid = false;
+        result.message = 'Review is Approved but project is not Live in Kantata';
+      } else {
+        result.isValid = true;
+        result.message = 'Status is consistent between Graph Review and Kantata';
+      }
+    } catch (error) {
+      console.error(`Error validating project ${review.kantata_project_id}:`, error);
+      result.message = error instanceof Error ? error.message : 'Validation failed';
+      result.kantataStatus = { message: 'Error', key: -3, color: '#ff0000' };
+    }
+
+    return result;
+  }));
+}
+
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -50,151 +165,37 @@ async function handler(
   supabaseClient: SupabaseClient,
   userRole?: Role
 ) {
-  // Only allow POST method
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    // Get the Kantata API token from environment variables
     const kantataApiToken = process.env.KANTATA_API_TOKEN;
-    
     if (!kantataApiToken) {
       return res.status(500).json({ message: 'Kantata API token not configured' });
     }
-    
-    // Log token existence for debugging (don't log the actual token!)
-    console.log('Kantata API token exists:', !!kantataApiToken);
 
-    // Get all reviews
-    console.log('Fetching all reviews...');
     const { data: reviews, error: reviewsError } = await supabaseClient
       .from('reviews')
       .select('*');
       
     if (reviewsError) {
-      console.error('Error fetching reviews:', reviewsError);
       throw new Error(`Error fetching reviews: ${reviewsError.message}`);
     }
     
-    if (!reviews || reviews.length === 0) {
-      console.log('No reviews found');
+    if (!reviews?.length) {
       return res.status(200).json({ 
         message: 'No reviews found.',
         validationResults: []
       });
     }
 
-    // Process each review and validate against Kantata
+    // Process reviews in batches
     const validationResults: ValidationResult[] = [];
-    
-    for (const review of reviews) {
-      const result: ValidationResult = {
-        reviewId: review.id,
-        reviewTitle: review.title,
-        reviewStatus: review.status,
-        kantataProjectId: review.kantata_project_id || 'N/A',
-        kantataStatus: { message: 'Unknown', key: 0, color: '#ccc' },
-        isValid: false,
-        message: 'Not validated',
-        statusUpdated: false
-      };
-
-      // Skip validation if no Kantata project ID
-      if (!review.kantata_project_id) {
-        result.message = 'No Kantata project ID associated';
-        validationResults.push(result);
-        continue;
-      }
-
-      try {
-        // Call Kantata API to get project status
-        const kantataApiUrl = `https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}`;
-        const kantataResponse = await fetch(kantataApiUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${kantataApiToken}`,
-            'Accept': 'application/json'
-          },
-          signal: AbortSignal.timeout(10000) // 10 second timeout
-        });
-
-        if (!kantataResponse.ok) {
-          if (kantataResponse.status === 404) {
-            result.message = 'Project not found in Kantata';
-            result.kantataStatus = { message: 'Not Found', key: -1, color: '#ff0000' };
-          } else {
-            result.message = `Kantata API error: ${kantataResponse.status}`;
-            result.kantataStatus = { message: 'Error', key: -2, color: '#ff0000' };
-          }
-          validationResults.push(result);
-          continue;
-        }
-
-        const projectData = await kantataResponse.json() as WorkspaceDataResponse;
-        const workspace = projectData.workspaces?.[review.kantata_project_id];
-
-        if (!workspace) {
-          result.message = 'Invalid project data from Kantata';
-          validationResults.push(result);
-          continue;
-        }
-
-        // Update result with Kantata status
-        result.kantataStatus = workspace.status || { message: 'Unknown', key: 0, color: '#ccc' };
-
-        // Check if the review status and Kantata status are compatible
-        const isLive = workspace.status?.message === 'Live';
-        const isApproved = review.status === 'Approved';
-
-        if (isLive && !isApproved) {
-          result.isValid = false;
-          result.message = 'Project is Live in Kantata but review is not Approved';
-          
-          // Update Kantata status to "In Development"
-          try {
-            const updateResponse = await fetch(kantataApiUrl, {
-              method: 'PUT',
-              headers: {
-                'Authorization': `Bearer ${kantataApiToken}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                workspace: {
-                  status_key: 305  // Known key for "In Development" status
-                }
-              })
-            });
-
-            if (updateResponse.ok) {
-              result.statusUpdated = true;
-              result.message += ' - Status updated to In Development';
-              result.kantataStatus = { message: 'In Development', key: 305, color: 'green' };
-            } else {
-              const errorText = await updateResponse.text();
-              console.error('Failed to update Kantata status:', errorText);
-              result.message += ' - Failed to update status';
-            }
-          } catch (updateError) {
-            console.error('Error updating Kantata status:', updateError);
-            result.message += ' - Error updating status';
-          }
-        } else if (!isLive && isApproved) {
-          result.isValid = false;
-          result.message = 'Review is Approved but project is not Live in Kantata';
-        } else {
-          result.isValid = true;
-          result.message = 'Status is consistent between Graph Review and Kantata';
-        }
-
-      } catch (error) {
-        console.error(`Error validating project ${review.kantata_project_id}:`, error);
-        result.message = error instanceof Error ? error.message : 'Validation failed';
-        result.kantataStatus = { message: 'Error', key: -3, color: '#ff0000' };
-      }
-
-      validationResults.push(result);
+    for (let i = 0; i < reviews.length; i += BATCH_SIZE) {
+      const batch = reviews.slice(i, i + BATCH_SIZE);
+      const batchResults = await processReviewBatch(batch, kantataApiToken);
+      validationResults.push(...batchResults);
     }
 
     return res.status(200).json({
@@ -211,5 +212,4 @@ async function handler(
   }
 }
 
-// Export with admin authentication
 export default withAdminAuth(handler);

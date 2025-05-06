@@ -14,17 +14,16 @@ import { supabase } from '../../lib/supabase';
 interface KantataProject {
   id: string;
   title: string;
-  status: {
+  kantataProjectId: string;
+  kantataStatus: {
     key: number;
     message: string;
     color: string;
   };
-  createdAt: string;
-  leadName?: string;
-  leadId?: string;
-  hasGraphReview?: boolean;
-  graphReviewId?: string;
+  lastUpdated: string;
+  hasGraphReview: boolean;
   graphReviewStatus?: string;
+  graphReviewId?: string;
 }
 
 const KantataProjectsPage: NextPage = () => {
@@ -118,13 +117,13 @@ const KantataProjectsPage: NextPage = () => {
     const filtered = projects.filter(project => {
       // Filter by status
       if (statusFilter !== 'all') {
-        if (statusFilter === 'in-development' && project.status?.message !== 'In Development') {
+        if (statusFilter === 'in-development' && project.kantataStatus?.message !== 'In Development') {
           return false;
         }
-        if (statusFilter === 'live' && project.status?.message !== 'Live') {
+        if (statusFilter === 'live' && project.kantataStatus?.message !== 'Live') {
           return false;
         }
-        if (statusFilter === 'other' && ['In Development', 'Live', 'Complete', 'Confirmed'].includes(project.status?.message)) {
+        if (statusFilter === 'other' && ['In Development', 'Live', 'Complete', 'Confirmed'].includes(project.kantataStatus?.message)) {
           return false;
         }
       }
@@ -152,13 +151,10 @@ const KantataProjectsPage: NextPage = () => {
           comparison = a.title.localeCompare(b.title);
           break;
         case 'status':
-          comparison = (a.status?.message || '').localeCompare(b.status?.message || '');
+          comparison = (a.kantataStatus?.message || '').localeCompare(b.kantataStatus?.message || '');
           break;
         case 'createdAt':
-          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-          break;
-        case 'leadName':
-          comparison = (a.leadName || '').localeCompare(b.leadName || '');
+          comparison = new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime();
           break;
         case 'hasGraphReview':
           comparison = (a.hasGraphReview === b.hasGraphReview) ? 0 : a.hasGraphReview ? -1 : 1;
@@ -336,15 +332,6 @@ const KantataProjectsPage: NextPage = () => {
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
-                    onClick={() => handleSort('leadName')}
-                  >
-                    <div className="flex items-center">
-                      Lead
-                      <span className="ml-2">{getSortIcon('leadName')}</span>
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
                     onClick={() => handleSort('hasGraphReview')}
                   >
                     <div className="flex items-center">
@@ -369,15 +356,12 @@ const KantataProjectsPage: NextPage = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(project.status?.message)}`}>
-                        {project.status?.message || 'Unknown'}
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(project.kantataStatus?.message)}`}>
+                        {project.kantataStatus?.message || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(project.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {project.leadName || 'No lead assigned'}
+                      {new Date(project.lastUpdated).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {project.hasGraphReview ? (

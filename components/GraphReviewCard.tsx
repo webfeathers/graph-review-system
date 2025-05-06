@@ -1,6 +1,7 @@
 // components/GraphReviewCard.tsx
 
 import React from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { ReviewWithProfile } from '../types/supabase';
 import StatusBadge from './StatusBadge';
@@ -11,6 +12,27 @@ interface GraphReviewCardProps {
 }
 
 const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount = 0 }) => {
+  const router = useRouter();
+
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) {
+      console.warn('No date string provided');
+      return 'Date not available';
+    }
+
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date string:', dateString);
+      return 'Date not available';
+    }
+
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  };
+
   return (
     <div className="border rounded-lg p-4 mb-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start mb-2">
@@ -22,19 +44,9 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount 
         ? `${review.description.substring(0, 100)}...` 
         : review.description}</p>
       
-      {review.graphImageUrl && (
-        <div className="mb-4">
-          <img 
-            src={review.graphImageUrl} 
-            alt="Graph visualization" 
-            className="w-full h-40 object-cover rounded"
-          />
-        </div>
-      )}
-    
       <div className="flex justify-between items-center text-sm text-gray-500">
         <div>
-          <div>Created by {review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</div>
+          <div>Created by {review.user.name} on {formatDate(review.createdAt)}</div>
           {review.projectLead && (
             <div className="mt-1">
               Project Lead: {review.projectLead.name}
@@ -50,9 +62,15 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount 
           </div>
         </div>
         
-        <Link href={`/reviews/${review.id}`} className="text-blue-500 hover:underline">
+        <button 
+          onClick={() => {
+            console.log('View Discussion clicked for review:', review.id);
+            window.location.href = `/reviews/${review.id}`;
+          }}
+          className="text-blue-500 hover:underline cursor-pointer"
+        >
           View Discussion
-        </Link>
+        </button>
       </div>
     </div>
   );

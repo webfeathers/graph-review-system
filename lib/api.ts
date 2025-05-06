@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { supabaseAdmin } from './serverAuth';
 import type { ReviewWithProfile, CommentWithProfile, Profile } from '../types/supabase';
 import { dbToFrontendReview, dbToFrontendProfile, dbToFrontendComment, DbReview, DbProfile, DbComment } from '../types/supabase';
 
@@ -19,7 +20,21 @@ export const getReviews = async (userId?: string) => {
 
   const { data, error } = await query;
   if (error) throw error;
-  return data as ReviewWithProfile[];
+
+  // Transform the data to ensure proper date handling
+  return data.map(review => ({
+    ...review,
+    createdAt: review.created_at || new Date().toISOString(),
+    updatedAt: review.updated_at || new Date().toISOString(),
+    user: {
+      ...review.user,
+      createdAt: review.user.created_at || new Date().toISOString()
+    },
+    projectLead: review.projectLead ? {
+      ...review.projectLead,
+      createdAt: review.projectLead.created_at || new Date().toISOString()
+    } : undefined
+  })) as ReviewWithProfile[];
 };
 
 export const getReviewById = async (id: string): Promise<ReviewWithProfile> => {
@@ -87,18 +102,23 @@ export const updateReviewStatus = async (id: string, status: string) => {
 };
 
 export const updateProjectLead = async (reviewId: string, newLeadId: string, role: string) => {
-  const { data, error } = await supabase
-    .from('reviews')
-    .update({ project_lead_id: newLeadId })
-    .eq('id', reviewId)
-    .select(`
-      *,
-      user:profiles!reviews_user_id_fkey(id, name, email, created_at, role),
-      projectLead:profiles!reviews_project_lead_id_fkey(id, name, email, created_at, role)
-    `)
-    .single();
+  console.log('Updating project lead:', { reviewId, newLeadId, role });
 
-  if (error) throw error;
+  const response = await fetch(`/api/reviews/${reviewId}/project-lead`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+    },
+    body: JSON.stringify({ newLeadId })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to update project lead');
+  }
+
+  const { data } = await response.json();
   return data as ReviewWithProfile;
 };
 

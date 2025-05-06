@@ -275,6 +275,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             timestamp: Date.now(),
             version: globalCacheVersion
           });
+
+          // Only redirect if we're not already on the dashboard
+          if (typeof window !== 'undefined' && !window.location.pathname.includes('/dashboard')) {
+            router.push('/dashboard');
+          }
         }
         return true;
       }

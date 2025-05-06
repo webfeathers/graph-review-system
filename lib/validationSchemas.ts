@@ -41,14 +41,11 @@ export const reviewValidationSchema: ValidationSchema = {
     required('Kantata (Mavenlink) Project ID is required')
   ),
   accountName: createValidator(
-    required('Account name is required')
+    required('Account name is required'),
+    minLength(2, 'Account name must be at least 2 characters')
   ),
   projectLeadId: createValidator(
     required('Project Lead is required')
-  ),
-  graphImage: createValidator(
-    fileType(ALLOWED_IMAGE_TYPES, 'File must be a valid image (JPEG, PNG, GIF, or WEBP)'),
-    maxFileSize(MAX_FILE_SIZES.IMAGE, `File size must be less than ${MAX_FILE_SIZES.IMAGE / (1024 * 1024)}MB`)
   ),
   status: createValidator(
     required('Status is required'),
@@ -59,6 +56,10 @@ export const reviewValidationSchema: ValidationSchema = {
   ),
   handoffLink: createValidator(
     url('Please enter a valid URL for the handoff link')
+  ),
+  graphImage: createValidator(
+    fileType(['image/jpeg', 'image/png', 'image/gif', 'image/webp'], 'File must be a valid image (JPEG, PNG, GIF, or WEBP)'),
+    maxFileSize(MAX_FILE_SIZES.IMAGE, `File size must be less than ${MAX_FILE_SIZES.IMAGE / (1024 * 1024)}MB`)
   )
 };
 
@@ -87,8 +88,8 @@ export const profileValidationSchema: ValidationSchema = {
     email('Please enter a valid email address')
   ),
   avatar: createValidator(
-    fileType(ALLOWED_IMAGE_TYPES, 'File must be a valid image (JPEG, PNG, GIF, or WEBP)'),
-    maxFileSize(MAX_FILE_SIZES.AVATAR, `File size must be less than ${MAX_FILE_SIZES.AVATAR / (1024 * 1024)}MB`)
+    fileType(['image/jpeg', 'image/png', 'image/gif', 'image/webp'], 'File must be a valid image (JPEG, PNG, GIF, or WEBP)'),
+    maxFileSize(MAX_FILE_SIZES.IMAGE, `File size must be less than ${MAX_FILE_SIZES.IMAGE / (1024 * 1024)}MB`)
   )
 };
 
