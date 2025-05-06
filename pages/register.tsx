@@ -36,9 +36,9 @@ const Register: NextPage = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <img 
-            src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/graph-images/ld-logo.png" 
-            alt="LeanData Logo" 
-            className="h-12 mx-auto bg-[#FFFFFF] p-2 rounded-lg" 
+            src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/avatars/ld-logo.png" 
+            alt="Logo" 
+            className="h-12 w-auto" 
           />
           <h1 className="text-2xl font-bold mt-4 text-[#58595b]">Create Account</h1>
         </div>

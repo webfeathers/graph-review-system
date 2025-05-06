@@ -323,8 +323,7 @@ export async function createReview(
     use_case: reviewData.useCase,
     customer_folder: reviewData.customerFolder,
     handoff_link: reviewData.handoffLink,
-    project_lead_id: reviewData.projectLeadId,
-    graph_image_url: reviewData.graphImageUrl
+    project_lead_id: reviewData.projectLeadId
   };
 
   // Use the PASSED-IN, request-scoped client for the insert operation

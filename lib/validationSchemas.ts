@@ -56,10 +56,6 @@ export const reviewValidationSchema: ValidationSchema = {
   ),
   handoffLink: createValidator(
     url('Please enter a valid URL for the handoff link')
-  ),
-  graphImage: createValidator(
-    fileType(['image/jpeg', 'image/png', 'image/gif', 'image/webp'], 'File must be a valid image (JPEG, PNG, GIF, or WEBP)'),
-    maxFileSize(MAX_FILE_SIZES.IMAGE, `File size must be less than ${MAX_FILE_SIZES.IMAGE / (1024 * 1024)}MB`)
   )
 };
 

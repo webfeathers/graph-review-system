@@ -19,7 +19,6 @@ export const REVIEW_STATUSES = Object.values(ReviewStatus);
  */
 export enum StorageBucket {
   AVATARS = 'avatars',
-  GRAPH_IMAGES = 'graph-images',
   USER_AVATARS = 'user-avatars'
 }
 
@@ -80,6 +79,5 @@ export const AUTH = {
 
 export const STORAGE_BUCKETS = {
   AVATARS: StorageBucket.AVATARS,
-  GRAPH_IMAGES: StorageBucket.GRAPH_IMAGES,
   USER_AVATARS: StorageBucket.USER_AVATARS
 } as const;

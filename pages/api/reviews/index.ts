@@ -33,29 +33,18 @@ async function handler(
       
       const formData = req.body;
       
-      // --- START SERVER-SIDE VALIDATION ---
-      const validationErrors = validateForm(formData, {
-        title: reviewValidationSchema.title,
-        description: reviewValidationSchema.description,
-        kantataProjectId: reviewValidationSchema.kantataProjectId,
-        accountName: reviewValidationSchema.accountName,
-        projectLeadId: reviewValidationSchema.projectLeadId,
-        customerFolder: reviewValidationSchema.customerFolder,
-        handoffLink: reviewValidationSchema.handoffLink,
-        // Note: graphImage validation would happen separately if uploaded
-        // Note: Initial status is likely set server-side, not validated here
-      });
+      // Validate the incoming data
+      const validationResult = reviewValidationSchema.safeParse(req.body);
       
       // If validation fails, return errors
-      if (Object.keys(validationErrors).length > 0) {
-        console.log('Server-side validation failed:', validationErrors);
+      if (!validationResult.success) {
+        console.log('Server-side validation failed:', validationResult.error);
         return res.status(400).json({
           success: false,
           message: 'Validation failed',
-          errors: validationErrors
+          errors: validationResult.error.flatten()
         });
       }
-      // --- END SERVER-SIDE VALIDATION ---
       
       console.log('Server-side validation passed');
       

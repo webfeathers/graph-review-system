@@ -26,7 +26,8 @@ export function validateFile(
   }
   
   // Check file type
-  if (!allowedTypes.includes(file.type)) {
+  const fileType = file.type as string;
+  if (!allowedTypes.includes(fileType as any)) {
     return `File type not supported. Allowed types: ${allowedTypes.map(t => t.split('/')[1]).join(', ')}`;
   }
   

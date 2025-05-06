@@ -22,9 +22,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <a href="/" className="flex items-center">
             <img 
-              src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/graph-images/ld-logo.png" 
-              alt="LeanData Logo" 
-              className="h-8 mr-2" 
+              src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/avatars/ld-logo.png" 
+              alt="Logo" 
+              className="h-8 w-auto" 
             />
           </a>
           

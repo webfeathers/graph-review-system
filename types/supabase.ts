@@ -28,7 +28,6 @@ export interface DbReview {
   customer_folder?: string;
   handoff_link?: string;
   project_lead_id?: string;
-  graph_image_url?: string;
 }
 
 export interface DbComment {
@@ -42,7 +41,7 @@ export interface DbComment {
 // Frontend types (using camelCase)
 export interface Profile {
   id: string;
-  fullName: string;
+  name: string;
   email: string;
   createdAt: string;
   role: Role;
@@ -66,7 +65,6 @@ export interface Review {
   customerFolder?: string;
   handoffLink?: string;
   projectLeadId?: string;
-  graphImageUrl?: string;
 }
 
 export interface Comment {
@@ -96,7 +94,6 @@ export interface ReviewWithProfile {
   customerFolder?: string;
   handoffLink?: string;
   projectLeadId?: string;
-  graphImageUrl?: string;
   user: Profile;
   projectLead?: Profile;
   comments?: CommentWithProfile[];
@@ -125,8 +122,7 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     useCase: dbReview.use_case,
     customerFolder: dbReview.customer_folder,
     handoffLink: dbReview.handoff_link,
-    projectLeadId: dbReview.project_lead_id,
-    graphImageUrl: dbReview.graph_image_url
+    projectLeadId: dbReview.project_lead_id
   };
 }
 
@@ -172,8 +168,7 @@ export function frontendToDbReview(review: Review): DbReview {
     use_case: review.useCase,
     customer_folder: review.customerFolder,
     handoff_link: review.handoffLink,
-    project_lead_id: review.projectLeadId,
-    graph_image_url: review.graphImageUrl
+    project_lead_id: review.projectLeadId
   };
 }
 
@@ -203,7 +198,7 @@ export function dbToFrontendCommentWithProfile(dbComment: DbComment & { profiles
 export function dbToFrontendProfile(dbProfile: DbProfile): Profile {
   return {
     id: dbProfile.id,
-    fullName: dbProfile.name,
+    name: dbProfile.name,
     email: dbProfile.email,
     createdAt: dbProfile.created_at,
     role: dbProfile.role
@@ -228,7 +223,6 @@ export const transformReview = (dbReview: Review): ReviewWithProfile => ({
   customerFolder: dbReview.customerFolder,
   handoffLink: dbReview.handoffLink,
   projectLeadId: dbReview.projectLeadId,
-  graphImageUrl: dbReview.graphImageUrl,
   user: {} as Profile,
   projectLead: undefined
 });
@@ -250,6 +244,5 @@ export const transformReviewToDb = (review: ReviewWithProfile): Review => ({
   useCase: review.useCase,
   customerFolder: review.customerFolder,
   handoffLink: review.handoffLink,
-  projectLeadId: review.projectLeadId,
-  graphImageUrl: review.graphImageUrl
+  projectLeadId: review.projectLeadId
 });
