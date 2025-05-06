@@ -43,6 +43,9 @@ export const reviewValidationSchema: ValidationSchema = {
   accountName: createValidator(
     required('Account name is required')
   ),
+  projectLeadId: createValidator(
+    required('Project Lead is required')
+  ),
   graphImage: createValidator(
     fileType(ALLOWED_IMAGE_TYPES, 'File must be a valid image (JPEG, PNG, GIF, or WEBP)'),
     maxFileSize(MAX_FILE_SIZES.IMAGE, `File size must be less than ${MAX_FILE_SIZES.IMAGE / (1024 * 1024)}MB`)

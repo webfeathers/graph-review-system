@@ -45,6 +45,7 @@ const NewReview: NextPage = () => {
   const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [graphImage, setGraphImage] = useState<File | null>(null);
   const [graphImageUrl, setGraphImageUrl] = useState<string>('');
   const [graphImageError, setGraphImageError] = useState<string | null>(null);
@@ -82,7 +83,24 @@ const NewReview: NextPage = () => {
     // Only run this effect when user, router.isReady, or query params change
   }, [user, router.isReady, router.query.kantataProjectId, router.query.title]);
 
-  // Initialize form
+  // Add debugging for auth context
+  useEffect(() => {
+    console.log('Auth context in NewReview:', {
+      user,
+      authLoading,
+      isAdmin: isAdmin && typeof isAdmin === 'function' ? isAdmin() : null
+    });
+  }, [user, authLoading, isAdmin]);
+
+  // Update Project Lead ID when user changes
+  useEffect(() => {
+    if (user && form) {
+      console.log('Updating Project Lead ID with user:', user.id);
+      form.setFieldValue('projectLeadId', user.id);
+    }
+  }, [user]);
+
+  // Initialize form with proper typing for user
   const form = useForm<ReviewFormValues>({
     initialValues: {
       title: '',
@@ -96,7 +114,7 @@ const NewReview: NextPage = () => {
       useCase: '',
       customerFolder: '',
       handoffLink: '',
-      projectLeadId: '' // Default to empty, will be set to creator if not specified
+      projectLeadId: user?.id || '' // Initialize with current user's ID if available
     },
     validationSchema: {
       title: reviewValidationSchema.title,
@@ -104,7 +122,8 @@ const NewReview: NextPage = () => {
       accountName: reviewValidationSchema.accountName,
       kantataProjectId: reviewValidationSchema.kantataProjectId,
       customerFolder: reviewValidationSchema.customerFolder,
-      handoffLink: reviewValidationSchema.handoffLink
+      handoffLink: reviewValidationSchema.handoffLink,
+      projectLeadId: reviewValidationSchema.projectLeadId // Add validation for Project Lead
     },
     validateOnChange: false,
     validateOnBlur: true,
@@ -149,82 +168,70 @@ const NewReview: NextPage = () => {
   // Handle form submission
   async function handleSubmit(values: ReviewFormValues) {
     try {
-      // Clear any previous errors
+      if (isSubmitting) return; // Prevent double submission
+      setIsSubmitting(true);
       setGeneralError(null);
 
-      if (!user) {
-        setGeneralError('You must be logged in to submit a review');
-        form.setSubmitting(false);
-        return;
-      }
+      console.log('Form submission values:', values);
 
-      let uploadedImageUrl;
+      // Get the current session to ensure we have the latest auth state
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      // Upload image if provided
-      if (graphImage) {
-        try {
-          // Create a unique filename
-          const timestamp = Date.now();
-          const safeFileName = graphImage.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-          const filename = `${timestamp}_${safeFileName}`;
-          
-          // Upload to Supabase storage
-          const { data, error } = await supabase.storage
-            .from(StorageBucket.GRAPH_IMAGES)
-            .upload(filename, graphImage);
-          
-          if (error) {
-            throw error;
-          }
-          
-          // Get the public URL
-          const { data: urlData } = supabase.storage
-            .from(StorageBucket.GRAPH_IMAGES)
-            .getPublicUrl(data.path);
-          
-          uploadedImageUrl = urlData.publicUrl;
-        } catch (error) {
-          console.error('Error uploading image:', error);
-          setGeneralError('Failed to upload image. Please try again.');
-          form.setSubmitting(false);
-          return;
-        }
+      if (sessionError) {
+        console.error('Error getting session:', sessionError);
+        throw new Error('Authentication error. Please try again.');
       }
 
-      // Create the review using the utility function
-      try {
-        const result = await createReview({
-          title: values.title,
-          description: values.description,
-          graphImageUrl: uploadedImageUrl,
-          status: 'Submitted',
-          userId: user.id,
-          // New fields
-          accountName: values.accountName,
-          orgId: values.orgId,
-          segment: values.segment as 'Enterprise' | 'MidMarket',
-          remoteAccess: values.remoteAccess,
-          graphName: values.graphName,
-          useCase: values.useCase,
-          customerFolder: values.customerFolder,
-          handoffLink: values.handoffLink,
-          projectLeadId: values.projectLeadId || user.id // Use specified Project Lead or default to creator
-
-        });
-        
-        console.log('Review created successfully:', result);
-        
-        window.location.href = '/reviews';
-        
-      } catch (error) {
-        console.error('Error creating review:', error);
-        setGeneralError(error instanceof Error ? error.message : 'Failed to create review');
-        form.setSubmitting(false);
+      if (!session?.user) {
+        throw new Error('You must be logged in to create a review');
       }
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      setGeneralError('An unexpected error occurred. Please try again.');
-      form.setSubmitting(false);
+
+      const currentUserId = session.user.id;
+      console.log('Current user ID from session:', currentUserId);
+
+      // Ensure project lead is set
+      if (!values.projectLeadId) {
+        values.projectLeadId = currentUserId;
+      }
+
+      // Check if the project lead exists
+      const { data: projectLead, error: projectLeadError } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .eq('id', values.projectLeadId)
+        .single();
+
+      if (projectLeadError || !projectLead) {
+        console.error('Error checking project lead:', projectLeadError);
+        throw new Error('Invalid Project Lead selected');
+      }
+
+      console.log('Found project lead:', projectLead);
+
+      // Create the review with the validated project lead
+      const reviewData = {
+        ...values,
+        userId: currentUserId,
+        status: 'Submitted' as const,
+        projectLeadId: projectLead.id,
+        segment: values.segment as 'Enterprise' | 'MidMarket'
+      };
+
+      const newReview = await createReview(reviewData);
+      console.log('Review created successfully:', newReview);
+
+      // Ensure we have a valid review ID before redirecting
+      if (!newReview?.id) {
+        throw new Error('Failed to create review - no ID returned');
+      }
+
+      // Use window.location for a hard redirect
+      window.location.href = `/reviews/${newReview.id}`;
+    } catch (error: any) {
+      console.error('Error creating review:', error);
+      setGeneralError(error.message || 'Failed to create review');
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -436,10 +443,11 @@ const NewReview: NextPage = () => {
               </button>
               
               <SubmitButton
-                isSubmitting={form.isSubmitting}
+                isSubmitting={isSubmitting}
                 label="Submit Review"
                 submittingLabel="Submitting..."
-                disabled={form.isSubmitting || !!graphImageError}
+                disabled={isSubmitting}
+                className="mt-6"
               />
             </div>
           </Form>

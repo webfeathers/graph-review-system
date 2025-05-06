@@ -1,7 +1,7 @@
 // pages/_app.tsx
 import '../styles/globals.css';
 import type { AppProps } from 'next/app';
-import { AuthProvider } from '../components/AuthProvider';
+import AuthProvider from '../components/AuthProvider';
 import { useEffect } from 'react'; // Add this import
 import { useRouter } from 'next/router'; // Add this import too
 

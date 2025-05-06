@@ -386,36 +386,92 @@ async function reviewHandler(
       
       console.log('Updating review with data:', updateData);
 
-      // Update the review status
-      const { data: updatedReview, error: updateError } = await supabase
+      // First verify the review exists
+      const { data: existingReview, error: checkError } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (checkError || !existingReview) {
+        console.error('Error checking review existence:', checkError);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Review not found',
+          error: checkError?.message || 'Review does not exist'
+        });
+      }
+
+      // Then perform the update without returning
+      const { error: updateError } = await supabase
         .from('reviews')
         .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
+        .eq('id', id);
 
       if (updateError) {
         console.error('Error updating review:', updateError);
         return res.status(500).json({ 
           success: false, 
           message: 'Error updating review', 
-          error: 'Database update failed' 
+          error: updateError.message || 'Database update failed' 
         });
       }
-      
-      if (!updatedReview) {
-        console.error('Update succeeded but review not found in result');
-        return res.status(500).json({
-          success: false,
-          message: 'Update succeeded but could not retrieve the updated review'
+
+      // After successful update, fetch the updated review
+      const { data: updatedReview, error: fetchError } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !updatedReview) {
+        console.error('Error fetching updated review:', fetchError);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Error fetching updated review', 
+          error: fetchError?.message || 'Could not fetch updated review'
         });
       }
-      
+
+      // Fetch user profile
+      const { data: userProfile, error: userError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', updatedReview.user_id)
+        .single();
+
+      if (userError) {
+        console.error('Error fetching user profile:', userError);
+      }
+
+      // Fetch project lead profile if it exists
+      let projectLeadProfile = null;
+      if (updatedReview.project_lead_id) {
+        const { data: leadProfile, error: leadError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', updatedReview.project_lead_id)
+          .single();
+          
+        if (leadError) {
+          console.error('Error fetching project lead profile:', leadError);
+        } else if (leadProfile) {
+          projectLeadProfile = leadProfile;
+        }
+      }
+
+      // Construct the complete review object
+      const completeReview = {
+        ...updatedReview,
+        user: userProfile || null,
+        project_lead: projectLeadProfile
+      };
+
       // Send email notification if status changed
       if (status !== undefined && previousStatus !== status) {
         try {
           // Get the review owner's email and profile info
-          const reviewOwner = review.profiles;
+          const reviewOwner = userProfile;
           
           // Skip notification if no owner email or missing info
           if (reviewOwner && reviewOwner.email) {
@@ -434,7 +490,7 @@ async function reviewHandler(
             // Send notification using helper method
             await EmailService.sendStatusChangeNotification(
               id,
-              review.title,
+              updatedReview.title,
               reviewOwner.email,
               reviewOwner.name || 'User',
               previousStatus,
@@ -455,7 +511,7 @@ async function reviewHandler(
 
       return res.status(200).json({
         success: true,
-        data: updatedReview
+        data: completeReview
       });
     } catch (error) {
       console.error('Unexpected error in PATCH review:', error);

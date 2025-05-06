@@ -109,12 +109,19 @@ export async function getReviews(userId?: string) {
  */
 export async function getReviewById(id: string) {
   try {
-    // Use a single query with join to get the review and profile
+    // Use a single query with join to get the review, user profile, and project lead
     const { data: review, error } = await supabase
       .from('reviews')
       .select(`
         *,
         profiles:user_id (
+          id,
+          name,
+          email,
+          created_at,
+          role
+        ),
+        project_lead:project_lead_id (
           id,
           name,
           email,
@@ -134,8 +141,9 @@ export async function getReviewById(id: string) {
       throw new Error('Review not found');
     }
 
-    // Extract the profile from the join result
-    const profile = review.profiles;
+    // Extract the profiles from the join result
+    const userProfile = review.profiles;
+    const projectLeadProfile = review.project_lead;
 
     // Convert to frontend format
     const frontendReview: Review = {
@@ -155,28 +163,38 @@ export async function getReviewById(id: string) {
       graphName: review.graph_name || '',
       useCase: review.use_case || '',
       customerFolder: review.customer_folder || '',
-      handoffLink: review.handoff_link || ''
+      handoffLink: review.handoff_link || '',
+      projectLeadId: review.project_lead_id || ''
     };
 
-    // Create review with profile
+    // Create review with profiles
     const reviewWithProfile: ReviewWithProfile = {
       ...frontendReview,
-      user: profile ? {
-        id: profile.id,
-        name: profile.name || 'Unknown User',
-        email: profile.email || '',
-        // Fix here too
-        createdAt: profile.created_at,
-        role: profile.role || 'Member'
+      user: userProfile ? {
+        id: userProfile.id,
+        name: userProfile.name || 'Unknown User',
+        email: userProfile.email || '',
+        createdAt: userProfile.created_at,
+        role: userProfile.role || 'Member'
       } : {
         id: review.user_id,
         name: 'Unknown User',
         email: '',
-        // And here
         createdAt: review.created_at,
         role: 'Member'
       }
     };
+
+    // Add project lead if available
+    if (projectLeadProfile) {
+      reviewWithProfile.projectLead = {
+        id: projectLeadProfile.id,
+        name: projectLeadProfile.name || 'Unknown User',
+        email: projectLeadProfile.email || '',
+        createdAt: projectLeadProfile.created_at,
+        role: projectLeadProfile.role || 'Member'
+      };
+    }
 
     return reviewWithProfile;
   } catch (err) {
@@ -271,6 +289,27 @@ export const getCommentsByReviewId = async (reviewId: string) => {
  * @returns The created review
  */
 export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>) {
+  console.log('Creating review with data:', reviewData);
+  console.log('Project Lead ID from review data:', reviewData.projectLeadId);
+  
+  // Validate Project Lead ID
+  if (!reviewData.projectLeadId) {
+    console.error('Missing Project Lead ID');
+    throw new Error('Project Lead ID is required');
+  }
+
+  // Validate that Project Lead exists
+  const { data: projectLead, error: projectLeadError } = await supabase
+    .from('profiles')
+    .select('id, name, email, role')
+    .eq('id', reviewData.projectLeadId)
+    .single();
+
+  if (projectLeadError || !projectLead) {
+    console.error('Invalid Project Lead ID:', reviewData.projectLeadId);
+    throw new Error('Invalid Project Lead ID');
+  }
+
   // Convert the camelCase to snake_case for the database
   const dbReviewData = {
     title: reviewData.title,
@@ -287,22 +326,46 @@ export async function createReview(reviewData: Omit<Review, 'id' | 'createdAt' |
     use_case: reviewData.useCase,
     customer_folder: reviewData.customerFolder,
     handoff_link: reviewData.handoffLink,
-    project_lead_id: reviewData.projectLeadId || reviewData.userId // Default to creator if not specified
-
+    project_lead_id: reviewData.projectLeadId,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
 
-  const { data, error } = await supabase
+  // First create the review
+  const { data: newReview, error: createError } = await supabase
     .from('reviews')
     .insert(dbReviewData)
-    .select()
+    .select('*')
     .single();
 
-  if (error) {
-    console.error('Error creating review:', error);
-    throw error;
+  if (createError) {
+    console.error('Error creating review:', createError);
+    throw new Error(`Failed to create review: ${createError.message}`);
   }
 
-  return dbToFrontendReview(data);
+  if (!newReview) {
+    throw new Error('Review creation failed - no data returned');
+  }
+
+  // Now fetch the complete review with profiles in a separate query
+  const { data: reviewWithProfiles, error: fetchError } = await supabase
+    .from('reviews')
+    .select(`
+      *,
+      profiles:user_id (*),
+      project_lead:profiles!project_lead_id (*)
+    `)
+    .eq('id', newReview.id)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching complete review:', fetchError);
+    // Return basic review if we can't fetch the complete one
+    return dbToFrontendReview(newReview);
+  }
+
+  // Transform to frontend format
+  return dbToFrontendReviewWithProfile(reviewWithProfiles);
 }
 
 /**

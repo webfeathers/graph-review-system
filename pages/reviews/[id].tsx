@@ -316,8 +316,8 @@ const ReviewPage: NextPage = () => {
                 {/* Project Lead section */}
                 <div className="mb-4">
                   <span className="font-medium">Project Lead:</span>{' '}
-                  {projectLead ? (
-                    <span>{projectLead.name} ({projectLead.email})</span>
+                  {review.projectLead ? (
+                    <span>{review.projectLead.name} ({review.projectLead.email})</span>
                   ) : (
                     <span className="text-gray-500">Not assigned</span>
                   )}

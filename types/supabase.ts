@@ -31,7 +31,8 @@ export interface DbReview {
   handoff_link?: string;
   // For joined data
   profiles?: DbProfile;
-  project_lead_id?: string; // New field for Project Lead
+  project_lead_id?: string; // Optional for backward compatibility
+  project_lead?: DbProfile; // For joined data
 }
 
 export interface DbComment {
@@ -121,7 +122,7 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
 
 export function dbToFrontendReviewWithProfile(dbReview: DbReview & { 
   profiles?: DbProfile,
-  project_lead?: DbProfile // Add this parameter
+  project_lead?: DbProfile
 }): ReviewWithProfile {
   const review = dbToFrontendReview(dbReview);
   
