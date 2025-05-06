@@ -162,10 +162,29 @@ const AdminPage: NextPage = () => {
                     {results.map((result) => (
                       <tr key={result.reviewId} className={result.isValid ? 'bg-green-50' : 'bg-red-50'}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm">
-                          <div className="font-medium text-gray-900">{result.reviewTitle}</div>
-                          <div className="text-gray-500">ID: {result.reviewId}</div>
+                          <div className="font-medium text-gray-900">
+                            <Link href={`/reviews/${result.reviewId}`} className="text-blue-600 hover:text-blue-900">
+                              {result.reviewTitle}
+                            </Link>
+                          </div>
+                          <div className="text-gray-500">
+                            Review ID:{' '}
+                            <Link href={`/reviews/${result.reviewId}`} className="text-blue-600 hover:text-blue-900">
+                              {result.reviewId}
+                            </Link>
+                          </div>
                           {result.kantataProjectId !== 'N/A' && (
-                            <div className="text-gray-500">Kantata ID: {result.kantataProjectId}</div>
+                            <div className="text-gray-500">
+                              Kantata ID:{' '}
+                              <a 
+                                href={`https://leandata.mavenlink.com/workspaces/${result.kantataProjectId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                {result.kantataProjectId}
+                              </a>
+                            </div>
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
