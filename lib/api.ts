@@ -75,13 +75,13 @@ export const getReviewById = async (id: string): Promise<ReviewWithProfile> => {
   const reviewWithProfile: ReviewWithProfile = {
     ...review,
     user: typedRawData.user ? dbToFrontendProfile(typedRawData.user as DbProfile) : {
-      id: review.userId, name: 'Unknown User', email: '', createdAt: review.createdAt, role: 'Member'
+      id: review.userId, fullName: 'Unknown User', email: '', createdAt: review.createdAt, role: 'Member'
     },
     projectLead: typedRawData.projectLead ? dbToFrontendProfile(typedRawData.projectLead as DbProfile) : undefined,
     comments: typedRawData.comments ? (typedRawData.comments as any[]).map(comment => ({
       ...dbToFrontendComment(comment as DbComment),
       user: comment.user ? dbToFrontendProfile(comment.user as DbProfile) : {
-        id: comment.user_id, name: 'Unknown Commenter', email: '', createdAt: comment.created_at, role: 'Member'
+        id: comment.user_id, fullName: 'Unknown Commenter', email: '', createdAt: comment.created_at, role: 'Member'
       }
     })) : []
   };

@@ -42,7 +42,7 @@ export interface DbComment {
 // Frontend types (using camelCase)
 export interface Profile {
   id: string;
-  name: string;
+  fullName: string;
   email: string;
   createdAt: string;
   role: Role;
@@ -203,7 +203,7 @@ export function dbToFrontendCommentWithProfile(dbComment: DbComment & { profiles
 export function dbToFrontendProfile(dbProfile: DbProfile): Profile {
   return {
     id: dbProfile.id,
-    name: dbProfile.name,
+    fullName: dbProfile.name,
     email: dbProfile.email,
     createdAt: dbProfile.created_at,
     role: dbProfile.role
