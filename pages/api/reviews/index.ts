@@ -34,15 +34,15 @@ async function handler(
       const formData = req.body;
       
       // Validate the incoming data
-      const validationResult = reviewValidationSchema.safeParse(req.body);
+      const validationErrors = validateForm(formData, reviewValidationSchema);
       
       // If validation fails, return errors
-      if (!validationResult.success) {
-        console.log('Server-side validation failed:', validationResult.error);
+      if (Object.keys(validationErrors).length > 0) {
+        console.log('Server-side validation failed:', validationErrors);
         return res.status(400).json({
           success: false,
           message: 'Validation failed',
-          errors: validationResult.error.flatten()
+          errors: validationErrors
         });
       }
       
