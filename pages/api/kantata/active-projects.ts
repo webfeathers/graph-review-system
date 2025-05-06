@@ -128,6 +128,7 @@ async function handler(
     }));
 
     return res.status(200).json({
+      success: true,
       message: `Found ${projectsWithReviews.length} active projects`,
       projects: projectsWithReviews
     });
@@ -135,6 +136,7 @@ async function handler(
   } catch (error) {
     console.error('Error in active-projects API:', error);
     return res.status(500).json({
+      success: false,
       message: error instanceof Error ? error.message : 'An unexpected error occurred',
       projects: []
     });

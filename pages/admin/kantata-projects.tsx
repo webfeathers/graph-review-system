@@ -86,7 +86,7 @@ const KantataProjectsPage: NextPage = () => {
       
       const data = await response.json();
       
-      if (!data.success) {
+      if (!data.success && !data.projects) {
         throw new Error(data.message || 'Failed to fetch Kantata projects');
       }
       
