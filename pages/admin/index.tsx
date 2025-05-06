@@ -8,6 +8,7 @@ import { Button } from '../../components/Button';
 import { ErrorDisplay } from '../../components/ErrorDisplay';
 import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 // Interface for validation result
 interface ValidationResult {
@@ -26,6 +27,7 @@ interface ValidationResult {
 }
 
 const AdminPage: NextPage = () => {
+  const router = useRouter();
   // State for validation
   const [validating, setValidating] = useState(false);
   const [results, setResults] = useState<ValidationResult[]>([]);
@@ -102,6 +104,10 @@ const AdminPage: NextPage = () => {
     }
   };
 
+  const handleReviewClick = (reviewId: string) => {
+    router.push(`/reviews/${reviewId}`);
+  };
+
   return (
     <Layout>
       <div className="mb-8">
@@ -163,15 +169,16 @@ const AdminPage: NextPage = () => {
                       <tr key={result.reviewId} className={result.isValid ? 'bg-green-50' : 'bg-red-50'}>
                         <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm">
                           <div className="font-medium text-gray-900">
-                            <Link href={`/reviews/${result.reviewId}`} className="text-blue-600 hover:text-blue-900">
+                            <a
+                              href={`/reviews/${result.reviewId}`}
+                              target="_self"
+                              className="text-blue-600 hover:text-blue-900 inline-flex items-center gap-1 cursor-pointer"
+                            >
                               {result.reviewTitle}
-                            </Link>
-                          </div>
-                          <div className="text-gray-500">
-                            Review ID:{' '}
-                            <Link href={`/reviews/${result.reviewId}`} className="text-blue-600 hover:text-blue-900">
-                              {result.reviewId}
-                            </Link>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                              </svg>
+                            </a>
                           </div>
                           {result.kantataProjectId !== 'N/A' && (
                             <div className="text-gray-500">
