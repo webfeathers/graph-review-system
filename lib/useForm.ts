@@ -76,11 +76,17 @@ export function useForm<T extends FormValues>(options: UseFormOptions<T>): UseFo
     const newErrors = validateForm(values, validationSchema);
     const formIsValid = !hasErrors(newErrors);
     
-    setFormState(prev => ({
-      ...prev,
-      errors: newErrors,
-      isValid: formIsValid
-    }));
+    // Only update state if errors or validity have changed
+    setFormState(prev => {
+      if (JSON.stringify(prev.errors) === JSON.stringify(newErrors) && prev.isValid === formIsValid) {
+        return prev;
+      }
+      return {
+        ...prev,
+        errors: newErrors,
+        isValid: formIsValid
+      };
+    });
     
     return newErrors;
   }, [values, validationSchema]);
@@ -310,13 +316,6 @@ export function useForm<T extends FormValues>(options: UseFormOptions<T>): UseFo
     setTouched,
     setFieldTouched
   ]);
-
-  // Validate form when validation schema changes
-  useEffect(() => {
-    if (Object.keys(validationSchema).length > 0) {
-      validateFormValues();
-    }
-  }, [validationSchema, validateFormValues]);
 
   // Return form state and handlers
   return {

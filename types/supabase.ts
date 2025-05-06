@@ -19,7 +19,6 @@ export interface DbReview {
   user_id: string;
   created_at: string;
   updated_at: string;
-  // New fields
   account_name?: string;
   kantata_project_id?: string;
   org_id?: string;
@@ -29,10 +28,7 @@ export interface DbReview {
   use_case?: string;
   customer_folder?: string;
   handoff_link?: string;
-  // For joined data
-  profiles?: DbProfile;
-  project_lead_id?: string; // Optional for backward compatibility
-  project_lead?: DbProfile; // For joined data
+  project_lead_id?: string;
 }
 
 export interface DbComment {
@@ -41,8 +37,6 @@ export interface DbComment {
   review_id: string;
   user_id: string;
   created_at: string;
-  // For joined data
-  profiles?: DbProfile;
 }
 
 // Frontend types (using camelCase)
@@ -63,17 +57,16 @@ export interface Review {
   userId: string;
   createdAt: string;
   updatedAt: string;
-  // New fields
   accountName?: string;
-  orgId?: string;
   kantataProjectId?: string;
+  orgId?: string;
   segment?: 'Enterprise' | 'MidMarket';
   remoteAccess?: boolean;
   graphName?: string;
   useCase?: string;
   customerFolder?: string;
   handoffLink?: string;
-  projectLeadId?: string; // New field for Project Lead
+  projectLeadId?: string;
 }
 
 export interface Comment {
@@ -87,9 +80,9 @@ export interface Comment {
 // With joined relationships
 export interface ReviewWithProfile extends Review {
   user: Profile;
-  projectLead?: Profile; // Add this line for Project Lead
+  projectLead?: Profile;
+  comments?: CommentWithProfile[];
 }
-
 
 export interface CommentWithProfile extends Comment {
   user: Profile;
@@ -106,17 +99,16 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     userId: dbReview.user_id,
     createdAt: dbReview.created_at,
     updatedAt: dbReview.updated_at,
-    // Handle potentially missing fields with default values
-    accountName: dbReview.account_name || '',
-    orgId: dbReview.org_id || '',
-    kantataProjectId: dbReview.kantata_project_id || '',
-    segment: dbReview.segment as 'Enterprise' | 'MidMarket' || 'Enterprise',
-    remoteAccess: dbReview.remote_access || false,
-    graphName: dbReview.graph_name || '',
-    useCase: dbReview.use_case || '',
-    customerFolder: dbReview.customer_folder || '',
-    handoffLink: dbReview.handoff_link || '',
-    projectLeadId: dbReview.project_lead_id || ''
+    accountName: dbReview.account_name,
+    kantataProjectId: dbReview.kantata_project_id,
+    orgId: dbReview.org_id,
+    segment: dbReview.segment,
+    remoteAccess: dbReview.remote_access,
+    graphName: dbReview.graph_name,
+    useCase: dbReview.use_case,
+    customerFolder: dbReview.customer_folder,
+    handoffLink: dbReview.handoff_link,
+    projectLeadId: dbReview.project_lead_id
   };
 }
 
@@ -144,7 +136,6 @@ export function dbToFrontendReviewWithProfile(dbReview: DbReview & {
   return result;
 }
 
-
 export function frontendToDbReview(review: Review): DbReview {
   return {
     id: review.id,
@@ -155,10 +146,9 @@ export function frontendToDbReview(review: Review): DbReview {
     user_id: review.userId,
     created_at: review.createdAt,
     updated_at: review.updatedAt,
-    // New fields
     account_name: review.accountName,
-    org_id: review.orgId,
     kantata_project_id: review.kantataProjectId,
+    org_id: review.orgId,
     segment: review.segment,
     remote_access: review.remoteAccess,
     graph_name: review.graphName,

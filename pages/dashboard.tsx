@@ -2,15 +2,23 @@
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
-import { useAuth } from '../components/AuthProvider';
-import { getReviews } from '../lib/supabaseUtils';
-import { ReviewWithProfile } from '../types/supabase';
-import GraphReviewCard from '../components/GraphReviewCard';
-import { LoadingState } from '../components/LoadingState';
-import { EmptyState } from '../components/EmptyState';
 import Link from 'next/link';
+
+// Components and Hooks
+import { 
+  Layout, 
+  GraphReviewCard, 
+  LoadingState, 
+  EmptyState,
+  useAuth 
+} from '../components';
+
+// API
+import { getReviews } from '../lib/api';
 import { supabase } from '../lib/supabase';
+
+// Types
+import { ReviewWithProfile } from '../types/supabase';
 
 // Interface for review with comment count
 interface ReviewWithCommentCount extends ReviewWithProfile {

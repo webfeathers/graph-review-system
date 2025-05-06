@@ -25,6 +25,7 @@ import { ReviewWithProfile, Role } from '../../../types/supabase';
 import { reviewValidationSchema } from '../../../lib/validationSchemas';
 import { validateForm } from '../../../lib/validationUtils';
 import ProjectLeadSelector from '../../../components/ProjectLeadSelector';
+import { validateKantataProject } from '../../../lib/supabaseUtils';
 
 
 
@@ -269,61 +270,39 @@ const EditReview: NextPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
-    if (!validate()) {
-      return;
-    }
-    
-    setSubmitting(true);
-    
     try {
-      if (!user) {
-        throw new Error('You must be logged in to update a review');
+      if (!id) {
+        throw new Error('No review ID provided');
+      }
+
+      setSubmitting(true);
+      setError(null);
+      
+      // Validate form data
+      const validationErrors = validateForm(
+        {
+          title,
+          description,
+          accountName,
+          kantataProjectId,
+          customerFolder,
+          handoffLink
+        },
+        reviewValidationSchema
+      );
+      
+      if (Object.keys(validationErrors).length > 0) {
+        setFormErrors(validationErrors);
+        return;
       }
       
-      if (!review) {
-        throw new Error('Review not found');
-      }
-      
-      if (!isAuthorized) {
-        throw new Error('You are not authorized to edit this review');
-      }
-      
-      let uploadedImageUrl = review.graphImageUrl;
-      
-      // Upload new image if provided
-      if (graphImage) {
-        try {
-          console.log('Uploading new image');
-          // Create a unique filename
-          const timestamp = Date.now();
-          const safeFileName = graphImage.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-          const filename = `${timestamp}_${safeFileName}`;
-          
-          // Upload to Supabase storage
-          const { data, error } = await supabase.storage
-            .from(StorageBucket.GRAPH_IMAGES)
-            .upload(filename, graphImage);
-          
-          if (error) {
-            throw error;
-          }
-          
-          // Get the public URL
-          const { data: urlData } = supabase.storage
-            .from(StorageBucket.GRAPH_IMAGES)
-            .getPublicUrl(data.path);
-          
-          uploadedImageUrl = urlData.publicUrl;
-          console.log('Image uploaded successfully:', uploadedImageUrl);
-        } catch (err) {
-          console.error('Error uploading image:', err);
-          throw new Error('Failed to upload image. Please try again.');
+      // Validate Kantata Project ID if changed
+      if (kantataProjectId && review && kantataProjectId !== review.kantataProjectId) {
+        const kantataValidation = await validateKantataProject(kantataProjectId);
+        if (!kantataValidation.isValid) {
+          setError(`Invalid Kantata Project: ${kantataValidation.message}`);
+          return;
         }
-      } else if (graphImageUrl === '') {
-        // User cleared the image
-        uploadedImageUrl = ''; // Use empty string instead of null
-        console.log('Image cleared');
       }
       
       // Get token for authentication
@@ -334,10 +313,8 @@ const EditReview: NextPage = () => {
         throw new Error('No authentication token available');
       }
       
-      console.log(`About to send PUT request to: /api/reviews/${review?.id}`);
-      
       // Update the review via API
-      const response = await fetch(`/api/reviews/${review.id}`, {
+      const response = await fetch(`/api/reviews/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -346,17 +323,17 @@ const EditReview: NextPage = () => {
         body: JSON.stringify({
           title,
           description,
-          graphImageUrl: uploadedImageUrl,
+          graphImageUrl,
           accountName,
           orgId,
+          kantataProjectId,
           segment,
           remoteAccess,
           graphName,
           useCase,
           customerFolder,
           handoffLink,
-          kantataProjectId,
-          projectLeadId: newLeadId 
+          projectLeadId: newLeadId || review?.projectLeadId
         })
       });
       
@@ -379,8 +356,8 @@ const EditReview: NextPage = () => {
       
       console.log('Review updated successfully');
       
-      // Success - redirect to the review page
-      router.push(`/reviews/${review.id}`);
+      // Success - redirect to the review page using the id from router.query
+      router.push(`/reviews/${id}`);
     } catch (err) {
       console.error('Error submitting form:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');

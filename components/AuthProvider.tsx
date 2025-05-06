@@ -31,8 +31,8 @@ type RoleCacheEntry = {
 // Cache for user roles to reduce database queries
 const userRoleCache = new Map<string, RoleCacheEntry>();
 
-// Role cache expiration time (5 minutes)
-const ROLE_CACHE_TTL = 5 * 60 * 1000;
+// Increase cache TTL to 15 minutes for better performance
+const ROLE_CACHE_TTL = 15 * 60 * 1000;
 
 // Global version counter for cache invalidation
 let globalCacheVersion = 0;
@@ -43,6 +43,16 @@ const MAX_PROFILE_CHECKS = 10; // Maximum profile checks per minute
 
 // Rate limiting state
 const profileCheckCounts = new Map<string, { count: number; windowStart: number }>();
+
+// Add a session cache
+const SESSION_CACHE_KEY = 'auth_session_cache';
+const SESSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Cache for session data
+let sessionCache: {
+  session: Session | null;
+  timestamp: number;
+} | null = null;
 
 // Function to invalidate all role caches
 const invalidateAllRoleCaches = () => {
@@ -82,18 +92,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
   const router = useRouter();
 
   // Initialize SessionService on mount
   useEffect(() => {
-    // Cleanup function to run on unmount
     let isUnmounted = false;
     let sessionListener: (() => void) | null = null;
 
     const initializeAuth = async () => {
       try {
+        if (isUnmounted || initialized) return;
+        
         console.log("Initializing auth with SessionService...");
-        setLoading(true);
         
         // Initialize the session service
         await SessionService.initialize();
@@ -102,40 +113,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const initialSession = SessionService.getSession();
         const initialUser = SessionService.getUser();
         
-        console.log("Initial auth state:", {
-          session: initialSession,
-          user: initialUser
-        });
-
         if (!isUnmounted) {
+          // Set initial state first
           setSession(initialSession);
           setUser(initialUser);
+          setLoading(false);
+          setInitialized(true);
           
+          // Then load role if we have a user
           if (initialUser) {
-            // Load user role
             const role = await loadUserRole(initialUser.id);
-            console.log("Loaded initial user role:", role);
+            if (!isUnmounted) {
+              setUserRole(role);
+            }
           }
-        }
-        
-        // Set up session event listener
-        if (!isUnmounted) {
+          
+          // Set up session event listener after initial state is set
           sessionListener = SessionService.addEventListener(handleSessionEvent);
         }
-
-        setLoading(false);
-        console.log("Auth initialization complete");
       } catch (err) {
         console.error('Error during auth initialization:', err);
         if (!isUnmounted) {
+          setSession(null);
+          setUser(null);
+          setUserRole(null);
           setLoading(false);
+          setInitialized(true);
         }
       }
     };
 
     initializeAuth();
     
-    // Cleanup on unmount
     return () => {
       isUnmounted = true;
       if (sessionListener) {
@@ -144,121 +153,92 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  // Load user role with improved caching and rate limiting
+  // Load user role with improved caching
   const loadUserRole = async (userId: string): Promise<Role | null> => {
     try {
-      console.log("Loading user role for:", userId);
-      
-      // Check cache first
+      // Check cache first with longer TTL
       const cached = userRoleCache.get(userId);
       
       if (cached && isCacheValid(cached)) {
-        console.log("Using cached role:", cached.role);
-        setUserRole(cached.role);
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Using cached role:", cached.role);
+        }
         return cached.role;
       }
       
       // Check rate limit before making database call
       if (isRateLimited(userId)) {
         console.warn(`Rate limit exceeded for user ${userId}. Using cached or default role.`);
-        // Use cached value even if expired, otherwise use default role
-        const role = cached?.role || 'Member';
-        setUserRole(role);
-        return role;
+        return cached?.role || 'Member';
       }
 
       // Not in cache or expired, fetch from database
       const profile = await ProfileService.ensureProfile({ id: userId } as User);
       
       if (profile) {
-        console.log("Loaded profile with role:", profile.role);
-        // Update cache with current version
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Loaded profile with role:", profile.role);
+        }
+        // Update cache with current version and longer TTL
         userRoleCache.set(userId, { 
           role: profile.role, 
           timestamp: Date.now(),
           version: globalCacheVersion
         });
         
-        setUserRole(profile.role);
         return profile.role;
       }
 
-      console.warn(`No profile found for user ${userId}, creating with default role`);
+      console.warn(`No profile found for user ${userId}, using default role`);
       const defaultRole: Role = 'Member';
       
-      // Cache the default role but with shorter TTL
+      // Cache the default role
       userRoleCache.set(userId, { 
         role: defaultRole, 
-        timestamp: Date.now() - (ROLE_CACHE_TTL / 2), // Expire in half the normal time
+        timestamp: Date.now(),
         version: globalCacheVersion
       });
       
-      setUserRole(defaultRole);
       return defaultRole;
     } catch (error) {
       console.error('Error loading user role:', error);
-      // Don't cache errors
-      setUserRole(null);
       return null;
     }
   };
 
-  // Handle session events from the SessionService
+  // Handle session events
   const handleSessionEvent = async (
     event: SessionEvent, 
     newSession: Session | null, 
     newUser: User | null
   ) => {
-    console.log('Auth provider received session event:', event);
-    
-    setSession(newSession);
-    setUser(newUser);
-    
-    switch (event) {
-      case 'SIGNED_IN':
-        if (newUser) {
-          // Load user role
-          await loadUserRole(newUser.id);
-          
-          // Redirect to dashboard if on auth pages
-          if (router.pathname === '/login' || router.pathname === '/register') {
-            router.replace('/dashboard');
-          }
-        }
-        break;
-        
-      case 'SIGNED_OUT':
-      case 'SESSION_EXPIRED':
-        // Clear state
-        setUserRole(null);
-        
-        // Clear role cache
-        invalidateAllRoleCaches();
-        
-        // Redirect to login
-        if (router.pathname !== '/login' && router.pathname !== '/register') {
-          router.replace('/login');
-        }
-        break;
-        
-      case 'TOKEN_REFRESHED':
-        // No need to update user role here unless it's null
-        if (newUser && !userRole) {
-          await loadUserRole(newUser.id);
-        }
-        break;
-        
-      case 'USER_UPDATED':
-        // Refresh role if user is updated
-        if (newUser) {
-          // Clear from cache to ensure fresh data
-          invalidateAllRoleCaches();
-          await loadUserRole(newUser.id);
-        }
-        break;
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Session event:", event);
     }
     
-    setLoading(false);
+    // Batch state updates based on event type
+    switch (event) {
+      case 'SIGNED_IN':
+      case 'TOKEN_REFRESHED':
+        if (newUser) {
+          const role = await loadUserRole(newUser.id);
+          // Batch updates
+          setSession(newSession);
+          setUser(newUser);
+          setUserRole(role);
+        }
+        break;
+      
+      case 'SIGNED_OUT':
+        // Batch updates for sign out
+        setSession(null);
+        setUser(null);
+        setUserRole(null);
+        break;
+        
+      default:
+        console.warn('Unhandled session event:', event);
+    }
   };
 
   // Function to check if current user is admin
@@ -395,13 +375,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       invalidateAllRoleCaches();
     }
   };
-
-  console.log("Auth context current state:", { 
-    sessionExists: !!session, 
-    userExists: !!user, 
-    userRole, 
-    loading 
-  });
 
   return (
     <AuthContext.Provider value={{ 

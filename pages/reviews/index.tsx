@@ -2,15 +2,20 @@
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+
+// Components
 import Layout from '../../components/Layout';
 import GraphReviewCard from '../../components/GraphReviewCard';
+import { LoadingState } from '../../components/LoadingState';
+
+// Hooks and Utils
 import { useAuth } from '../../components/AuthProvider';
 import { getReviews } from '../../lib/supabaseUtils';
-import { ReviewWithProfile } from '../../types/supabase';
-import { LoadingState } from '../../components/LoadingState';
 import { supabase } from '../../lib/supabase';
-import Link from 'next/link';
-import StatusBadge from '../../components/StatusBadge';
+
+// Types
+import { ReviewWithProfile } from '../../types/supabase';
 
 // Interface for review with comment count
 interface ReviewWithCommentCount extends ReviewWithProfile {
@@ -18,7 +23,7 @@ interface ReviewWithCommentCount extends ReviewWithProfile {
 }
 
 const Reviews: NextPage = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, session } = useAuth();
   const router = useRouter();
   const [reviews, setReviews] = useState<ReviewWithCommentCount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +33,7 @@ const Reviews: NextPage = () => {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user) {
+    if (!user || !session) {
       router.push('/login');
       return;
     }
@@ -55,7 +60,7 @@ const Reviews: NextPage = () => {
           countMap[id] = 0;
         });
         
-        // OPTIMIZED: Fetch all comments for these reviews
+        // OPTIMIZED: Fetch all comments for these reviews in a single query
         const { data: comments, error: countError } = await supabase
           .from('comments')
           .select('review_id')
@@ -94,7 +99,7 @@ const Reviews: NextPage = () => {
     };
 
     fetchReviewsWithCommentCounts();
-  }, [user, authLoading, router]);
+  }, [user, session, authLoading, router]);
 
   const filteredReviews = filter === 'All' 
     ? reviews 
@@ -158,21 +163,19 @@ const Reviews: NextPage = () => {
 
   return (
     <Layout>
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">All Graph Reviews</h1>
-          <div className="flex items-center space-x-3">
-            {/* View toggle buttons */}
-            <div className="bg-gray-100 p-1 rounded-lg flex">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Graph Reviews</h1>
+          <div className="flex items-center space-x-4">
+            {/* View mode toggle */}
+            <div className="flex items-center space-x-2">
               <button
                 onClick={() => setViewMode('card')}
-                className={`px-3 py-1 rounded ${
-                  viewMode === 'card'
-                    ? 'bg-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
+                className={`p-2 rounded ${
+                  viewMode === 'card' 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
-                aria-label="Card View"
-                title="Card View"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -180,13 +183,11 @@ const Reviews: NextPage = () => {
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`px-3 py-1 rounded ${
-                  viewMode === 'list'
-                    ? 'bg-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
+                className={`p-2 rounded ${
+                  viewMode === 'list' 
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                 }`}
-                aria-label="List View"
-                title="List View"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -194,7 +195,6 @@ const Reviews: NextPage = () => {
               </button>
             </div>
             
-            {/* New Review button */}
             <Link
               href="/reviews/new"
               className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"

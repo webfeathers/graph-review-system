@@ -1,23 +1,35 @@
 // pages/reviews/[id].tsx
 import type { NextPage } from 'next';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import Layout from '../../components/Layout';
-import StatusBadge from '../../components/StatusBadge';
-import CommentSection from '../../components/commentSection';
-import { useAuth } from '../../components/AuthProvider';
-import { getReviewById, updateReviewStatus, getCommentsByReviewId } from '../../lib/supabaseUtils';
-import { ReviewWithProfile, CommentWithProfile, Profile } from '../../types/supabase';
-import { LoadingState } from '../../components/LoadingState';
-import { ErrorDisplay } from '../../components/ErrorDisplay';
+import Link from 'next/link';
+
+// Components and Hooks
+import { 
+  Layout,
+  StatusBadge,
+  CommentSection,
+  LoadingState,
+  ErrorDisplay,
+  ProjectLeadSelector,
+  useAuth
+} from '../../components';
+
+// API
+import { 
+  getReviewById, 
+  updateReviewStatus, 
+  updateProjectLead 
+} from '../../lib/api';
 import { supabase } from '../../lib/supabase';
-import ProjectLeadSelector from '../../components/ProjectLeadSelector';
+
+// Types
+import { ReviewWithProfile, CommentWithProfile, Profile } from '../../types/supabase';
 
 const ReviewPage: NextPage = () => {
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const router = useRouter();
   const { id } = router.query;
-  const { user, loading: authLoading, isAdmin } = useAuth();
   const [review, setReview] = useState<ReviewWithProfile | null>(null);
   const [comments, setComments] = useState<CommentWithProfile[]>([]);
   const [isAuthor, setIsAuthor] = useState(false);
@@ -32,62 +44,41 @@ const ReviewPage: NextPage = () => {
   const [newLeadId, setNewLeadId] = useState<string>('');
   const [updatingLead, setUpdatingLead] = useState(false);
 
+  // Fetch review data
   useEffect(() => {
-    if (authLoading) return;
+    // Don't fetch if we don't have an ID or if auth is still loading
+    if (!id || authLoading) return;
+
+    // Don't fetch if we're not authenticated
     if (!user) {
-      router.push('/login');
+      setLoading(false);
       return;
     }
-    if (!id) return;
 
-    const fetchData = async () => {
+    const fetchReview = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Fetch review data
         const reviewData = await getReviewById(id as string);
         setReview(reviewData);
         setCurrentStatus(reviewData.status);
         setIsAuthor(reviewData.userId === user.id);
         
-        // If review has projectLeadId, fetch the lead's profile
-        if (reviewData.projectLeadId) {
-          try {
-            const { data, error } = await supabase
-              .from('profiles')
-              .select('id, name, email, role, created_at')
-              .eq('id', reviewData.projectLeadId)
-              .single();
-              
-            if (error) throw error;
-            
-            setProjectLead({
-              id: data.id,
-              name: data.name || 'Unknown User',
-              email: data.email || '',
-              createdAt: data.created_at,
-              role: data.role || 'Member'
-            });
-          } catch (err) {
-            console.error('Error fetching project lead:', err);
-            // Don't set error state here to avoid blocking the whole page
-          }
+        // Set comments from the review data since they're now included
+        if (reviewData.comments) {
+          setComments(reviewData.comments);
         }
-
-        // Fetch comments
-        const commentsData = await getCommentsByReviewId(id as string);
-        setComments(commentsData);
-      } catch (error) {
-        console.error('Error fetching review data:', error);
-        setError(error instanceof Error ? error.message : 'Failed to load review data');
+      } catch (err) {
+        console.error('Error fetching review:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load review');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [id, user, authLoading, router]);
+    fetchReview();
+  }, [id, user, authLoading]);
 
   const handleStatusChange = async (newStatus: ReviewWithProfile['status']) => {
     if (!user || !review || newStatus === currentStatus || isUpdating) return;
@@ -119,8 +110,6 @@ const ReviewPage: NextPage = () => {
       // Update UI state
       setCurrentStatus(newStatus);
       
-      // Handle Kantata integration if needed
-      // (existing code would go here)
     } catch (err) {
       console.error('Error updating status:', err);
       setError(err instanceof Error ? err.message : 'Failed to update status');
@@ -135,48 +124,13 @@ const ReviewPage: NextPage = () => {
     
     try {
       setUpdatingLead(true);
+      setError(null);
       
-      // Get token for authentication
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      // Use the optimized function
+      const updatedReview = await updateProjectLead(review.id, newLeadId, isAdmin() ? 'Admin' : 'Member');
       
-      if (!token) {
-        throw new Error('No authentication token available');
-      }
-      
-      // Update the review via API
-      const response = await fetch(`/api/reviews/${review.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          projectLeadId: newLeadId
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update project lead');
-      }
-      
-      // Update UI with new project lead info
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, name, email, role, created_at')
-        .eq('id', newLeadId)
-        .single();
-        
-      if (error) throw error;
-      
-      setProjectLead({
-        id: data.id,
-        name: data.name || 'Unknown User',
-        email: data.email || '',
-        createdAt: data.created_at,
-        role: data.role || 'Member'
-      });
+      // Update local state with new data
+      setReview(updatedReview);
       
       // Reset UI state
       setIsChangingLead(false);
@@ -190,44 +144,33 @@ const ReviewPage: NextPage = () => {
     }
   };
 
+  // Handle loading states
   if (authLoading || loading) {
-    return <Layout><LoadingState message="Loading review..." /></Layout>;
+    return <LoadingState />;
   }
 
-  if (error) {
+  // Handle authentication
+  if (!user) {
     return (
-      <Layout>
-        <ErrorDisplay 
-          error={error} 
-          onDismiss={() => setError(null)} 
-          className="mb-6"
-        />
-        <div className="flex justify-center">
-          <a 
-            href="/reviews" 
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Back to Reviews
-          </a>
-        </div>
-      </Layout>
+      <div className="text-center py-8">
+        <h1 className="text-2xl font-bold mb-4">Authentication Required</h1>
+        <p>Please log in to view this review.</p>
+      </div>
     );
   }
 
+  // Handle errors
+  if (error) {
+    return <ErrorDisplay error={error} />;
+  }
+
+  // Handle missing review
   if (!review) {
     return (
-      <Layout>
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-semibold mb-4">Review Not Found</h2>
-          <p className="text-gray-600 mb-6">The review you're looking for doesn't exist or has been removed.</p>
-          <a 
-            href="/reviews" 
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Back to Reviews
-          </a>
-        </div>
-      </Layout>
+      <div className="text-center py-8">
+        <h1 className="text-2xl font-bold mb-4">Review Not Found</h1>
+        <p>The requested review could not be found.</p>
+      </div>
     );
   }
 
@@ -485,22 +428,12 @@ const ReviewPage: NextPage = () => {
           </div>
           
           <CommentSection 
-            comments={comments.map(c => ({
-              id: c.id,
-              content: c.content,
-              reviewId: c.reviewId,
-              userId: c.userId,
-              createdAt: c.createdAt, // Already a string, no need to convert
-              user: {
-                id: c.user.id,
-                name: c.user.name,
-                email: c.user.email,
-                password: '',
-                createdAt: c.user.createdAt, // Already a string, no need to convert
-                role: c.user.role || 'user' // Add the missing role property
-              }
-            }))} 
-            reviewId={review.id} 
+            comments={comments} 
+            reviewId={review.id}
+            onCommentAdded={(newComment) => {
+              // Update comments state with the new comment
+              setComments(prevComments => [...prevComments, newComment]);
+            }}
           />
 
           <div className="mt-8 text-center">

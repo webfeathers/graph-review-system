@@ -1,7 +1,7 @@
 // pages/reviews/new.tsx
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Layout from '../../components/Layout';
 import { useAuth } from '../../components/AuthProvider';
 import { useForm } from '../../lib/useForm';
@@ -23,8 +23,10 @@ import {
   MAX_FILE_SIZES,
   StorageBucket
 } from '../../constants';
-import { createReview } from '../../lib/supabaseUtils';
+import { createReview, validateKantataProject } from '../../lib/supabaseUtils';
 import ProjectLeadSelector from '../../components/ProjectLeadSelector';
+import { withRoleProtection } from '../../components/withRoleProtection';
+import React from 'react';
 
 interface ReviewFormValues {
   title: string;
@@ -52,83 +54,126 @@ const NewReview: NextPage = () => {
   const [graphImageTouched, setGraphImageTouched] = useState<boolean>(false);
   const [renderError, setRenderError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (authLoading) return;
-    
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, authLoading, router]);
+  // Memoize the validation schema
+  const validationSchema = useMemo(() => ({
+    title: reviewValidationSchema.title,
+    description: reviewValidationSchema.description,
+    accountName: reviewValidationSchema.accountName,
+    kantataProjectId: reviewValidationSchema.kantataProjectId,
+    customerFolder: reviewValidationSchema.customerFolder,
+    handoffLink: reviewValidationSchema.handoffLink,
+    projectLeadId: reviewValidationSchema.projectLeadId
+  }), []); // Empty deps since schema never changes
 
-  useEffect(() => {
-    // Skip if not authenticated or router isn't ready yet
-    if (!user || !router.isReady) return;
-    
-    // Get query parameters for prefilling
-    const { kantataProjectId, title } = router.query;
-    
-    // Only update if the form exists and parameters are present
-    if (kantataProjectId && typeof kantataProjectId === 'string' && 
-        form && form.setFieldValue) {
-      // Update the Kantata Project ID field without affecting validation state
-      form.setFieldValue('kantataProjectId', kantataProjectId);
-    }
-    
-    if (title && typeof title === 'string' && 
-        form && form.setFieldValue) {
-      // Decode the title and update the field
-      form.setFieldValue('title', decodeURIComponent(title));
-    }
-    
-    // Only run this effect when user, router.isReady, or query params change
-  }, [user, router.isReady, router.query.kantataProjectId, router.query.title]);
+  // Memoize initial values
+  const initialValues = useMemo(() => ({
+    title: '',
+    description: '',
+    accountName: '',
+    orgId: '',
+    kantataProjectId: router.query.kantataProjectId as string || '',
+    segment: 'Enterprise',
+    remoteAccess: false,
+    graphName: '',
+    useCase: '',
+    customerFolder: '',
+    handoffLink: '',
+    projectLeadId: user?.id || ''
+  }), [router.query.kantataProjectId, user?.id]);
 
-  // Add debugging for auth context
-  useEffect(() => {
-    console.log('Auth context in NewReview:', {
-      user,
-      authLoading,
-      isAdmin: isAdmin && typeof isAdmin === 'function' ? isAdmin() : null
-    });
-  }, [user, authLoading, isAdmin]);
+  // Memoize submit handler
+  const handleSubmit = useCallback(async (values: ReviewFormValues) => {
+    try {
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+      setGeneralError(null);
 
-  // Update Project Lead ID when user changes
-  useEffect(() => {
-    if (user && form) {
-      console.log('Updating Project Lead ID with user:', user.id);
-      form.setFieldValue('projectLeadId', user.id);
+      console.log('Form submission values:', values);
+
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Error getting session:', sessionError);
+        throw new Error('Authentication error. Please try again.');
+      }
+
+      if (!session?.user) {
+        throw new Error('You must be logged in to create a review');
+      }
+
+      const currentUserId = session.user.id;
+      console.log('Current user ID from session:', currentUserId);
+
+      if (!values.projectLeadId) {
+        values.projectLeadId = currentUserId;
+      }
+
+      const { data: projectLead, error: projectLeadError } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .eq('id', values.projectLeadId)
+        .single();
+
+      if (projectLeadError || !projectLead) {
+        console.error('Error checking project lead:', projectLeadError);
+        throw new Error('Invalid Project Lead selected');
+      }
+
+      if (values.kantataProjectId) {
+        const kantataValidation = await validateKantataProject(values.kantataProjectId);
+        if (!kantataValidation.isValid) {
+          throw new Error(`Invalid Kantata Project: ${kantataValidation.message}`);
+        }
+        
+        if (kantataValidation.projectData) {
+          values.title = values.title || kantataValidation.projectData.title;
+        }
+      }
+
+      console.log('Found project lead:', projectLead);
+
+      const reviewData = {
+        ...values,
+        userId: currentUserId,
+        status: 'Submitted' as const,
+        projectLeadId: projectLead.id,
+        segment: values.segment as 'Enterprise' | 'MidMarket'
+      };
+
+      const newReview = await createReview(reviewData);
+      console.log('Review created successfully:', newReview);
+
+      if (!newReview?.id) {
+        throw new Error('Failed to create review - no ID returned');
+      }
+
+      window.location.href = `/reviews/${newReview.id}`;
+    } catch (error: any) {
+      console.error('Error creating review:', error);
+      setGeneralError(error.message || 'Failed to create review');
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [user]);
+  }, [isSubmitting]);
 
-  // Initialize form with proper typing for user
+  // Create form instance with memoized values
   const form = useForm<ReviewFormValues>({
-    initialValues: {
-      title: '',
-      description: '',
-      accountName: '',
-      orgId: '',
-      kantataProjectId: '',
-      segment: 'Enterprise',
-      remoteAccess: false,
-      graphName: '',
-      useCase: '',
-      customerFolder: '',
-      handoffLink: '',
-      projectLeadId: user?.id || '' // Initialize with current user's ID if available
-    },
-    validationSchema: {
-      title: reviewValidationSchema.title,
-      description: reviewValidationSchema.description,
-      accountName: reviewValidationSchema.accountName,
-      kantataProjectId: reviewValidationSchema.kantataProjectId,
-      customerFolder: reviewValidationSchema.customerFolder,
-      handoffLink: reviewValidationSchema.handoffLink,
-      projectLeadId: reviewValidationSchema.projectLeadId // Add validation for Project Lead
-    },
+    initialValues,
+    validationSchema,
     validateOnChange: false,
     validateOnBlur: true,
     onSubmit: handleSubmit
   });
+
+  // Handle URL parameters once when router is ready
+  useEffect(() => {
+    if (!router.isReady) return;
+    
+    const { title } = router.query;
+    if (title && typeof title === 'string') {
+      form.setFieldValue('title', decodeURIComponent(title));
+    }
+  }, [router.isReady]);
 
   // Handle image change
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,76 +209,6 @@ const NewReview: NextPage = () => {
     setGraphImageUrl('');
     setGraphImageError(null);
   };
-
-  // Handle form submission
-  async function handleSubmit(values: ReviewFormValues) {
-    try {
-      if (isSubmitting) return; // Prevent double submission
-      setIsSubmitting(true);
-      setGeneralError(null);
-
-      console.log('Form submission values:', values);
-
-      // Get the current session to ensure we have the latest auth state
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error('Error getting session:', sessionError);
-        throw new Error('Authentication error. Please try again.');
-      }
-
-      if (!session?.user) {
-        throw new Error('You must be logged in to create a review');
-      }
-
-      const currentUserId = session.user.id;
-      console.log('Current user ID from session:', currentUserId);
-
-      // Ensure project lead is set
-      if (!values.projectLeadId) {
-        values.projectLeadId = currentUserId;
-      }
-
-      // Check if the project lead exists
-      const { data: projectLead, error: projectLeadError } = await supabase
-        .from('profiles')
-        .select('id, name, email')
-        .eq('id', values.projectLeadId)
-        .single();
-
-      if (projectLeadError || !projectLead) {
-        console.error('Error checking project lead:', projectLeadError);
-        throw new Error('Invalid Project Lead selected');
-      }
-
-      console.log('Found project lead:', projectLead);
-
-      // Create the review with the validated project lead
-      const reviewData = {
-        ...values,
-        userId: currentUserId,
-        status: 'Submitted' as const,
-        projectLeadId: projectLead.id,
-        segment: values.segment as 'Enterprise' | 'MidMarket'
-      };
-
-      const newReview = await createReview(reviewData);
-      console.log('Review created successfully:', newReview);
-
-      // Ensure we have a valid review ID before redirecting
-      if (!newReview?.id) {
-        throw new Error('Failed to create review - no ID returned');
-      }
-
-      // Use window.location for a hard redirect
-      window.location.href = `/reviews/${newReview.id}`;
-    } catch (error: any) {
-      console.error('Error creating review:', error);
-      setGeneralError(error.message || 'Failed to create review');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
 
   if (authLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
@@ -473,4 +448,6 @@ const NewReview: NextPage = () => {
   }
 };
 
-export default NewReview;
+// Export the component wrapped with role protection
+// Allow both regular members and admins to create reviews
+export default withRoleProtection(NewReview, ['Member', 'Admin']);

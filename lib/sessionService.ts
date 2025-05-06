@@ -31,6 +31,7 @@ export class SessionService {
   private static initializationPromise: Promise<void> | null = null;
   private static currentSession: Session | null = null;
   private static isRefreshing = false;
+  private static isInitialized = false;
   
   /**
    * Initialize the session service
@@ -46,23 +47,24 @@ export class SessionService {
       try {
         console.log('Initializing SessionService...');
         
-        // Set up auth state change listener
-        supabase.auth.onAuthStateChange((event, session) => {
-          console.log('Auth state change event:', event);
-          this.handleAuthStateChange(event, session);
-        });
-        
-        // Get initial session
+        // Get initial session first
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting initial session:', error);
           this.currentSession = null;
           this.notifyListeners('SIGNED_OUT', null, null);
+          this.isInitialized = true;
           return;
         }
         
         this.currentSession = data.session;
+        
+        // Set up auth state change listener after getting initial session
+        supabase.auth.onAuthStateChange((event, session) => {
+          console.log('Auth state change event:', event);
+          this.handleAuthStateChange(event, session);
+        });
         
         if (data.session) {
           console.log('Initial session found');
@@ -78,14 +80,23 @@ export class SessionService {
           window.addEventListener('storage', this.handleStorageEvent);
         }
         
-        console.log('SessionService initialized');
+        this.isInitialized = true;
+        console.log('SessionService initialized successfully');
       } catch (error) {
         console.error('Error initializing SessionService:', error);
         this.notifyListeners('SIGNED_OUT', null, null);
+        this.isInitialized = true;
       }
     })();
     
     return this.initializationPromise;
+  }
+  
+  /**
+   * Check if the service is initialized
+   */
+  static isServiceInitialized(): boolean {
+    return this.isInitialized;
   }
   
   /**
@@ -128,6 +139,10 @@ export class SessionService {
    * @returns The current session or null if not authenticated
    */
   static getSession(): Session | null {
+    if (!this.isInitialized) {
+      console.warn('SessionService not initialized');
+      return null;
+    }
     return this.currentSession;
   }
   
@@ -137,6 +152,10 @@ export class SessionService {
    * @returns The current user or null if not authenticated
    */
   static getUser(): User | null {
+    if (!this.isInitialized) {
+      console.warn('SessionService not initialized');
+      return null;
+    }
     return this.currentSession?.user || null;
   }
   
@@ -146,6 +165,10 @@ export class SessionService {
    * @returns True if the user is authenticated
    */
   static isAuthenticated(): boolean {
+    if (!this.isInitialized) {
+      console.warn('SessionService not initialized');
+      return false;
+    }
     return !!this.currentSession;
   }
   

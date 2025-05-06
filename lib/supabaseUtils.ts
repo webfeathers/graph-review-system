@@ -3,7 +3,8 @@ import { supabase } from './supabase';
 import { 
   Review, Comment, Profile, ReviewWithProfile, CommentWithProfile,
   dbToFrontendReview, dbToFrontendComment, dbToFrontendProfile,
-  dbToFrontendReviewWithProfile, dbToFrontendCommentWithProfile
+  dbToFrontendReviewWithProfile, dbToFrontendCommentWithProfile,
+  Role
 } from '../types/supabase';
 
 /**
@@ -19,7 +20,14 @@ export async function getReviews(userId?: string) {
       .from('reviews')
       .select(`
         *,
-        profiles:user_id (
+        user:profiles!fk_reviews_user (
+          id,
+          name,
+          email,
+          created_at,
+          role
+        ),
+        projectLead:profiles!fk_project_lead (
           id,
           name,
           email,
@@ -47,8 +55,9 @@ export async function getReviews(userId?: string) {
 
     // Transform to frontend format with proper type safety
     const frontendReviews: ReviewWithProfile[] = reviews.map(review => {
-      // Extract profile from the join result with proper type checking
-      const profile = review.profiles;
+      // Extract profiles from the join result with proper type checking
+      const userProfile = review.user;
+      const projectLeadProfile = review.projectLead;
       
       // Convert review to frontend format
       const frontendReview: Review = {
@@ -68,28 +77,38 @@ export async function getReviews(userId?: string) {
         graphName: review.graph_name,
         useCase: review.use_case,
         customerFolder: review.customer_folder,
-        handoffLink: review.handoff_link
+        handoffLink: review.handoff_link,
+        projectLeadId: review.project_lead_id
       };
       
       // Construct the review with profile
       const reviewWithProfile: ReviewWithProfile = {
         ...frontendReview,
-        user: profile ? {
-          id: profile.id,
-          name: profile.name || 'Unknown User',
-          email: profile.email || '',
-          // Fix here: Use createdAt for the frontend Profile object
-          createdAt: profile.created_at,
-          role: profile.role || 'Member'
+        user: userProfile ? {
+          id: userProfile.id,
+          name: userProfile.name || 'Unknown User',
+          email: userProfile.email || '',
+          createdAt: userProfile.created_at,
+          role: userProfile.role || 'Member'
         } : {
           id: review.user_id,
           name: 'Unknown User',
           email: '',
-          // And here: Fix the transformation
           createdAt: review.created_at,
           role: 'Member'
         }
       };
+      
+      // Add project lead if available
+      if (projectLeadProfile) {
+        reviewWithProfile.projectLead = {
+          id: projectLeadProfile.id,
+          name: projectLeadProfile.name || 'Unknown User',
+          email: projectLeadProfile.email || '',
+          createdAt: projectLeadProfile.created_at,
+          role: projectLeadProfile.role || 'Member'
+        };
+      }
       
       return reviewWithProfile;
     });
@@ -102,34 +121,48 @@ export async function getReviews(userId?: string) {
 }
 
 /**
- * Get a single review by ID with optimized query
+ * Get a single review by ID with optimized caching and batch operations
  * 
  * @param id The review ID
  * @returns The review with user profile data
  */
 export async function getReviewById(id: string) {
   try {
-    // Use a single query with join to get the review, user profile, and project lead
+    // Use a single query with proper joins now that foreign keys are set up
     const { data: review, error } = await supabase
       .from('reviews')
       .select(`
         *,
-        profiles:user_id (
+        user:profiles!fk_reviews_user (
           id,
           name,
           email,
           created_at,
           role
         ),
-        project_lead:project_lead_id (
+        projectLead:profiles!fk_project_lead (
           id,
           name,
           email,
           created_at,
           role
+        ),
+        comments:comments!inner (
+          id,
+          content,
+          created_at,
+          user_id,
+          user:profiles!fk_comments_user (
+            id,
+            name,
+            email,
+            created_at,
+            role
+          )
         )
       `)
       .eq('id', id)
+      .order('created_at', { foreignTable: 'comments', ascending: true })
       .single();
 
     if (error) {
@@ -141,12 +174,8 @@ export async function getReviewById(id: string) {
       throw new Error('Review not found');
     }
 
-    // Extract the profiles from the join result
-    const userProfile = review.profiles;
-    const projectLeadProfile = review.project_lead;
-
-    // Convert to frontend format
-    const frontendReview: Review = {
+    // Transform to frontend format with proper type checking
+    const frontendReview: ReviewWithProfile = {
       id: review.id,
       title: review.title,
       description: review.description,
@@ -155,27 +184,23 @@ export async function getReviewById(id: string) {
       userId: review.user_id,
       createdAt: review.created_at,
       updatedAt: review.updated_at,
-      accountName: review.account_name || '',
-      orgId: review.org_id || '',
-      kantataProjectId: review.kantata_project_id || '',
-      segment: review.segment as 'Enterprise' | 'MidMarket' || 'Enterprise',
-      remoteAccess: review.remote_access || false,
-      graphName: review.graph_name || '',
-      useCase: review.use_case || '',
-      customerFolder: review.customer_folder || '',
-      handoffLink: review.handoff_link || '',
-      projectLeadId: review.project_lead_id || ''
-    };
-
-    // Create review with profiles
-    const reviewWithProfile: ReviewWithProfile = {
-      ...frontendReview,
-      user: userProfile ? {
-        id: userProfile.id,
-        name: userProfile.name || 'Unknown User',
-        email: userProfile.email || '',
-        createdAt: userProfile.created_at,
-        role: userProfile.role || 'Member'
+      accountName: review.account_name,
+      orgId: review.org_id,
+      kantataProjectId: review.kantata_project_id,
+      segment: review.segment,
+      remoteAccess: review.remote_access,
+      graphName: review.graph_name,
+      useCase: review.use_case,
+      customerFolder: review.customer_folder,
+      handoffLink: review.handoff_link,
+      projectLeadId: review.project_lead_id,
+      // Add user profile with proper null checks
+      user: review.user ? {
+        id: review.user.id,
+        name: review.user.name || 'Unknown User',
+        email: review.user.email || '',
+        createdAt: review.user.created_at,
+        role: review.user.role || 'Member'
       } : {
         id: review.user_id,
         name: 'Unknown User',
@@ -186,17 +211,53 @@ export async function getReviewById(id: string) {
     };
 
     // Add project lead if available
-    if (projectLeadProfile) {
-      reviewWithProfile.projectLead = {
-        id: projectLeadProfile.id,
-        name: projectLeadProfile.name || 'Unknown User',
-        email: projectLeadProfile.email || '',
-        createdAt: projectLeadProfile.created_at,
-        role: projectLeadProfile.role || 'Member'
+    if (review.projectLead) {
+      frontendReview.projectLead = {
+        id: review.projectLead.id,
+        name: review.projectLead.name || 'Unknown User',
+        email: review.projectLead.email || '',
+        createdAt: review.projectLead.created_at,
+        role: review.projectLead.role || 'Member'
       };
     }
 
-    return reviewWithProfile;
+    // Add comments if available
+    if (review.comments) {
+      frontendReview.comments = review.comments.map((comment: {
+        id: string;
+        content: string;
+        created_at: string;
+        user_id: string;
+        user?: {
+          id: string;
+          name: string;
+          email: string;
+          created_at: string;
+          role: Role;
+        };
+      }) => ({
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.created_at,
+        userId: comment.user_id,
+        reviewId: id,
+        user: comment.user ? {
+          id: comment.user.id,
+          name: comment.user.name || 'Unknown User',
+          email: comment.user.email || '',
+          createdAt: comment.user.created_at,
+          role: comment.user.role || 'Member'
+        } : {
+          id: comment.user_id,
+          name: 'Unknown User',
+          email: '',
+          createdAt: comment.created_at,
+          role: 'Member'
+        }
+      }));
+    }
+
+    return frontendReview;
   } catch (err) {
     console.error('Error in getReviewById:', err);
     throw err;
@@ -210,76 +271,23 @@ export async function getReviewById(id: string) {
  * @returns Array of comments with user profile data
  */
 export const getCommentsByReviewId = async (reviewId: string) => {
-  try {
-    // First, get all comments for the review
-    const { data: comments, error: commentsError } = await supabase
-      .from('comments')
-      .select('*')
-      .eq('review_id', reviewId)
-      .order('created_at', { ascending: true });
-      
-    if (commentsError) {
-      console.error('Error fetching comments:', commentsError);
-      throw commentsError;
-    }
-    
-    if (!comments || comments.length === 0) {
-      return [];
-    }
-    
-    // Get all unique user IDs from comments
-    const userIds = Array.from(new Set(comments.map(comment => comment.user_id)));
-    
-    // Now fetch all these users in a single query
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', userIds);
-      
-    if (profilesError) {
-      console.error('Error fetching user profiles:', profilesError);
-      throw profilesError;
-    }
-    
-    // Create a map of user profiles for quick lookup
-    const profileMap: Record<string, any> = {};
-    if (profiles) {
-      profiles.forEach(profile => {
-        profileMap[profile.id] = profile;
-      });
-    }
-    
-    // Combine the data
-    const commentsWithProfiles: CommentWithProfile[] = comments.map(comment => {
-      const profile = profileMap[comment.user_id];
-      
-      return {
-        id: comment.id,
-        content: comment.content,
-        reviewId: comment.review_id,
-        userId: comment.user_id,
-        createdAt: comment.created_at,
-        user: profile ? {
-          id: profile.id,
-          name: profile.name || 'Unknown User',
-          email: profile.email || '',
-          createdAt: profile.created_at,
-          role: profile.role || 'Member'
-        } : {
-          id: comment.user_id,
-          name: 'Unknown User',
-          email: '',
-          createdAt: comment.created_at,
-          role: 'Member'
-        }
-      };
-    });
-    
-    return commentsWithProfiles;
-  } catch (err) {
-    console.error('Error in getCommentsByReviewId:', err);
-    throw err;
-  }
+  const { data: comments, error } = await supabase
+    .from('comments')
+    .select(`
+      *,
+      user:profiles!fk_comments_user (
+        id,
+        name,
+        email,
+        created_at,
+        role
+      )
+    `)
+    .eq('review_id', reviewId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return comments as CommentWithProfile[];
 };
 
 /**
@@ -478,5 +486,200 @@ export async function getCommentCountsForReviews(reviewIds: string[]): Promise<R
   } catch (error) {
     console.error('Error in getCommentCountsForReviews:', error);
     return {};
+  }
+}
+
+/**
+ * Update project lead for a review with optimized batch operations
+ * @param reviewId The ID of the review to update
+ * @param newLeadId The ID of the new project lead
+ * @param userRole The role of the user making the update
+ * @returns The updated review with project lead information
+ */
+export async function updateProjectLead(reviewId: string, newLeadId: string, userRole: string) {
+  try {
+    // Validate admin permission first
+    if (userRole !== 'Admin') {
+      throw new Error('Only administrators can change the Project Lead');
+    }
+
+    // Start a Supabase transaction
+    const { data: result, error: transactionError } = await supabase.rpc('update_project_lead', {
+      p_review_id: reviewId,
+      p_new_lead_id: newLeadId,
+      p_user_role: userRole
+    });
+
+    if (transactionError) {
+      throw new Error(`Failed to update project lead: ${transactionError.message}`);
+    }
+
+    // Get the updated review with all related data in a single query
+    const { data: updatedReview, error: fetchError } = await supabase
+      .from('reviews')
+      .select(`
+        *,
+        profiles:user_id (
+          id,
+          name,
+          email,
+          role,
+          created_at
+        ),
+        project_lead:project_lead_id (
+          id,
+          name,
+          email,
+          role,
+          created_at
+        )
+      `)
+      .eq('id', reviewId)
+      .single();
+
+    if (fetchError || !updatedReview) {
+      throw new Error(`Failed to fetch updated review: ${fetchError?.message || 'Review not found'}`);
+    }
+
+    // Transform the data to the expected format
+    return {
+      ...updatedReview,
+      user: updatedReview.profiles ? {
+        id: updatedReview.profiles.id,
+        name: updatedReview.profiles.name || 'Unknown User',
+        email: updatedReview.profiles.email || '',
+        createdAt: updatedReview.profiles.created_at,
+        role: updatedReview.profiles.role || 'Member'
+      } : null,
+      projectLead: updatedReview.project_lead ? {
+        id: updatedReview.project_lead.id,
+        name: updatedReview.project_lead.name || 'Unknown User',
+        email: updatedReview.project_lead.email || '',
+        createdAt: updatedReview.project_lead.created_at,
+        role: updatedReview.project_lead.role || 'Member'
+      } : null
+    };
+  } catch (error) {
+    console.error('Error in updateProjectLead:', error);
+    throw error;
+  }
+}
+
+/**
+ * Validate and cache Kantata Project ID with optimized caching
+ * @param kantataProjectId The Kantata project ID to validate
+ * @returns Validated Kantata project information
+ */
+export async function validateKantataProject(kantataProjectId: string) {
+  try {
+    // First check if we already have a review with this Kantata ID
+    const { data: existingReview, error: reviewError } = await supabase
+      .from('reviews')
+      .select('id, title, status')
+      .eq('kantata_project_id', kantataProjectId)
+      .single();
+
+    if (existingReview) {
+      return {
+        isValid: false,
+        message: `A review already exists for this Kantata project (Review ID: ${existingReview.id})`,
+        existingReview
+      };
+    }
+
+    // Check cache first
+    const { data: cachedProject, error: cacheError } = await supabase
+      .from('kantata_project_cache')
+      .select('*')
+      .eq('project_id', kantataProjectId)
+      .single();
+
+    // If we have a recent cache (less than 1 hour old), use it
+    if (cachedProject && !cacheError) {
+      const cacheAge = Date.now() - new Date(cachedProject.updated_at).getTime();
+      const CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+
+      if (cacheAge < CACHE_TTL) {
+        return {
+          isValid: true,
+          message: 'Project validated from cache',
+          projectData: {
+            id: kantataProjectId,
+            title: cachedProject.title,
+            status: cachedProject.status,
+            leadId: cachedProject.lead_id
+          }
+        };
+      }
+    }
+
+    // Get Kantata API token from environment
+    const kantataApiToken = process.env.KANTATA_API_TOKEN;
+    if (!kantataApiToken) {
+      throw new Error('Kantata API token not configured');
+    }
+
+    // Validate project exists in Kantata
+    const kantataApiUrl = `https://api.mavenlink.com/api/v1/workspaces/${kantataProjectId}`;
+    const response = await fetch(kantataApiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${kantataApiToken}`,
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(10000) // 10 second timeout
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return {
+          isValid: false,
+          message: 'Project not found in Kantata'
+        };
+      }
+      throw new Error(`Kantata API error: ${response.status} ${response.statusText}`);
+    }
+
+    const projectData = await response.json();
+    const workspace = projectData.workspaces?.[kantataProjectId];
+
+    if (!workspace) {
+      return {
+        isValid: false,
+        message: 'Invalid project data from Kantata'
+      };
+    }
+
+    // Cache the project data with upsert
+    const { error: upsertError } = await supabase
+      .from('kantata_project_cache')
+      .upsert({
+        project_id: kantataProjectId,
+        title: workspace.title,
+        status: workspace.status,
+        lead_id: workspace.lead_id,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'project_id'
+      });
+
+    if (upsertError) {
+      console.error('Error caching Kantata project data:', upsertError);
+      // Don't throw error, just log it
+    }
+
+    return {
+      isValid: true,
+      message: 'Project validated successfully',
+      projectData: {
+        id: kantataProjectId,
+        title: workspace.title,
+        status: workspace.status,
+        leadId: workspace.lead_id
+      }
+    };
+  } catch (error) {
+    console.error('Error validating Kantata project:', error);
+    throw error;
   }
 }

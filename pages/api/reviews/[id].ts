@@ -423,11 +423,11 @@ async function reviewHandler(
         .select('*')
         .eq('id', id)
         .single();
-
+      
       if (fetchError || !updatedReview) {
         console.error('Error fetching updated review:', fetchError);
-        return res.status(500).json({ 
-          success: false, 
+        return res.status(500).json({
+          success: false,
           message: 'Error fetching updated review', 
           error: fetchError?.message || 'Could not fetch updated review'
         });
@@ -457,7 +457,7 @@ async function reviewHandler(
           console.error('Error fetching project lead profile:', leadError);
         } else if (leadProfile) {
           projectLeadProfile = leadProfile;
-        }
+      }
       }
 
       // Construct the complete review object
@@ -466,7 +466,7 @@ async function reviewHandler(
         user: userProfile || null,
         project_lead: projectLeadProfile
       };
-
+      
       // Send email notification if status changed
       if (status !== undefined && previousStatus !== status) {
         try {

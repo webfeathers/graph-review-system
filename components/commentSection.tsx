@@ -1,151 +1,158 @@
 // components/commentSection.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { Comment, CommentWithProfile, Profile } from '../types';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '../components/AuthProvider';
 import { supabase } from '../lib/supabase';
 import { ErrorDisplay } from './ErrorDisplay';
 import { Form, TextArea, SubmitButton } from './form/FormComponents';
 import { useForm } from '../lib/useForm';
-import { createValidator, required, maxLength } from '../lib/validationUtils';
-import { FIELD_LIMITS } from '../constants';
 import { commentValidationSchema } from '../lib/validationSchemas';
-
+import { createComment } from '../lib/supabaseUtils';
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
   reviewId: string;
+  onCommentAdded?: (comment: CommentWithProfile) => void;
 }
 
 interface CommentFormValues {
   content: string;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ comments: initialComments, reviewId }) => {
-  const { user, session } = useAuth();
-  const router = useRouter();
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  
-  // Sort comments to show newest first
-  const comments = [...initialComments].sort((a, b) => {
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+const CommentSection: React.FC<CommentSectionProps> = ({ 
+  comments: initialComments, 
+  reviewId,
+  onCommentAdded 
+}) => {
+  const { user, loading: authLoading, session } = useAuth();
+  const [comments, setComments] = useState<CommentWithProfile[]>(initialComments);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Define validation schema
-  const validationSchema = {
-    content: createValidator(
-      required('Comment cannot be empty'),
-      maxLength(FIELD_LIMITS.COMMENT_MAX_LENGTH, `Comment must be no more than ${FIELD_LIMITS.COMMENT_MAX_LENGTH} characters`)
-    )
-  };
-
-  // Initialize form
+  // Initialize form with proper types
   const form = useForm<CommentFormValues>({
     initialValues: {
       content: ''
     },
-    validationSchema: {
-      content: commentValidationSchema.content
-    },
-    validateOnChange: false,
-    validateOnBlur: true,
-    onSubmit: handleSubmit
+    validationSchema: commentValidationSchema,
+    onSubmit: async (values, helpers) => {
+      if (!user || !session || isSubmitting || authLoading) return;
+
+      setIsSubmitting(true);
+      setError(null);
+
+      try {
+        const newComment = await createComment({
+          content: values.content.trim(),
+          reviewId,
+          userId: user.id
+        });
+
+        // Create a complete CommentWithProfile object
+        const commentWithProfile: CommentWithProfile = {
+          ...newComment,
+          user: {
+            id: user.id,
+            name: user.user_metadata?.name || 'Unknown',
+            email: user.email || '',
+            role: user.user_metadata?.role || 'Member',
+            createdAt: user.created_at || new Date().toISOString()
+          }
+        };
+
+        // Update local state
+        setComments(prevComments => [...prevComments, commentWithProfile]);
+        
+        // Notify parent component
+        if (onCommentAdded) {
+          onCommentAdded(commentWithProfile);
+        }
+
+        // Reset form
+        helpers.resetForm();
+      } catch (err) {
+        console.error('Error posting comment:', err);
+        setError(err instanceof Error ? err.message : 'Failed to post comment');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   });
 
-  async function handleSubmit(values: CommentFormValues) {
-    try {
-      // Clear previous errors
-      setGeneralError(null);
-      
-      if (!user) {
-        setGeneralError('User not authenticated');
-        return;
-      }
-      
-      // Insert directly using Supabase client
-      const { data, error } = await supabase
-        .from('comments')
-        .insert({
-          content: values.content,
-          review_id: reviewId,
-          user_id: user.id,
-          created_at: new Date().toISOString()
-        });
-      
-      if (error) {
-        throw new Error(`Failed to post comment: ${error.message}`);
-      }
-      
-      // Clear the form
-      form.resetForm();
-      
-      // Refresh the page to show the new comment
-      router.reload();
-    } catch (error) {
-      console.error('Error posting comment:', error);
-      
-      if (error instanceof Error) {
-        setGeneralError(error.message || 'Failed to post comment');
-      } else {
-        setGeneralError('An unexpected error occurred');
-      }
-      
-      form.setSubmitting(false);
+  // Update local state when props change, but only if we have a valid session
+  useEffect(() => {
+    if (user && session) {
+      setComments(initialComments);
     }
+  }, [initialComments, user, session]);
+
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return <div className="animate-pulse">Loading comments...</div>;
+  }
+
+  // If not authenticated, show login prompt
+  if (!user || !session) {
+    return (
+      <div className="text-center py-4">
+        <p>Please log in to view and post comments.</p>
+      </div>
+    );
   }
 
   return (
     <div className="mt-8">
-      <h3 className="text-xl font-semibold mb-4">Discussion</h3>
+      <h2 className="text-2xl font-bold mb-4">Comments</h2>
       
-      {generalError && (
+      {error && (
         <ErrorDisplay 
-          error={generalError} 
-          onDismiss={() => setGeneralError(null)} 
-          variant="error"
+          error={error} 
+          onDismiss={() => setError(null)} 
           className="mb-4"
         />
       )}
-      
-      <Form onSubmit={form.handleSubmit} className="mb-6">
+
+      <Form onSubmit={form.handleSubmit}>
         <TextArea
           id="content"
           name="content"
-          label="Add your comment"
-          placeholder="Share your thoughts on this graph review..."
+          label="Add a comment"
+          placeholder="Type your comment here..."
           value={form.values.content}
           onChange={form.handleChange('content')}
           onBlur={form.handleBlur('content')}
           error={form.errors.content}
           touched={form.touched.content}
-          required
           rows={4}
-          helpText={`Maximum ${FIELD_LIMITS.COMMENT_MAX_LENGTH} characters`}
-          containerClassName="mb-4"
+          disabled={isSubmitting}
         />
         
-        <SubmitButton
-          isSubmitting={form.isSubmitting}
-          label="Post Comment"
-          submittingLabel="Posting..."
-          disabled={form.isSubmitting || !user}
-          className="w-full md:w-auto"
-        />
+        <div className="mt-4">
+          <SubmitButton
+            label="Post Comment"
+            submittingLabel="Posting..."
+            isSubmitting={isSubmitting}
+            disabled={isSubmitting || !form.values.content.trim()}
+          />
+        </div>
       </Form>
-      
-      <div className="space-y-4">
+
+      <div className="mt-8 space-y-4">
         {comments.length === 0 ? (
-          <p className="text-gray-500">No comments yet. Be the first to start the discussion!</p>
+          <p className="text-gray-500 text-center">No comments yet. Be the first to comment!</p>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className="border-b pb-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">{comment.user.name}</span>
-                <span className="text-sm text-gray-500">
-                  {new Date(comment.createdAt).toLocaleString()}
-                </span>
+            <div key={comment.id} className="bg-white p-4 rounded-lg shadow">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="font-semibold">{comment.user.name}</span>
+                  <span className="text-gray-500 text-sm ml-2">
+                    {new Date(comment.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
-              <p>{comment.content}</p>
+              <p className="mt-2 text-gray-700 whitespace-pre-wrap">{comment.content}</p>
             </div>
           ))
         )}
