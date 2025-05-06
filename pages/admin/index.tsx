@@ -22,6 +22,7 @@ interface ValidationResult {
   };
   isValid: boolean;
   message: string;
+  statusUpdated: boolean;
 }
 
 const AdminPage: NextPage = () => {
@@ -86,33 +87,10 @@ const AdminPage: NextPage = () => {
         throw new Error("Invalid response format from validation API");
       }
       
-      // Check the actual structure of the response
-      console.log("Response has message:", !!data.message);
-      console.log("Response has validationResults:", !!data.validationResults);
-      
-      // Safely set results - check what structure we actually have
-      if (data && Array.isArray(data.validationResults)) {
-        setResults(data.validationResults);
-      } else if (data && data.validationResults) {
-        // Maybe validationResults exists but isn't an array?
-        console.warn('validationResults is not an array:', data.validationResults);
-        setResults([]);
-      } else if (data && data.message && !data.validationResults) {
-        // Maybe the results are at the top level?
-        console.log("Checking for top-level results array");
-        if (Array.isArray(data)) {
-          setResults(data);
-        } else {
-          console.warn('Expected results array but got:', data);
-          setResults([]);
-        }
-      } else {
-        console.warn('Unexpected response structure:', data);
-        setResults([]);
-      }
-      
-      // Show success message
+      // Set the message and results directly from the response
       setMessage(data.message || 'Validation complete!');
+      setResults(data.validationResults || []);
+      
     } catch (error) {
       console.error('Error running validation:', error);
       // Make sure we're setting a string for the error
@@ -169,37 +147,57 @@ const AdminPage: NextPage = () => {
           
           {results && results.length > 0 && (
             <div className="mt-4">
-              <h3 className="text-lg font-medium mb-2">Validation Results</h3>
-              <div className="bg-gray-50 rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-100">
+              <h3 className="text-lg font-medium text-gray-900">Validation Results</h3>
+              <div className="mt-2 overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-300">
+                  <thead>
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Review</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kantata Status</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Result</th>
+                      <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900">Review</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Graph Review Status</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Kantata Status</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Validation</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {results.map((result, index) => (
-                      <tr key={index} className={result.isValid ? 'bg-green-50' : 'bg-red-50'}>
-                        <td className="px-4 py-2">
-                          <Link href={`/reviews/${result.reviewId}`} className="text-blue-500 hover:underline">
-                            {result.reviewTitle || 'Untitled Review'}
-                          </Link>
+                    {results.map((result) => (
+                      <tr key={result.reviewId} className={result.isValid ? 'bg-green-50' : 'bg-red-50'}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm">
+                          <div className="font-medium text-gray-900">{result.reviewTitle}</div>
+                          <div className="text-gray-500">ID: {result.reviewId}</div>
+                          {result.kantataProjectId !== 'N/A' && (
+                            <div className="text-gray-500">Kantata ID: {result.kantataProjectId}</div>
+                          )}
                         </td>
-                        <td className="px-4 py-2">{result.reviewStatus || 'Unknown'}</td>
-                        <td className="px-4 py-2">
-                          <p>Status: {
-                              typeof result.kantataStatus === 'string'
-                                ? result.kantataStatus
-                                : result.kantataStatus?.message ?? 'Unknown'
-                            }</p>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                            result.reviewStatus === 'Approved' ? 'bg-green-100 text-green-700' :
+                            result.reviewStatus === 'Needs Work' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {result.reviewStatus}
+                          </span>
                         </td>
-                        <td className="px-4 py-2">
-                          {result.isValid 
-                            ? <span className="text-green-600">✓ Valid</span> 
-                            : <span className="text-red-600">✗ {result.message || 'Invalid'}</span>}
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          {typeof result.kantataStatus === 'string' ? (
+                            <span className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700">
+                              {result.kantataStatus}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-md px-2 py-1 text-xs font-medium" style={{ backgroundColor: result.kantataStatus.color + '20', color: result.kantataStatus.color }}>
+                              {result.kantataStatus.message}
+                              {result.statusUpdated && (
+                                <span className="ml-2 text-xs text-gray-500">(Updated)</span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <div className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
+                            result.isValid ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {result.isValid ? 'Valid' : 'Invalid'}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">{result.message}</div>
                         </td>
                       </tr>
                     ))}
@@ -211,10 +209,6 @@ const AdminPage: NextPage = () => {
         </div>
 
         <UserManagement />
-        
-        {/* You can add more admin components here */}
-        {/* <SystemSettings /> */}
-        {/* <Statistics /> */}
       </div>
     </Layout>
   );
