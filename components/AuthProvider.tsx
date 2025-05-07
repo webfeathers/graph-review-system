@@ -128,16 +128,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Then load profile and role if we have a user
           if (initialUser) {
             try {
-              // Create a request-scoped client with the session token
-              const requestClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
-                global: { 
-                  headers: { 
-                    Authorization: `Bearer ${initialSession?.access_token}` 
-                  } 
-                },
-              });
-
-              const prof = await ProfileService.ensureProfile(initialUser, {}, requestClient);
+              const prof = await ProfileService.ensureProfile(initialUser);
               if (!isUnmounted && prof) {
                 setProfile(prof);
                 setUserRole(prof.role);
@@ -233,18 +224,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(newUser);
     
     if (newUser && newSession) {
-      // Create a request-scoped client with the session token
-      const requestClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
-        global: { 
-          headers: { 
-            Authorization: `Bearer ${newSession.access_token}` 
-          } 
-        },
-      });
-
       // Clear the profile cache to ensure we get fresh data
       ProfileService.clearProfileFromCache(newUser.id);
-      const prof = await ProfileService.ensureProfile(newUser, {}, requestClient);
+      const prof = await ProfileService.ensureProfile(newUser);
       setProfile(prof);
       setUserRole(prof?.role || null);
     } else {
