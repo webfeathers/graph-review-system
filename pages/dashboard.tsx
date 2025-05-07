@@ -26,7 +26,7 @@ interface ReviewWithCommentCount extends ReviewWithProfile {
 }
 
 const Dashboard: NextPage = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
   const [reviews, setReviews] = useState<ReviewWithCommentCount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +86,21 @@ const Dashboard: NextPage = () => {
     <Layout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {user.user_metadata?.name || user.email}!</p>
+        <p className="text-gray-600">Welcome back, {profile?.name || user.user_metadata?.name || user.email}!</p>
+        {profile && (
+          <p className="text-gray-600 mt-2">
+            You have {profile.reviewCount ?? 0} reviews and {profile.commentCount ?? 0} comments, totaling {profile.points ?? 0} points.
+          </p>
+        )}
+        {profile?.badges && profile.badges.length > 0 && (
+          <div className="mt-2 flex space-x-2">
+            {profile.badges.map((badge) => (
+              <span key={badge} className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-sm">
+                {badge}
+              </span>
+            ))}
+          </div>
+        )}
         <p>This app should replace the 
           <Link
             href="https://docs.google.com/presentation/d/1nkoiTak8G3vkOt8UcYYOai5S7dYxnEjziYf0bK4RFgw/edit#slide=id.g13a8af19432_0_229"

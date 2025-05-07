@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { Session, User, SupabaseClient } from '@supabase/supabase-js';
 import { Role } from '../types/supabase';
 import { ProfileService } from '../lib/profileService';
+import { Profile } from '../types/supabase';
 import { SessionService, SessionEvent } from '../lib/sessionService';
 import { supabase } from '../lib/supabase'; // Import the existing client
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/env';
@@ -12,6 +13,7 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   userRole: Role | null;
+  profile: Profile | null;
   supabaseClient: SupabaseClient;
   signInWithGoogle: () => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -94,6 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<Role | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const router = useRouter();
@@ -123,11 +126,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setLoading(false);
           setInitialized(true);
           
-          // Then load role if we have a user
+          // Then load profile and role if we have a user
           if (initialUser) {
-            const role = await loadUserRole(initialUser.id);
-            if (!isUnmounted) {
-              setUserRole(role);
+            const prof = await ProfileService.ensureProfile(initialUser);
+            if (!isUnmounted && prof) {
+              setProfile(prof);
+              setUserRole(prof.role);
             }
           }
           
@@ -140,6 +144,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(null);
           setUser(null);
           setUserRole(null);
+          setProfile(null);
           setLoading(false);
           setInitialized(true);
         }
@@ -176,33 +181,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Not in cache or expired, fetch from database
-      const profile = await ProfileService.ensureProfile({ id: userId } as User);
-      
-      if (profile) {
+      const profileFromDb = await ProfileService.ensureProfile({ id: userId } as User);
+      if (profileFromDb) {
         if (process.env.NODE_ENV === 'development') {
-          console.log("Loaded profile with role:", profile.role);
+          console.log("Loaded profile with role:", profileFromDb.role);
         }
-        // Update cache with current version and longer TTL
         userRoleCache.set(userId, { 
-          role: profile.role, 
+          role: profileFromDb.role, 
           timestamp: Date.now(),
           version: globalCacheVersion
         });
-        
-        return profile.role;
+        return profileFromDb.role;
       }
 
-      console.warn(`No profile found for user ${userId}, using default role`);
-      const defaultRole: Role = 'Member';
-      
-      // Cache the default role
-      userRoleCache.set(userId, { 
-        role: defaultRole, 
-        timestamp: Date.now(),
-        version: globalCacheVersion
-      });
-      
-      return defaultRole;
+      return 'Member';
     } catch (error) {
       console.error('Error loading user role:', error);
       return null;
@@ -220,8 +212,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(newUser);
     
     if (newUser) {
-      setUserRole(await loadUserRole(newUser.id));
+      const prof = await ProfileService.ensureProfile(newUser);
+      setProfile(prof);
+      setUserRole(prof?.role || null);
     } else {
+      setProfile(null);
       setUserRole(null);
     }
   };
@@ -339,6 +334,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setSession(null);
       setUserRole(null);
+      setProfile(null);
       
       // Clear role cache
       invalidateAllRoleCaches();
@@ -351,6 +347,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setUser(null);
       setSession(null);
       setUserRole(null);
+      setProfile(null);
       
       // Clear role cache
       invalidateAllRoleCaches();
@@ -371,6 +368,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     session,
     user,
     userRole,
+    profile,
     supabaseClient: supabase, // Use the imported client
     signInWithGoogle,
     signOut,
@@ -383,6 +381,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     session,
     user,
     userRole,
+    profile,
     loading,
     isAdmin
   ]);

@@ -45,6 +45,10 @@ export interface Profile {
   email: string;
   createdAt: string;
   role: Role;
+  reviewCount?: number;
+  commentCount?: number;
+  points?: number;
+  badges?: string[];
 }
 
 export interface Review {

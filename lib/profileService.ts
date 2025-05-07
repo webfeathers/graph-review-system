@@ -2,6 +2,7 @@
 import { supabase } from './supabase';
 import { User } from '@supabase/supabase-js';
 import { Profile, Role } from '../types/supabase';
+import { POINTS_PER_REVIEW, POINTS_PER_COMMENT, BADGE_THRESHOLDS } from '../constants';
 
 /**
  * A centralized service for handling user profile management
@@ -82,17 +83,40 @@ export class ProfileService {
       // If profile exists and has all required fields, return it
       if (!checkError && existingProfile && existingProfile.name) {
         console.log('Profile exists for user:', user.id);
-        const profile = {
+        const baseProfile = {
           id: existingProfile.id,
           name: existingProfile.name,
           email: existingProfile.email,
           createdAt: existingProfile.created_at,
           role: existingProfile.role as Role || 'Member'
         };
-        
-        // Add to cache
+
+        // Enrich with counts, points, and badges
+        const { count: reviewCount } = await supabase
+          .from('reviews')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+        const { count: commentCount } = await supabase
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        const reviewsCountValue = reviewCount || 0;
+        const commentsCountValue = commentCount || 0;
+        const points = reviewsCountValue * POINTS_PER_REVIEW + commentsCountValue * POINTS_PER_COMMENT;
+        const badges = BADGE_THRESHOLDS
+          .filter(({ threshold }) => points >= threshold)
+          .map(({ badge }) => badge);
+
+        const profile: Profile = {
+          ...baseProfile,
+          reviewCount: reviewsCountValue,
+          commentCount: commentsCountValue,
+          points,
+          badges
+        };
+
         this.addProfileToCache(profile);
-        
         return profile;
       }
 
@@ -147,17 +171,40 @@ export class ProfileService {
 
       // Step 4: Convert to frontend format and return
       if (result) {
-        const profile = {
+        const baseProfile = {
           id: result.id,
           name: result.name,
           email: result.email,
           createdAt: result.created_at,
           role: result.role as Role || 'Member'
         };
-        
-        // Add to cache
+
+        // Enrich with counts, points, and badges
+        const { count: reviewCount } = await supabase
+          .from('reviews')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+        const { count: commentCount } = await supabase
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        const reviewsCountValue = reviewCount || 0;
+        const commentsCountValue = commentCount || 0;
+        const points = reviewsCountValue * POINTS_PER_REVIEW + commentsCountValue * POINTS_PER_COMMENT;
+        const badges = BADGE_THRESHOLDS
+          .filter(({ threshold }) => points >= threshold)
+          .map(({ badge }) => badge);
+
+        const profile: Profile = {
+          ...baseProfile,
+          reviewCount: reviewsCountValue,
+          commentCount: commentsCountValue,
+          points,
+          badges
+        };
+
         this.addProfileToCache(profile);
-        
         return profile;
       }
 

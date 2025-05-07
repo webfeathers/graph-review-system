@@ -81,3 +81,13 @@ export const STORAGE_BUCKETS = {
   AVATARS: StorageBucket.AVATARS,
   USER_AVATARS: StorageBucket.USER_AVATARS
 } as const;
+
+// Points and badges configuration
+export const POINTS_PER_REVIEW = 10;
+export const POINTS_PER_COMMENT = 2;
+
+export const BADGE_THRESHOLDS: Array<{ threshold: number; badge: string }> = [
+  { threshold: 100, badge: 'Expert Reviewer' },
+  { threshold: 50, badge: 'Active Reviewer' },
+  { threshold: 10, badge: 'Contributor' },
+];
