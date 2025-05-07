@@ -12,7 +12,7 @@ import { commentValidationSchema } from '../lib/validationSchemas';
 import Link from 'next/link';
 import { addComment, voteOnComment, removeVote } from '../lib/api';
 import { toast } from 'react-hot-toast';
-import { ThumbUpIcon, ThumbDownIcon } from '@heroicons/react/24/outline';
+import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline';
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
@@ -178,83 +178,57 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   };
 
   const handleVote = async (commentId: string, voteType: VoteType) => {
-    if (!user || isVoting) return;
+    if (!user) return;
     
     try {
       setIsVoting(commentId);
       
+      // If the user has already voted this way, remove the vote
       const comment = comments.find(c => c.id === commentId);
-      if (!comment) return;
-      
-      const currentVote = comment.userVote;
-      const newVoteType = currentVote === voteType ? null : voteType;
-      
-      // Optimistically update the UI
-      setComments(prevComments => 
-        prevComments.map(c => {
-          if (c.id !== commentId) return c;
-          
-          // Calculate new vote count
-          const voteChange = currentVote === voteType ? -1 : (currentVote ? 0 : 1);
-          const newVoteCount = (c.voteCount || 0) + voteChange;
-          
-          return {
-            ...c,
-            voteCount: newVoteCount,
-            userVote: newVoteType,
-            votes: c.votes?.map(v => 
-              v.userId === user.id 
-                ? { ...v, voteType: newVoteType }
-                : v
-            ) || []
-          };
-        })
-      );
-
-      // Make the API call
-      const response = await fetch(`/api/comments/${commentId}/vote`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
-        body: JSON.stringify({ voteType: newVoteType })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update vote');
+      if (comment?.userVote === voteType) {
+        await removeVote(commentId, user.id);
+        setComments(prevComments => 
+          prevComments.map(c => 
+            c.id === commentId 
+              ? { 
+                  ...c, 
+                  voteCount: (c.voteCount || 0) - 1,
+                  userVote: undefined,
+                  votes: c.votes?.filter(v => v.userId !== user.id)
+                }
+              : c
+          )
+        );
+        return;
       }
-
-      const { data } = await response.json();
       
-      // Update with the server response
+      // Otherwise, add or update the vote
+      await voteOnComment(commentId, user.id, voteType);
       setComments(prevComments => 
-        prevComments.map(c => {
-          if (c.id !== commentId) return c;
-          return {
-            ...c,
-            voteCount: data.voteCount,
-            userVote: data.userVote,
-            votes: data.votes || []
-          };
-        })
+        prevComments.map(c => 
+          c.id === commentId 
+            ? { 
+                ...c, 
+                voteCount: (c.voteCount || 0) + (c.userVote ? 0 : 1),
+                userVote: voteType,
+                votes: [
+                  ...(c.votes || []).filter(v => v.userId !== user.id),
+                  {
+                    id: `${commentId}-${user.id}`,
+                    commentId,
+                    userId: user.id,
+                    voteType,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  }
+                ]
+              }
+            : c
+        )
       );
     } catch (error) {
-      console.error('Error voting:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update vote');
-      
-      // Revert optimistic update on error
-      setComments(prevComments => 
-        prevComments.map(c => {
-          if (c.id !== commentId) return c;
-          return {
-            ...c,
-            voteCount: c.voteCount,
-            userVote: c.userVote,
-            votes: c.votes
-          };
-        })
-      );
+      console.error('Error voting on comment:', error);
+      toast.error('Failed to vote on comment');
     } finally {
       setIsVoting(null);
     }
@@ -359,50 +333,22 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 <div className="flex items-center space-x-2 ml-4">
                   <button
                     onClick={() => handleVote(comment.id, 'up')}
-                    disabled={isVoting === comment.id}
-                    className={`p-1 rounded hover:bg-gray-100 ${
-                      comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-500'
+                    className={`p-1 rounded-full ${
+                      comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-400 hover:text-blue-600'
                     }`}
                     title="Upvote"
                   >
-                    <svg 
-                      className="h-5 w-5" 
-                      fill={comment.userVote === 'up' ? 'currentColor' : 'none'} 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" 
-                      />
-                    </svg>
+                    <HandThumbUpIcon className="h-5 w-5" />
                   </button>
-                  <span className="text-sm font-medium min-w-[1.5rem] text-center">
-                    {comment.voteCount || 0}
-                  </span>
+                  <span className="text-sm text-gray-500">{comment.voteCount || 0}</span>
                   <button
                     onClick={() => handleVote(comment.id, 'down')}
-                    disabled={isVoting === comment.id}
-                    className={`p-1 rounded hover:bg-gray-100 ${
-                      comment.userVote === 'down' ? 'text-red-600' : 'text-gray-500'
+                    className={`p-1 rounded-full ${
+                      comment.userVote === 'down' ? 'text-red-600' : 'text-gray-400 hover:text-red-600'
                     }`}
                     title="Downvote"
                   >
-                    <svg 
-                      className="h-5 w-5" 
-                      fill={comment.userVote === 'down' ? 'currentColor' : 'none'} 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                        strokeWidth={2} 
-                        d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" 
-                      />
-                    </svg>
+                    <HandThumbDownIcon className="h-5 w-5" />
                   </button>
                 </div>
               </div>
