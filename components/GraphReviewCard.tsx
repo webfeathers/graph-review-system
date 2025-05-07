@@ -46,10 +46,10 @@ const GraphReviewCard: React.FC<GraphReviewCardProps> = ({ review, commentCount 
       
       <div className="flex justify-between items-center text-sm text-gray-500">
         <div>
-          <div>Created by {review.user.name} on {formatDate(review.createdAt)}</div>
+          <div>Created by <Link href={`/profile/${review.user.id}`} className="text-blue-500 hover:underline">{review.user.name}</Link> on {formatDate(review.createdAt)}</div>
           {review.projectLead && (
             <div className="mt-1">
-              Project Lead: {review.projectLead.name}
+              Project Lead: <Link href={`/profile/${review.projectLead.id}`} className="text-blue-500 hover:underline">{review.projectLead.name}</Link>
             </div>
           )}
           

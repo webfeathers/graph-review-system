@@ -5,6 +5,8 @@ import { LoadingState, ErrorDisplay, useAuth, withRoleProtection } from '../../c
 import { getProfileById } from '../../lib/api';
 import type { Profile } from '../../types/supabase';
 import { ProfileService } from '../../lib/profileService';
+import { supabase } from '../../lib/supabase';
+import { POINTS_PER_REVIEW, POINTS_PER_COMMENT, BADGE_THRESHOLDS } from '../../constants';
 
 const ProfilePage: NextPage = () => {
   const router = useRouter();
@@ -24,9 +26,38 @@ const ProfilePage: NextPage = () => {
     const loadProfile = async () => {
       setLoading(true);
       try {
-        // Force a refresh of the profile data
-        const freshProfile = await ProfileService.forceRefreshProfile(id as string);
-        setProfile(freshProfile);
+        // Use getBulkProfiles to fetch any user's profile
+        const profiles = await ProfileService.getBulkProfiles([id as string]);
+        const fetchedProfile = profiles[id as string];
+        if (!fetchedProfile) {
+          throw new Error('Profile not found');
+        }
+
+        // Calculate review and comment counts
+        const { count: reviewCount } = await supabase
+          .from('reviews')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', id);
+        const { count: commentCount } = await supabase
+          .from('comments')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', id);
+
+        const reviewsCountValue = reviewCount || 0;
+        const commentsCountValue = commentCount || 0;
+        const points = reviewsCountValue * POINTS_PER_REVIEW + commentsCountValue * POINTS_PER_COMMENT;
+        const badges = BADGE_THRESHOLDS
+          .filter(({ threshold }) => points >= threshold)
+          .map(({ badge }) => badge);
+
+        // Update profile with calculated values
+        setProfile({
+          ...fetchedProfile,
+          reviewCount: reviewsCountValue,
+          commentCount: commentsCountValue,
+          points,
+          badges
+        });
       } catch (err) {
         console.error('Error loading profile:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch profile');
