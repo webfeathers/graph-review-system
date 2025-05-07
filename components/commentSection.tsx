@@ -9,6 +9,7 @@ import { Form, TextArea, SubmitButton } from './form/FormComponents';
 import { useForm } from '../lib/useForm';
 import { commentValidationSchema } from '../lib/validationSchemas';
 import { createComment } from '../lib/supabaseUtils';
+import Link from 'next/link';
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
@@ -139,17 +140,26 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     }
   }, [initialComments, user, session]);
 
-  // Helper to parse mentions in comment text
+  // Helper to parse and render full-name mentions as links
   const renderContentWithMentions = (text: string) => {
-    // Split text on mentions like @username
-    const parts = text.split(/(@\w+)/g);
+    if (!allUsers.length) return <span>{text}</span>;
+    // Build a regex that matches any full name from allUsers
+    const namesPattern = allUsers.map(u => u.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
+    const regex = new RegExp(`@(${namesPattern})`, 'g');
+    const parts = text.split(regex);
     return parts.map((part, idx) => {
-      if (part.startsWith('@')) {
-        const username = part.substring(1);
+      // Odd index means a matched name from the capture group
+      if (idx % 2 === 1) {
+        const name = part;
+        const userObj = allUsers.find(u => u.name === name);
         return (
-          <span key={idx} className="text-blue-600 font-semibold">
-            @{username}
-          </span>
+          <Link
+            key={idx}
+            href={`/profiles/${userObj?.id}`}
+            className="text-blue-600 font-semibold"
+          >
+            @{name}
+          </Link>
         );
       }
       return <span key={idx}>{part}</span>;
