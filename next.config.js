@@ -32,6 +32,12 @@ const nextConfig = {
       },
     };
 
+    // Provide fallbacks for Node modules in client
+    if (!config.resolve.fallback) {
+      config.resolve.fallback = {};
+    }
+    config.resolve.fallback.fs = false;
+
     // Basic cache configuration
     config.cache = {
       type: 'filesystem',
