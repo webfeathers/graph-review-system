@@ -192,18 +192,62 @@ const ReviewsPage: NextPage = () => {
         </Link>
       </div>
 
+      {/* Filter and View Mode Controls */}
+      <div className="flex justify-between items-center mb-6">
+        {/* Status Filter */}
+        <div>
+          <label htmlFor="statusFilter" className="mr-2 text-sm font-medium">Filter:</label>
+          <select
+            id="statusFilter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="border px-2 py-1 rounded"
+          >
+            <option value="All">All</option>
+            <option value="Submitted">Submitted</option>
+            <option value="In Review">In Review</option>
+            <option value="Needs Work">Needs Work</option>
+            <option value="Approved">Approved</option>
+          </select>
+        </div>
+        {/* View Mode Toggle */}
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setViewMode('card')}
+            className={`px-3 py-1 rounded ${viewMode === 'card' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+          >Card View</button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-1 rounded ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+          >List View</button>
+        </div>
+      </div>
+
       {loading ? (
         <LoadingState />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {reviews.map((review) => (
-            <GraphReviewCard
-              key={review.id}
-              review={review}
-              commentCount={review.commentCount}
-            />
-          ))}
-        </div>
+        // Render based on viewMode and use filteredReviews
+        viewMode === 'card' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredReviews.map((review) => (
+              <GraphReviewCard
+                key={review.id}
+                review={review}
+                commentCount={review.commentCount}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredReviews.map((review) => (
+              <ReviewListItem
+                key={review.id}
+                review={review}
+                commentCount={review.commentCount}
+              />
+            ))}
+          </div>
+        )
       )}
     </div>
   );
