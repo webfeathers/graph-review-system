@@ -9,6 +9,7 @@ import { Form, TextArea, SubmitButton } from './form/FormComponents';
 import { useForm } from '../lib/useForm';
 import { commentValidationSchema } from '../lib/validationSchemas';
 import { createComment } from '../lib/supabaseUtils';
+import { EmailService } from '../lib/emailService';
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
@@ -30,8 +31,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Autocomplete state
-  const [allUsers, setAllUsers] = useState<{id: string; name: string}[]>([]);
-  const [suggestions, setSuggestions] = useState<{id: string; name: string}[]>([]);
+  const [allUsers, setAllUsers] = useState<{id: string; name: string; email: string}[]>([]);
+  const [suggestions, setSuggestions] = useState<{id: string; name: string; email: string}[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Initialize form with proper types
@@ -52,6 +53,20 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           reviewId,
           userId: user.id
         });
+
+        // Notify mentioned users via email
+        const mentionedNames = Array.from(new Set((values.content.match(/@(\w+)/g) || []).map(m => m.substring(1))));
+        const origin = window.location.origin;
+        for (const uname of mentionedNames) {
+          const u = allUsers.find(x => x.name === uname);
+          if (u && u.email) {
+            await EmailService.sendEmail({
+              to: u.email,
+              subject: `${user.user_metadata?.name || user.email} mentioned you in a comment`,
+              html: `<p>Hi ${u.name},</p><p>${user.user_metadata?.name || user.email} mentioned you in a comment:</p><blockquote>${values.content.trim()}</blockquote><p><a href="${origin}/reviews/${reviewId}">View the comment</a></p>`
+            });
+          }
+        }
 
         // Create a complete CommentWithProfile object
         const commentWithProfile: CommentWithProfile = {
@@ -87,7 +102,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   // Load user list for mention suggestions
   useEffect(() => {
     const loadUsers = async () => {
-      const { data } = await supabase.from('profiles').select('id, name');
+      const { data } = await supabase.from('profiles').select('id, name, email');
       setAllUsers(data || []);
     };
     loadUsers();
@@ -181,8 +196,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 key={u.id}
                 className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
                 onMouseDown={() => {
-                  // Append mention at end
-                  form.setFieldValue('content', form.values.content + ` @${u.name} `);
+                  // Replace the partial mention to avoid double '@'
+                  const current = form.values.content;
+                  const newContent = current.replace(/@(\w*)$/, `@${u.name} `);
+                  form.setFieldValue('content', newContent);
                   setShowSuggestions(false);
                 }}
               >
