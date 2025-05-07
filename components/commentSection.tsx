@@ -29,6 +29,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [comments, setComments] = useState<CommentWithProfile[]>(initialComments);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Autocomplete state
+  const [allUsers, setAllUsers] = useState<{id: string; name: string}[]>([]);
+  const [suggestions, setSuggestions] = useState<{id: string; name: string}[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Initialize form with proper types
   const form = useForm<CommentFormValues>({
@@ -80,12 +84,53 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     }
   });
 
+  // Load user list for mention suggestions
+  useEffect(() => {
+    const loadUsers = async () => {
+      const { data } = await supabase.from('profiles').select('id, name');
+      setAllUsers(data || []);
+    };
+    loadUsers();
+  }, []);
+
+  // Handle input change to trigger mention suggestions
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    form.handleChange('content')(e);
+    const val = e.target.value;
+    const caret = e.target.selectionStart || 0;
+    const match = /@(\w*)$/.exec(val.slice(0, caret));
+    if (match) {
+      const prefix = match[1].toLowerCase();
+      setSuggestions(allUsers.filter(u => u.name.toLowerCase().startsWith(prefix)));
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
   // Update local state when props change, but only if we have a valid session
   useEffect(() => {
     if (user && session) {
       setComments(initialComments);
     }
   }, [initialComments, user, session]);
+
+  // Helper to parse mentions in comment text
+  const renderContentWithMentions = (text: string) => {
+    // Split text on mentions like @username
+    const parts = text.split(/(@\w+)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('@')) {
+        const username = part.substring(1);
+        return (
+          <span key={idx} className="text-blue-600 font-semibold">
+            @{username}
+          </span>
+        );
+      }
+      return <span key={idx}>{part}</span>;
+    });
+  };
 
   // Show loading state while auth is initializing
   if (authLoading) {
@@ -120,13 +165,32 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           label="Add a comment"
           placeholder="Type your comment here..."
           value={form.values.content}
-          onChange={form.handleChange('content')}
+          onChange={handleContentChange}
           onBlur={form.handleBlur('content')}
           error={form.errors.content}
           touched={form.touched.content}
           rows={4}
           disabled={isSubmitting}
         />
+        
+        {/* Autocomplete suggestions */}
+        {showSuggestions && suggestions.length > 0 && (
+          <ul className="border border-gray-300 bg-white absolute z-10 w-full max-h-40 overflow-auto">
+            {suggestions.map(u => (
+              <li
+                key={u.id}
+                className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
+                onMouseDown={() => {
+                  // Append mention at end
+                  form.setFieldValue('content', form.values.content + ` @${u.name} `);
+                  setShowSuggestions(false);
+                }}
+              >
+                {u.name}
+              </li>
+            ))}
+          </ul>
+        )}
         
         <div className="mt-4">
           <SubmitButton
@@ -152,7 +216,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   </span>
                 </div>
               </div>
-              <p className="mt-2 text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+              <p className="mt-2 text-gray-700 whitespace-pre-wrap">
+                {renderContentWithMentions(comment.content)}
+              </p>
             </div>
           ))
         )}
