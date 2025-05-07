@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { addComment, voteOnComment, removeVote } from '../lib/api';
 import { toast } from 'react-hot-toast';
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline';
+import MentionAutocomplete from './MentionAutocomplete';
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
@@ -39,6 +40,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [allUsers, setAllUsers] = useState<{id: string; name: string; email: string}[]>([]);
   const [suggestions, setSuggestions] = useState<{id: string; name: string; email: string}[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Add state for mention position
+  const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
 
   // Initialize form with proper types
   const form = useForm<CommentFormValues>({
@@ -125,9 +128,24 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     const val = e.target.value;
     const caret = e.target.selectionStart || 0;
     const match = /@(\w*)$/.exec(val.slice(0, caret));
+    
     if (match) {
       const prefix = match[1].toLowerCase();
-      setSuggestions(allUsers.filter(u => u.name.toLowerCase().startsWith(prefix)));
+      const filteredSuggestions = allUsers.filter(u => 
+        u.name.toLowerCase().startsWith(prefix) || 
+        u.email.toLowerCase().startsWith(prefix)
+      );
+      setSuggestions(filteredSuggestions);
+      
+      // Calculate position for the autocomplete dropdown
+      const textarea = e.target;
+      const rect = textarea.getBoundingClientRect();
+      const lineHeight = parseInt(getComputedStyle(textarea).lineHeight);
+      const lines = val.slice(0, caret).split('\n').length;
+      const top = rect.top + (lines * lineHeight);
+      const left = rect.left + (caret * 8); // Approximate character width
+      
+      setMentionPosition({ top, left });
       setShowSuggestions(true);
     } else {
       setShowSuggestions(false);
@@ -265,7 +283,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           id="content"
           name="content"
           label="Add a comment"
-          placeholder="Type your comment here..."
+          placeholder="Type your comment here... Use @ to mention someone"
           value={form.values.content}
           onChange={handleContentChange}
           onBlur={form.handleBlur('content')}
@@ -275,25 +293,19 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           disabled={isSubmitting}
         />
         
-        {/* Autocomplete suggestions */}
+        {/* Replace the old suggestions list with the new MentionAutocomplete */}
         {showSuggestions && suggestions.length > 0 && (
-          <ul className="border border-gray-300 bg-white absolute z-10 w-full max-h-40 overflow-auto">
-            {suggestions.map(u => (
-              <li
-                key={u.id}
-                className="px-2 py-1 hover:bg-gray-100 cursor-pointer"
-                onMouseDown={() => {
-                  // Replace the partial mention to avoid double '@'
-                  const current = form.values.content;
-                  const newContent = current.replace(/@(\w*)$/, `@${u.name} `);
-                  form.setFieldValue('content', newContent);
-                  setShowSuggestions(false);
-                }}
-              >
-                {u.name}
-              </li>
-            ))}
-          </ul>
+          <MentionAutocomplete
+            suggestions={suggestions}
+            onSelect={(user) => {
+              const current = form.values.content;
+              const newContent = current.replace(/@(\w*)$/, `@${user.name} `);
+              form.setFieldValue('content', newContent);
+              setShowSuggestions(false);
+            }}
+            onClose={() => setShowSuggestions(false)}
+            position={mentionPosition}
+          />
         )}
         
         <div className="mt-4">
