@@ -400,7 +400,7 @@ const ReviewPage: NextPage = () => {
               </div>
               {(isAuthor || isAdmin()) && (
                 <Link
-                  href={`/reviews/${review.id}/edit`}
+                  href={`/reviews/edit/${review.id}`}
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
                   <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

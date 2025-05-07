@@ -11,6 +11,8 @@ import { useForm } from '../lib/useForm';
 import { commentValidationSchema } from '../lib/validationSchemas';
 import Link from 'next/link';
 import { addComment, voteOnComment, removeVote } from '../lib/api';
+import { toast } from 'react-hot-toast';
+import { ThumbUpIcon, ThumbDownIcon } from '@heroicons/react/24/outline';
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
@@ -29,7 +31,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
 }) => {
   const { user, loading: authLoading, session } = useAuth();
   const [comments, setComments] = useState<CommentWithProfile[]>(initialComments);
+  const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isVoting, setIsVoting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Autocomplete state
   const [allUsers, setAllUsers] = useState<{id: string; name: string; email: string}[]>([]);
@@ -174,45 +178,85 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   };
 
   const handleVote = async (commentId: string, voteType: VoteType) => {
-    if (!user) return;
-
+    if (!user || isVoting) return;
+    
     try {
+      setIsVoting(commentId);
+      
       const comment = comments.find(c => c.id === commentId);
       if (!comment) return;
-
+      
       const currentVote = comment.userVote;
-      if (currentVote === voteType) {
-        // If clicking the same vote type, remove the vote
-        await removeVote(commentId, user.id);
-        setComments(prevComments => prevComments.map(c => 
-          c.id === commentId 
-            ? { 
-                ...c, 
-                userVote: undefined,
-                voteCount: (c.voteCount || 0) - (voteType === 'up' ? 1 : -1)
-              }
-            : c
-        ));
-      } else {
-        // If clicking a different vote type, first remove the existing vote if any
-        if (currentVote) {
-          await removeVote(commentId, user.id);
-        }
-        // Then add the new vote
-        await voteOnComment(commentId, user.id, voteType);
-        setComments(prevComments => prevComments.map(c => 
-          c.id === commentId 
-            ? { 
-                ...c, 
-                userVote: voteType,
-                voteCount: (c.voteCount || 0) + (voteType === 'up' ? 1 : -1) - (currentVote === 'up' ? 1 : currentVote === 'down' ? -1 : 0)
-              }
-            : c
-        ));
+      const newVoteType = currentVote === voteType ? null : voteType;
+      
+      // Optimistically update the UI
+      setComments(prevComments => 
+        prevComments.map(c => {
+          if (c.id !== commentId) return c;
+          
+          // Calculate new vote count
+          const voteChange = currentVote === voteType ? -1 : (currentVote ? 0 : 1);
+          const newVoteCount = (c.voteCount || 0) + voteChange;
+          
+          return {
+            ...c,
+            voteCount: newVoteCount,
+            userVote: newVoteType,
+            votes: c.votes?.map(v => 
+              v.userId === user.id 
+                ? { ...v, voteType: newVoteType }
+                : v
+            ) || []
+          };
+        })
+      );
+
+      // Make the API call
+      const response = await fetch(`/api/comments/${commentId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: JSON.stringify({ voteType: newVoteType })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update vote');
       }
-    } catch (err) {
-      console.error('Error voting on comment:', err);
-      setError(err instanceof Error ? err.message : 'Failed to vote on comment');
+
+      const { data } = await response.json();
+      
+      // Update with the server response
+      setComments(prevComments => 
+        prevComments.map(c => {
+          if (c.id !== commentId) return c;
+          return {
+            ...c,
+            voteCount: data.voteCount,
+            userVote: data.userVote,
+            votes: data.votes || []
+          };
+        })
+      );
+    } catch (error) {
+      console.error('Error voting:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update vote');
+      
+      // Revert optimistic update on error
+      setComments(prevComments => 
+        prevComments.map(c => {
+          if (c.id !== commentId) return c;
+          return {
+            ...c,
+            voteCount: c.voteCount,
+            userVote: c.userVote,
+            votes: c.votes
+          };
+        })
+      );
+    } finally {
+      setIsVoting(null);
     }
   };
 
@@ -315,6 +359,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 <div className="flex items-center space-x-2 ml-4">
                   <button
                     onClick={() => handleVote(comment.id, 'up')}
+                    disabled={isVoting === comment.id}
                     className={`p-1 rounded hover:bg-gray-100 ${
                       comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-500'
                     }`}
@@ -339,6 +384,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   </span>
                   <button
                     onClick={() => handleVote(comment.id, 'down')}
+                    disabled={isVoting === comment.id}
                     className={`p-1 rounded hover:bg-gray-100 ${
                       comment.userVote === 'down' ? 'text-red-600' : 'text-gray-500'
                     }`}
