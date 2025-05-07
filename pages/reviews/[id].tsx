@@ -499,7 +499,7 @@ const ReviewPage: NextPage = () => {
                       <label className="block text-sm font-medium text-gray-700">Kantata Project ID</label>
                       <div className="mt-1">
                         <a 
-                          href={`https://app.kantata.com/project/${review.kantataProjectId}`}
+                          href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}?tab=project-workspace`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:text-blue-800 flex items-center"
