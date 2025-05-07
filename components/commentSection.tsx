@@ -9,7 +9,6 @@ import { Form, TextArea, SubmitButton } from './form/FormComponents';
 import { useForm } from '../lib/useForm';
 import { commentValidationSchema } from '../lib/validationSchemas';
 import { createComment } from '../lib/supabaseUtils';
-import { EmailService } from '../lib/emailService';
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
@@ -54,18 +53,28 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           userId: user.id
         });
 
-        // Notify mentioned users via email
-        const mentionedNames = Array.from(new Set((values.content.match(/@(\w+)/g) || []).map(m => m.substring(1))));
-        const origin = window.location.origin;
-        for (const uname of mentionedNames) {
-          const u = allUsers.find(x => x.name === uname);
-          if (u && u.email) {
-            await EmailService.sendEmail({
-              to: u.email,
-              subject: `${user.user_metadata?.name || user.email} mentioned you in a comment`,
-              html: `<p>Hi ${u.name},</p><p>${user.user_metadata?.name || user.email} mentioned you in a comment:</p><blockquote>${values.content.trim()}</blockquote><p><a href="${origin}/reviews/${reviewId}">View the comment</a></p>`
-            });
-          }
+        // Notify mentioned users via server API by simple case-insensitive includes
+        const contentLower = values.content.toLowerCase();
+        const mentionedUsers = allUsers.filter(u =>
+          contentLower.includes(`@${u.name.toLowerCase()}`)
+        );
+        if (mentionedUsers.length > 0) {
+          console.log('[Mention] Posting to /api/notifications/mention with payload:', {
+            mentionedUsers,
+            commenterName: user.user_metadata?.name || user.email,
+            reviewId,
+            commentContent: newComment.content
+          });
+          fetch('/api/notifications/mention', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mentionedUsers: mentionedUsers.map(u => ({ email: u.email, name: u.name })),
+              commenterName: user.user_metadata?.name || user.email,
+              reviewId,
+              commentContent: newComment.content
+            })
+          }).catch(err => console.error('Error sending mention notifications:', err));
         }
 
         // Create a complete CommentWithProfile object
