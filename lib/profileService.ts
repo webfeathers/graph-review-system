@@ -293,7 +293,7 @@ export class ProfileService {
       if (!token) {
         console.log('No session token found, redirecting to login...');
         // Redirect to login page
-        window.location.href = '/auth/signin';
+        window.location.href = '/login';
         return null;
       }
 
@@ -303,7 +303,7 @@ export class ProfileService {
       if (userError || !authUser) {
         console.log('Failed to get user data, redirecting to login...');
         // Redirect to login page
-        window.location.href = '/auth/signin';
+        window.location.href = '/login';
         return null;
       }
 
@@ -375,7 +375,7 @@ export class ProfileService {
         if (response.status === 401) {
           console.log('Unauthorized, redirecting to login...');
           // Redirect to login page
-          window.location.href = '/auth/signin';
+          window.location.href = '/login';
           return null;
         }
         console.error('API response error:', responseData);
@@ -405,7 +405,7 @@ export class ProfileService {
       if (error instanceof Error && error.message.includes('Unauthorized')) {
         console.log('Authentication error, redirecting to login...');
         // Redirect to login page
-        window.location.href = '/auth/signin';
+        window.location.href = '/login';
       }
       return null;
     }
