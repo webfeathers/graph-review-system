@@ -32,24 +32,38 @@ async function handler(
       return res.status(200).json(cached.data);
     }
 
-    // Fetch all workspaces from Kantata
-    const kantataResponse = await fetch(
-      'https://api.mavenlink.com/api/v1/workspaces',
-      {
-        headers: {
-          'Authorization': `Bearer ${kantataApiToken}`,
-          'Accept': 'application/json'
-        },
-        signal: AbortSignal.timeout(10000) // 10 second timeout
+    // Fetch all workspaces from Kantata with pagination
+    let allWorkspaces: Record<string, any> = {};
+    const pageSize = 100;
+    for (let page = 1; ; page++) {
+      const url = `https://api.mavenlink.com/api/v1/workspaces?page=${page}&per_page=${pageSize}`;
+      console.log(`Fetching page ${page} from ${url}`);
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${kantataApiToken}`, 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000)
+      });
+      if (!response.ok) {
+        console.error(`Kantata API error: ${response.status} for URL ${url}`);
+        throw new Error(`Kantata API error: ${response.status}`);
       }
-    );
-
-    if (!kantataResponse.ok) {
-      throw new Error(`Kantata API error: ${kantataResponse.status}`);
+      const pageData = await response.json();
+      const pageWorkspaces = pageData.workspaces || {};
+      if (Object.keys(pageWorkspaces).length === 0) {
+        break;
+      }
+      Object.assign(allWorkspaces, pageWorkspaces);
     }
 
-    const data = await kantataResponse.json();
-    const workspaces = data.workspaces || {};
+    // Filter to only those created in the last 90 days and not complete or archived
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const workspaces = Object.fromEntries(
+      Object.entries(allWorkspaces).filter(([, ws]: [string, any]) => {
+        const status = ws.status?.message;
+        if (status === 'Complete' || status === 'Archived') return false;
+        const createdAt = new Date(ws.created_at || ws.createdAt);
+        return createdAt >= ninetyDaysAgo;
+      })
+    );
 
     // Get all reviews to check which ones have Graph Reviews
     const { data: reviews, error: reviewsError } = await supabaseClient
