@@ -1,6 +1,6 @@
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { LoadingState, ErrorDisplay, useAuth, withRoleProtection } from '../../components';
 import { getProfileById } from '../../lib/api';
 import type { Profile } from '../../types/supabase';
@@ -15,14 +15,11 @@ const ProfilePage: NextPage = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedProfile = useRef(false);
 
   useEffect(() => {
-    if (!router.isReady) return;
-    if (authLoading) return;
-    if (!user) {
-      router.push('/login');
-      return;
-    }
+    if (!router.isReady || authLoading || !user || !id || hasLoadedProfile.current) return;
+
     const loadProfile = async () => {
       setLoading(true);
       try {
@@ -58,6 +55,7 @@ const ProfilePage: NextPage = () => {
           points,
           badges
         });
+        hasLoadedProfile.current = true;
       } catch (err) {
         console.error('Error loading profile:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch profile');
@@ -65,8 +63,16 @@ const ProfilePage: NextPage = () => {
         setLoading(false);
       }
     };
+
     loadProfile();
-  }, [router.isReady, authLoading, user, id, router]);
+  }, [router.isReady, authLoading, user, id]);
+
+  // Handle authentication redirect
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login');
+    }
+  }, [authLoading, user, router]);
 
   if (authLoading || loading || !profile) {
     return <LoadingState message="Loading profile..." />;

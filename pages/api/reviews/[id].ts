@@ -279,49 +279,36 @@ const reviewHandler: AuthenticatedHandler = async (
         console.log('Final update data:', putUpdateData);
 
         try {
-          // First update the review using admin client
-          const { data: updateData, error: putUpdateError } = await supabaseAdmin
+          // Perform the update using admin client
+          const { error: updateError } = await supabaseAdmin
             .from('reviews')
-            .update(putUpdateData)
-            .eq('id', id)
-            .select()
-            .single();
+            .update({
+              ...putUpdateData,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', id);
 
-          if (putUpdateError) {
-            console.error('Error updating review:', putUpdateError);
+          if (updateError) {
+            console.error('Error updating review:', updateError);
             return res.status(500).json({
               success: false,
               message: 'Failed to update review'
             });
           }
 
-          console.log('Update successful:', updateData);
-
-          // Then fetch the updated review with relations using admin client
-          const { data: updateResult, error: fetchError } = await supabaseAdmin
+          // Fetch the updated review with all related data using admin client
+          const { data, error: fetchError } = await supabaseAdmin
             .from('reviews')
             .select(`
               *,
-              user:user_id (
-                id,
-                email,
-                name
-              ),
-              projectLead:project_lead_id (
-                id,
-                email,
-                name
-              ),
+              user:profiles!fk_reviews_user(id, name, email, created_at, role),
+              projectLead:profiles!fk_project_lead(id, name, email, created_at, role),
               comments (
                 id,
                 content,
                 created_at,
                 user_id,
-                user:user_id (
-                  id,
-                  email,
-                  name
-                )
+                user:profiles!fk_comments_user(id, name, email, created_at, role)
               )
             `)
             .eq('id', id)
@@ -331,19 +318,13 @@ const reviewHandler: AuthenticatedHandler = async (
             console.error('Error fetching updated review:', fetchError);
             return res.status(500).json({
               success: false,
-              message: 'Review updated but failed to fetch updated data'
+              message: 'Failed to fetch updated review'
             });
           }
 
-          console.log('Updated review fetched:', {
-            id: updateResult.id,
-            title: updateResult.title,
-            status: updateResult.status
-          });
-
           return res.status(200).json({
             success: true,
-            data: updateResult
+            data
           });
         } catch (error) {
           console.error('Unexpected error in PUT handler:', error);
