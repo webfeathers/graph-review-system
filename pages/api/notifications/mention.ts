@@ -11,10 +11,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const { mentionedUsers, commenterName, reviewId, commentContent } = req.body as {
+    const { mentionedUsers, commenterName, reviewId, commentId, commentContent } = req.body as {
       mentionedUsers: Array<{ email: string; name: string }>;
       commenterName: string;
       reviewId: string;
+      commentId: string;
       commentContent: string;
     };
 
@@ -28,7 +29,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           <p>Hi ${u.name},</p>
           <p><strong>${commenterName}</strong> mentioned you in a comment:</p>
           <blockquote>${commentContent}</blockquote>
-          <p><a href="${origin}/reviews/${reviewId}">View the comment</a></p>
+          <p><a href="${origin}/reviews/${reviewId}#comment-${commentId}">View the comment</a></p>
         `;
         return EmailService.sendEmail({
           to: u.email,

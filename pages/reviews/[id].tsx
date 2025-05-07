@@ -65,8 +65,8 @@ const ReviewPage: NextPage = () => {
 
       // Don't fetch if we're not authenticated
       if (!user) {
-        console.log('User not authenticated, redirecting to login');
-        router.push('/login');
+        console.log('User not authenticated, redirecting to login with returnTo');
+        router.push(`/login?returnTo=${encodeURIComponent(router.asPath as string)}`);
         setLoading(false);
         return;
       }
@@ -103,9 +103,10 @@ const ReviewPage: NextPage = () => {
         console.log('API Response data:', data);
 
         if (response.status === 401) {
-          // Handle authentication error
-          console.error('Authentication error, redirecting to login');
-          router.push('/login');
+          // Handle authentication error, redirect back to this review after login
+          console.error('Authentication error, redirecting to login with returnTo');
+          router.push(`/login?returnTo=${encodeURIComponent(router.asPath as string)}`);
+          setLoading(false);
           return;
         }
 

@@ -175,23 +175,30 @@ export class SessionService {
   /**
    * Sign in with Google
    * 
-   * @param redirectUrl Optional URL to redirect to after sign in
    * @returns The result of the sign in attempt
    */
-  static async signInWithGoogle(redirectUrl?: string): Promise<{ data: any, error: any }> {
+  static async signInWithGoogle(): Promise<{ data: any, error: any }> {
     try {
-      // Always use localhost:3000 in development
-      const isDev = process.env.NODE_ENV === 'development';
-      const baseUrl = isDev ? 'http://localhost:3000' : (redirectUrl || window.location.origin);
-      const finalRedirectUrl = `${baseUrl}/dashboard`;
-      
-      console.log('Using redirect URL:', finalRedirectUrl);
+      // Determine redirect target: if `returnTo` query param exists, use it; otherwise default to dashboard
+      const isBrowser = typeof window !== 'undefined';
+      let finalRedirectUrl: string;
+      if (isBrowser) {
+        const params = new URLSearchParams(window.location.search);
+        const returnTo = params.get('returnTo');
+        if (returnTo) {
+          finalRedirectUrl = `${window.location.origin}${returnTo}`;
+        } else {
+          finalRedirectUrl = `${window.location.origin}/dashboard`;
+        }
+      } else {
+        finalRedirectUrl = `${window.location.origin}/dashboard`;
+      }
+
+      console.log('Using redirect URL for OAuth:', finalRedirectUrl);
       
       return await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: finalRedirectUrl
-        }
+        options: { redirectTo: finalRedirectUrl }
       });
     } catch (error) {
       console.error('Error signing in with Google:', error);

@@ -68,6 +68,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
             mentionedUsers,
             commenterName: user.user_metadata?.name || user.email,
             reviewId,
+            commentId: newComment.id,
             commentContent: newComment.content
           });
           fetch('/api/notifications/mention', {
@@ -77,6 +78,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
               mentionedUsers: mentionedUsers.map(u => ({ email: u.email, name: u.name })),
               commenterName: user.user_metadata?.name || user.email,
               reviewId,
+              commentId: newComment.id,
               commentContent: newComment.content
             })
           }).catch(err => console.error('Error sending mention notifications:', err));
@@ -323,7 +325,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           <p className="text-gray-500 text-center">No comments yet. Be the first to comment!</p>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className="bg-white p-4 rounded-lg shadow">
+            <div id={`comment-${comment.id}`} key={comment.id} className="bg-white p-4 rounded-lg shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
