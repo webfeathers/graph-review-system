@@ -202,10 +202,6 @@ const ReviewPage: NextPage = () => {
       setIsUpdating(true);
       setError(null);
 
-      // Optimistically update UI
-      const previousStatus = currentStatus;
-      setCurrentStatus(newStatus);
-
       // Get the session
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -220,24 +216,27 @@ const ReviewPage: NextPage = () => {
       });
 
       // Use the API endpoint
-      const response = await fetch(`/api/reviews/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`/api/reviews/${id}/status`, {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ 
-          status: newStatus,
-          title: review.title
-        })
+        body: JSON.stringify({ newStatus })
       });
 
       const responseData = await response.json();
-      console.log('Received response:', responseData);
+      console.log('Received response:', {
+        status: response.status,
+        ok: response.ok,
+        data: responseData
+      });
 
-      if (!response.ok || !responseData.success) {
-        // Revert optimistic update on failure
-        setCurrentStatus(previousStatus);
+      if (!response.ok) {
+        throw new Error(responseData.message || `Failed to update status: ${response.statusText}`);
+      }
+
+      if (!responseData.success) {
         throw new Error(responseData.message || 'Failed to update status');
       }
 
@@ -283,8 +282,6 @@ const ReviewPage: NextPage = () => {
         setReview(transformedReview);
         setCurrentStatus(transformedReview.status);
         toast.success('Status updated successfully');
-      } else {
-        throw new Error('No data received in response');
       }
 
     } catch (err) {
@@ -431,13 +428,37 @@ const ReviewPage: NextPage = () => {
             {/* Status and Project Lead at the top */}
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  review.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                  review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {review.status}
-                </span>
+                {(isAuthor || isAdmin()) ? (
+                  <div className="flex items-center space-x-2">
+                    <select
+                      value={currentStatus}
+                      onChange={(e) => handleStatusChange(e.target.value as ReviewWithProfile['status'])}
+                      disabled={isUpdating}
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        currentStatus === 'Approved' ? 'bg-green-100 text-green-800' :
+                        currentStatus === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
+                        currentStatus === 'In Review' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-800'
+                      } border-0 focus:ring-2 focus:ring-blue-500`}
+                    >
+                      <option value="Submitted">Submitted</option>
+                      <option value="In Review">In Review</option>
+                      <option value="Needs Work">Needs Work</option>
+                      <option value="Approved">Approved</option>
+                    </select>
+                    {isUpdating && (
+                      <span className="text-sm text-gray-500">Updating...</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    review.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                    review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {review.status}
+                  </span>
+                )}
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">Project Lead:</span>
                   {isAdmin() ? (
