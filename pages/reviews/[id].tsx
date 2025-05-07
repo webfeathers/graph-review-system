@@ -39,9 +39,8 @@ const ReviewPage: NextPage = () => {
   const [error, setError] = useState<string | null>(null);
   
   // Project Lead related state
-  const [projectLead, setProjectLead] = useState<Profile | null>(null);
-  const [isChangingLead, setIsChangingLead] = useState(false);
   const [newLeadId, setNewLeadId] = useState<string>('');
+  const [isChangingLead, setIsChangingLead] = useState(false);
   const [updatingLead, setUpdatingLead] = useState(false);
 
   // Fetch review data
@@ -84,7 +83,9 @@ const ReviewPage: NextPage = () => {
         
         if (!token) {
           console.error('No authentication token available');
-          throw new Error('No authentication token available');
+          // Redirect to login if no token
+          router.push('/login');
+          return;
         }
 
         console.log('Making API request with token:', token.substring(0, 10) + '...');
@@ -100,6 +101,13 @@ const ReviewPage: NextPage = () => {
         console.log('API Response status:', response.status);
         const data = await response.json();
         console.log('API Response data:', data);
+
+        if (response.status === 401) {
+          // Handle authentication error
+          console.error('Authentication error, redirecting to login');
+          router.push('/login');
+          return;
+        }
 
         if (!response.ok) {
           console.error('API request failed:', {
@@ -295,6 +303,12 @@ const ReviewPage: NextPage = () => {
     }
   };
   
+  // Handler for project lead selection
+  const handleProjectLeadChange = (value: string) => {
+    setNewLeadId(value);
+    setIsChangingLead(true);
+  };
+
   // Handler to change project lead
   const handleChangeProjectLead = async () => {
     if (!newLeadId || !review) return;
@@ -427,11 +441,22 @@ const ReviewPage: NextPage = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-500">Project Lead:</span>
                   {isAdmin() ? (
-                    <ProjectLeadSelector
-                      value={review.projectLeadId || ''}
-                      onChange={handleChangeProjectLead}
-                      disabled={!isAdmin()}
-                    />
+                    <div className="flex items-center space-x-2">
+                      <ProjectLeadSelector
+                        value={newLeadId || review.projectLeadId || ''}
+                        onChange={handleProjectLeadChange}
+                        disabled={updatingLead}
+                      />
+                      {isChangingLead && (
+                        <button
+                          onClick={handleChangeProjectLead}
+                          disabled={updatingLead}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        >
+                          {updatingLead ? 'Updating...' : 'Update'}
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <span className="text-sm text-gray-900">
                       {review.projectLead?.email || 'Not assigned'}
