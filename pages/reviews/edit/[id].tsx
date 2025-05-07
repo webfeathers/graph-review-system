@@ -2,7 +2,6 @@
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import React, { useState, useEffect, useCallback } from 'react';
-import Layout from '../../../components/Layout';
 import { useAuth } from '../../../components/AuthProvider';
 import { ErrorDisplay } from '../../../components/ErrorDisplay';
 import { LoadingState } from '../../../components/LoadingState';
@@ -467,9 +466,9 @@ const EditReview: NextPage = () => {
     // We are not using formErrors state from useForm here
 
   return (
-    <Layout>
-      <div className="max-w-2xl mx-auto py-8 px-4">
-        <h1 className="text-3xl font-bold mb-6">Edit Graph Review</h1>
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-8">Edit Graph Review</h1>
         
         {error && <ErrorDisplay error={error} />}
 
@@ -665,7 +664,7 @@ const EditReview: NextPage = () => {
           </div>
         </Form>
       </div>
-    </Layout>
+    </div>
   );
 };
 

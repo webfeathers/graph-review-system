@@ -54,14 +54,11 @@ async function handler(
       Object.assign(allWorkspaces, pageWorkspaces);
     }
 
-    // Filter to only those created in the last 90 days and not complete or archived
-    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    // Filter to exclude Completed and Archived projects
     const workspaces = Object.fromEntries(
       Object.entries(allWorkspaces).filter(([, ws]: [string, any]) => {
         const status = ws.status?.message;
-        if (status === 'Complete' || status === 'Archived') return false;
-        const createdAt = new Date(ws.created_at || ws.createdAt);
-        return createdAt >= ninetyDaysAgo;
+        return status !== 'Archived' && status !== 'Completed';
       })
     );
 
@@ -74,10 +71,19 @@ async function handler(
       throw new Error(`Error fetching reviews: ${reviewsError.message}`);
     }
 
+    console.log('Found reviews with Kantata project IDs:', reviews?.filter(r => r.kantata_project_id).map(r => ({
+      id: r.id,
+      kantata_project_id: r.kantata_project_id
+    })));
+
     // Create a map of Kantata project IDs to review data
     const reviewMap = new Map();
     reviews?.forEach(review => {
       if (review.kantata_project_id) {
+        console.log('Adding review to map:', {
+          kantata_project_id: review.kantata_project_id,
+          review_id: review.id
+        });
         reviewMap.set(review.kantata_project_id, review);
       }
     });
@@ -85,6 +91,11 @@ async function handler(
     // Transform the workspaces data
     const projects = Object.entries(workspaces).map(([id, workspace]: [string, any]) => {
       const review = reviewMap.get(id);
+      console.log('Checking workspace:', {
+        workspace_id: id,
+        has_review: !!review,
+        review_id: review?.id
+      });
       return {
         id: review?.id || id,
         title: workspace.title,
@@ -96,6 +107,12 @@ async function handler(
         graphReviewId: review?.id
       };
     });
+
+    console.log('Final projects with review status:', projects.map(p => ({
+      id: p.id,
+      kantata_project_id: p.kantataProjectId,
+      has_graph_review: p.hasGraphReview
+    })));
 
     const apiResponse = {
       message: `Found ${projects.length} projects`,
