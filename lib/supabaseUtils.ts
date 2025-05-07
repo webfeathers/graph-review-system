@@ -369,18 +369,40 @@ export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt
     created_at: new Date().toISOString()
   };
   
-  const { data, error } = await supabase
+  // First create the comment
+  const { data: comment, error: commentError } = await supabase
     .from('comments')
     .insert(dbCommentData)
     .select()
     .single();
 
-  if (error) {
-    console.error('Error creating comment:', error);
-    throw error;
+  if (commentError) {
+    console.error('Error creating comment:', commentError);
+    throw commentError;
   }
 
-  return dbToFrontendComment(data);
+  // Then fetch the comment with the user profile
+  const { data: commentWithProfile, error: profileError } = await supabase
+    .from('comments')
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        email,
+        created_at,
+        role
+      )
+    `)
+    .eq('id', comment.id)
+    .single();
+
+  if (profileError) {
+    console.error('Error fetching comment with profile:', profileError);
+    throw profileError;
+  }
+
+  return dbToFrontendCommentWithProfile(commentWithProfile);
 }
 
 /**

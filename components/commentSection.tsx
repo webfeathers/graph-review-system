@@ -1,15 +1,16 @@
 // components/commentSection.tsx
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { Comment, CommentWithProfile, Profile } from '../types';
+import { Profile } from '../types';
+import { Comment, CommentWithProfile, VoteType } from '../types/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { supabase } from '../lib/supabase';
 import { ErrorDisplay } from './ErrorDisplay';
 import { Form, TextArea, SubmitButton } from './form/FormComponents';
 import { useForm } from '../lib/useForm';
 import { commentValidationSchema } from '../lib/validationSchemas';
-import { createComment } from '../lib/supabaseUtils';
 import Link from 'next/link';
+import { addComment, voteOnComment, removeVote } from '../lib/api';
 
 interface CommentSectionProps {
   comments: CommentWithProfile[];
@@ -48,11 +49,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       setError(null);
 
       try {
-        const newComment = await createComment({
-          content: values.content.trim(),
-          reviewId,
-          userId: user.id
-        });
+        const newComment = await addComment(reviewId, values.content.trim(), user.id);
 
         // Notify mentioned users via server API by simple case-insensitive includes
         const contentLower = values.content.toLowerCase();
@@ -91,7 +88,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         };
 
         // Update local state
-        setComments(prevComments => [...prevComments, commentWithProfile]);
+        setComments(prevComments => [commentWithProfile, ...prevComments]);
         
         // Notify parent component
         if (onCommentAdded) {
@@ -136,7 +133,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   // Update local state when props change, but only if we have a valid session
   useEffect(() => {
     if (user && session) {
-      setComments(initialComments);
+      // Sort comments by createdAt in descending order (newest first)
+      const sortedComments = [...initialComments].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setComments(sortedComments);
     }
   }, [initialComments, user, session]);
 
@@ -155,8 +156,14 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         return (
           <Link
             key={idx}
-            href={`/profiles/${userObj?.id}`}
+            href={`/profile/${userObj?.id}`}
             className="text-blue-600 font-semibold"
+            onClick={(e) => {
+              e.preventDefault();
+              if (userObj?.id) {
+                window.location.href = `/profile/${userObj.id}`;
+              }
+            }}
           >
             @{name}
           </Link>
@@ -164,6 +171,49 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       }
       return <span key={idx}>{part}</span>;
     });
+  };
+
+  const handleVote = async (commentId: string, voteType: VoteType) => {
+    if (!user) return;
+
+    try {
+      const comment = comments.find(c => c.id === commentId);
+      if (!comment) return;
+
+      const currentVote = comment.userVote;
+      if (currentVote === voteType) {
+        // If clicking the same vote type, remove the vote
+        await removeVote(commentId, user.id);
+        setComments(prevComments => prevComments.map(c => 
+          c.id === commentId 
+            ? { 
+                ...c, 
+                userVote: undefined,
+                voteCount: (c.voteCount || 0) - (voteType === 'up' ? 1 : -1)
+              }
+            : c
+        ));
+      } else {
+        // If clicking a different vote type, first remove the existing vote if any
+        if (currentVote) {
+          await removeVote(commentId, user.id);
+        }
+        // Then add the new vote
+        await voteOnComment(commentId, user.id, voteType);
+        setComments(prevComments => prevComments.map(c => 
+          c.id === commentId 
+            ? { 
+                ...c, 
+                userVote: voteType,
+                voteCount: (c.voteCount || 0) + (voteType === 'up' ? 1 : -1) - (currentVote === 'up' ? 1 : currentVote === 'down' ? -1 : 0)
+              }
+            : c
+        ));
+      }
+    } catch (err) {
+      console.error('Error voting on comment:', err);
+      setError(err instanceof Error ? err.message : 'Failed to vote on comment');
+    }
   };
 
   // Show loading state while auth is initializing
@@ -245,16 +295,71 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           comments.map((comment) => (
             <div key={comment.id} className="bg-white p-4 rounded-lg shadow">
               <div className="flex items-start justify-between">
-                <div>
-                  <span className="font-semibold">{comment.user.name}</span>
-                  <span className="text-gray-500 text-sm ml-2">
-                    {new Date(comment.createdAt).toLocaleDateString()}
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium">{comment.user.name}</span>
+                    <span className="text-gray-500 text-sm">
+                      {new Date(comment.createdAt).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-gray-700 whitespace-pre-wrap">
+                    {renderContentWithMentions(comment.content)}
+                  </p>
+                </div>
+                <div className="flex items-center space-x-2 ml-4">
+                  <button
+                    onClick={() => handleVote(comment.id, 'up')}
+                    className={`p-1 rounded hover:bg-gray-100 ${
+                      comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-500'
+                    }`}
+                    title="Upvote"
+                  >
+                    <svg 
+                      className="h-5 w-5" 
+                      fill={comment.userVote === 'up' ? 'currentColor' : 'none'} 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" 
+                      />
+                    </svg>
+                  </button>
+                  <span className="text-sm font-medium min-w-[1.5rem] text-center">
+                    {comment.voteCount || 0}
                   </span>
+                  <button
+                    onClick={() => handleVote(comment.id, 'down')}
+                    className={`p-1 rounded hover:bg-gray-100 ${
+                      comment.userVote === 'down' ? 'text-red-600' : 'text-gray-500'
+                    }`}
+                    title="Downvote"
+                  >
+                    <svg 
+                      className="h-5 w-5" 
+                      fill={comment.userVote === 'down' ? 'currentColor' : 'none'} 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018c.163 0 .326.02.485.06L17 4m-7 10v2a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" 
+                      />
+                    </svg>
+                  </button>
                 </div>
               </div>
-              <p className="mt-2 text-gray-700 whitespace-pre-wrap">
-                {renderContentWithMentions(comment.content)}
-              </p>
             </div>
           ))
         )}

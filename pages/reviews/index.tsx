@@ -5,9 +5,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 // Components
-import Layout from '../../components/Layout';
 import GraphReviewCard from '../../components/GraphReviewCard';
 import { LoadingState } from '../../components/LoadingState';
+import { withRoleProtection } from '../../components/withRoleProtection';
 
 // Hooks and Utils
 import { useAuth } from '../../components/AuthProvider';
@@ -22,7 +22,7 @@ interface ReviewWithCommentCount extends ReviewWithProfile {
   commentCount: number;
 }
 
-const Reviews: NextPage = () => {
+const ReviewsPage: NextPage = () => {
   const { user, loading: authLoading, session } = useAuth();
   const router = useRouter();
   const [reviews, setReviews] = useState<ReviewWithCommentCount[]>([]);
@@ -181,97 +181,33 @@ const Reviews: NextPage = () => {
   );
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Graph Reviews</h1>
-          <div className="flex items-center space-x-4">
-            {/* View mode toggle */}
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setViewMode('card')}
-                className={`p-2 rounded ${
-                  viewMode === 'card' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded ${
-                  viewMode === 'list' 
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            </div>
-            
-            <button
-              onClick={() => {
-                console.log('New Review clicked');
-                window.location.href = '/reviews/new';
-              }}
-              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-            >
-              New Review
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex flex-wrap gap-2 mb-6">
-          {['All', 'Submitted', 'In Review', 'Needs Work', 'Approved'].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-2 rounded ${
-                filter === status
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-              }`}
-            >
-              {status}
-            </button>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">All Reviews</h1>
+        <Link
+          href="/reviews/new"
+          className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+        >
+          New Review
+        </Link>
+      </div>
+
+      {loading ? (
+        <LoadingState />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {reviews.map((review) => (
+            <GraphReviewCard
+              key={review.id}
+              review={review}
+              commentCount={review.commentCount}
+            />
           ))}
         </div>
-
-        {filteredReviews.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg cards-card">
-            <p className="text-gray-500">No reviews found with the selected status.</p>
-          </div>
-        ) : viewMode === 'card' ? (
-          // Card view
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredReviews.map((review) => (
-              <GraphReviewCard 
-                key={review.id} 
-                review={review} 
-                commentCount={review.commentCount}
-              />
-            ))}
-          </div>
-        ) : (
-          // List view with status on the left
-          <div className="bg-white rounded-lg shadow divide-y cards-list">
-            {filteredReviews.map((review) => (
-              <ReviewListItem 
-                key={review.id} 
-                review={review} 
-                commentCount={review.commentCount}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </Layout>
+      )}
+    </div>
   );
 };
 
-export default Reviews;
+// Wrap the component with withRoleProtection to allow access to all authenticated users
+export default withRoleProtection(ReviewsPage, ['Member', 'Admin']);

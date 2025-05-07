@@ -1,6 +1,5 @@
 // components/Layout.tsx
 import React, { ReactNode } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from './AuthProvider';
 
@@ -15,60 +14,62 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleLogout = async () => {
     await signOut();
   };
+
+  const handleNavigation = (path: string) => {
+    router.replace(path);
+  };
   
   return (
     <div className="min-h-screen flex flex-col font-['Montserrat',sans-serif]">
       <header className="bg-[#FFFFFF] Xtext-white shadow">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <a href="/dashboard" className="flex items-center">
+          <button onClick={() => handleNavigation('/dashboard')} className="flex items-center">
             <img 
               src="https://kcihsgnpmxzgdgwdijgx.supabase.co/storage/v1/object/public/avatars/ld-logo.png" 
               alt="Logo" 
               className="h-8 w-auto" 
             />
-          </a>
+          </button>
           
           {user && (
-            // components/Layout.tsx - temporarily use anchor tags instead of Link
-<nav className="flex items-center space-x-4">
-  <a href="/dashboard" className="hover:underline">
-    Dashboard
-  </a>
-  <a href="/reviews" className="hover:underline">
-    Reviews
-  </a>
-  <a href="/reviews/new" className="hover:underline">
-    New Review
-  </a>
-  {/* Only show Admin links for users with Admin role */}
-  {/* Admin Section with Dropdown */}
-  {isAdmin() && (
-    <>
-      <a href="/admin" className="hover:underline">
-        Admin
-      </a>
-      <a href="/admin/kantata-projects" className="hover:underline">
-        Kantata Projects
-      </a>
-    </>
-  )}
-
-
-
-  <button onClick={handleLogout} className="hover:underline">
-    Logout
-  </button>
-</nav>
+            <nav className="flex items-center space-x-4">
+              <button onClick={() => handleNavigation('/dashboard')} className="hover:underline">
+                Dashboard
+              </button>
+              <button onClick={() => handleNavigation('/reviews')} className="hover:underline">
+                Reviews
+              </button>
+              <button onClick={() => handleNavigation('/reviews/new')} className="hover:underline">
+                New Review
+              </button>
+              <button onClick={() => handleNavigation(`/profile/${user.id}`)} className="hover:underline">
+                Profile
+              </button>
+              {/* Only show Admin links for users with Admin role */}
+              {isAdmin() && (
+                <>
+                  <button onClick={() => handleNavigation('/admin')} className="hover:underline">
+                    Admin
+                  </button>
+                  <button onClick={() => handleNavigation('/admin/kantata-projects')} className="hover:underline">
+                    Kantata Projects
+                  </button>
+                </>
+              )}
+              <button onClick={handleLogout} className="hover:underline">
+                Logout
+              </button>
+            </nav>
           )}
           
           {!user && (
             <nav className="flex items-center space-x-4">
-              <Link href="/login" className="hover:underline">
+              <button onClick={() => handleNavigation('/login')} className="hover:underline">
                 Login
-              </Link>
-              <Link href="/register" className="hover:underline">
+              </button>
+              <button onClick={() => handleNavigation('/register')} className="hover:underline">
                 Register
-              </Link>
+              </button>
             </nav>
           )}
         </div>

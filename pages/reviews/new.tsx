@@ -2,7 +2,6 @@
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import Layout from '../../components/Layout';
 import { useAuth } from '../../components/AuthProvider';
 import { useForm } from '../../lib/useForm';
 import { ErrorDisplay } from '../../components/ErrorDisplay';
@@ -297,42 +296,33 @@ const NewReview: NextPage = () => {
 
   try {
     return (
-      <Layout>
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Submit a New Graph Review</h1>
-  
-          {renderError && (
-            <div className="bg-red-100 text-red-700 p-4 rounded-md mb-4">
-              <p>Error rendering form: {renderError}</p>
-            </div>
-          )}
-  
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">New Graph Review</h1>
+          
           {generalError && (
             <ErrorDisplay 
               error={generalError} 
               onDismiss={() => setGeneralError(null)} 
-              variant="error"
               className="mb-6"
             />
           )}
-  
+
           <Form onSubmit={form.handleSubmit}>
-
-          <div className="mb-4">
-            <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
-              Project Lead
-            </label>
-            <ProjectLeadSelector
-              value={form.values.projectLeadId}
-              onChange={(value) => form.setFieldValue('projectLeadId', value)}
-              disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && user?.id !== form.values.projectLeadId}
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              The person responsible for this graph review.
-              {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can assign to someone else."}
-            </p>
-          </div>
-
+            <div className="mb-4">
+              <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
+                Project Lead
+              </label>
+              <ProjectLeadSelector
+                value={form.values.projectLeadId}
+                onChange={(value) => form.setFieldValue('projectLeadId', value)}
+                disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && user?.id !== form.values.projectLeadId}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                The person responsible for this graph review.
+                {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can assign to someone else."}
+              </p>
+            </div>
 
             <TextInput
               id="title"
@@ -347,7 +337,7 @@ const NewReview: NextPage = () => {
               required
               helpText={`Maximum ${FIELD_LIMITS.TITLE_MAX_LENGTH} characters`}
             />
-  
+    
             <TextInput
               id="accountName"
               name="accountName"
@@ -392,7 +382,7 @@ const NewReview: NextPage = () => {
               touched={form.touched.orgId}
               maxLength={FIELD_LIMITS.ORG_ID_MAX_LENGTH}
             />
-  
+    
             <SelectInput
               id="segment"
               name="segment"
@@ -408,7 +398,7 @@ const NewReview: NextPage = () => {
               ]}
               required
             />
-  
+    
             <Checkbox
               id="remoteAccess"
               label="Remote Access Granted"
@@ -416,7 +406,7 @@ const NewReview: NextPage = () => {
               onChange={form.handleChange('remoteAccess')}
               helpText="Check if remote access has been granted"
             />
-  
+    
             <TextInput
               id="graphName"
               name="graphName"
@@ -429,7 +419,7 @@ const NewReview: NextPage = () => {
               touched={form.touched.graphName}
               maxLength={FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH}
             />
-  
+    
             <TextArea
               id="description"
               name="description"
@@ -444,7 +434,7 @@ const NewReview: NextPage = () => {
               rows={6}
               helpText={`Maximum ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`}
             />
-  
+    
             <TextArea
               id="useCase"
               name="useCase"
@@ -458,7 +448,7 @@ const NewReview: NextPage = () => {
               rows={4}
               maxLength={FIELD_LIMITS.USE_CASE_MAX_LENGTH}
             />
-  
+    
             <TextInput
               id="customerFolder"
               name="customerFolder"
@@ -472,7 +462,7 @@ const NewReview: NextPage = () => {
               maxLength={FIELD_LIMITS.CUSTOMER_FOLDER_MAX_LENGTH}
               type="url"
             />
-  
+    
             <TextInput
               id="handoffLink"
               name="handoffLink"
@@ -486,7 +476,7 @@ const NewReview: NextPage = () => {
               maxLength={FIELD_LIMITS.HANDOFF_LINK_MAX_LENGTH}
               type="url"
             />
-  
+    
             <div className="flex items-center justify-between mt-8">
               <button
                 type="button"
@@ -506,23 +496,21 @@ const NewReview: NextPage = () => {
             </div>
           </Form>
         </div>
-      </Layout>
+      </div>
     );
   } catch (error) {
     console.error('Error rendering NewReview component:', error);
     setRenderError(error instanceof Error ? error.message : 'An unknown error occurred');
     return (
-      <Layout>
-        <div className="bg-red-100 text-red-700 p-4 rounded-md mb-4">
-          <p>Error rendering form: {renderError}</p>
-          <button 
-            onClick={() => router.push('/reviews')} 
-            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
-          >
-            Return to Reviews
-          </button>
-        </div>
-      </Layout>
+      <div className="bg-red-100 text-red-700 p-4 rounded-md mb-4">
+        <p>Error rendering form: {renderError}</p>
+        <button 
+          onClick={() => router.push('/reviews')} 
+          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          Return to Reviews
+        </button>
+      </div>
     );
   }
 };

@@ -1,6 +1,6 @@
 // lib/profileService.ts
 import { supabase } from './supabase';
-import { User } from '@supabase/supabase-js';
+import { User, SupabaseClient } from '@supabase/supabase-js';
 import { Profile, Role } from '../types/supabase';
 import { POINTS_PER_REVIEW, POINTS_PER_COMMENT, BADGE_THRESHOLDS } from '../constants';
 
@@ -49,7 +49,7 @@ export class ProfileService {
    * 
    * @param userId User ID to clear from cache
    */
-  private static clearProfileFromCache(userId: string): void {
+  static clearProfileFromCache(userId: string): void {
     this.profileCache.delete(userId);
   }
   
@@ -58,13 +58,21 @@ export class ProfileService {
    * 
    * @param user The authenticated user object
    * @param additionalData Optional additional data to include in the profile
+   * @param supabaseClient Optional Supabase client to use for the request
    * @returns The profile object, or null if creation failed
    */
-  static async ensureProfile(user: User | { id: string }, additionalData: any = {}): Promise<Profile | null> {
+  static async ensureProfile(
+    user: User | { id: string }, 
+    additionalData: any = {},
+    supabaseClient?: SupabaseClient
+  ): Promise<Profile | null> {
     if (!user || !user.id) {
       console.error('Cannot ensure profile: Invalid user provided');
       return null;
     }
+
+    // Use provided client or fall back to global client
+    const client = supabaseClient || supabase;
 
     try {
       // Check cache first
@@ -74,32 +82,62 @@ export class ProfileService {
       }
       
       // Step 1: Check if profile already exists
-      const { data: existingProfile, error: checkError } = await supabase
+      const { data: existingProfile, error: checkError } = await client
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
 
       // If profile exists and has all required fields, return it
-      if (!checkError && existingProfile && existingProfile.name) {
+      if (!checkError && existingProfile) {
         console.log('Profile exists for user:', user.id);
         const baseProfile = {
           id: existingProfile.id,
-          name: existingProfile.name,
-          email: existingProfile.email,
+          name: existingProfile.name || (additionalData.email ? additionalData.email.split('@')[0] : 'User'),
+          email: existingProfile.email || additionalData.email || '',
           createdAt: existingProfile.created_at,
-          role: existingProfile.role as Role || 'Member'
+          role: existingProfile.role as Role || 'Member',
+          avatarUrl: existingProfile.avatar_url
         };
 
+        // If profile exists but is missing required fields, update it
+        if (!existingProfile.name || !existingProfile.role) {
+          console.log('Updating incomplete profile for user:', user.id);
+          const { data: updatedProfile, error: updateError } = await client
+            .from('profiles')
+            .update({
+              name: baseProfile.name,
+              role: baseProfile.role,
+              email: baseProfile.email,
+              avatar_url: baseProfile.avatarUrl
+            })
+            .eq('id', user.id)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error('Failed to update incomplete profile:', updateError);
+          } else if (updatedProfile) {
+            baseProfile.role = updatedProfile.role as Role || 'Member';
+          }
+        }
+
         // Enrich with counts, points, and badges
-        const { count: reviewCount } = await supabase
+        const { count: reviewCount } = await client
           .from('reviews')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id);
-        const { count: commentCount } = await supabase
+        const { count: commentCount } = await client
           .from('comments')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id);
+
+        console.log('Points calculation for user:', user.id, {
+          reviewCount,
+          commentCount,
+          POINTS_PER_REVIEW,
+          POINTS_PER_COMMENT
+        });
 
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
@@ -107,6 +145,13 @@ export class ProfileService {
         const badges = BADGE_THRESHOLDS
           .filter(({ threshold }) => points >= threshold)
           .map(({ badge }) => badge);
+
+        console.log('Calculated points:', {
+          reviewsCountValue,
+          commentsCountValue,
+          points,
+          badges
+        });
 
         const profile: Profile = {
           ...baseProfile,
@@ -125,13 +170,17 @@ export class ProfileService {
       const userData = (user as User).user_metadata || {};
       const email = (user as User).email || additionalData.email || '';
       
+      // Get Google avatar URL if available
+      const avatarUrl = userData.avatar_url || userData.picture || null;
+      
       const profileData = {
         id: user.id,
         name: additionalData.name || userData.name || userData.full_name || 
               (email ? email.split('@')[0] : 'User'),
         email: email,
-        role: additionalData.role || 'Member' as Role, // Default to Member role for new profiles
+        role: additionalData.role || 'Member' as Role,
         created_at: new Date().toISOString(),
+        avatar_url: avatarUrl
       };
 
       // Step 3: Update or create profile
@@ -140,7 +189,7 @@ export class ProfileService {
       if (!checkError && existingProfile) {
         // Update existing profile
         console.log('Updating existing profile for user:', user.id);
-        const { data: updatedProfile, error: updateError } = await supabase
+        const { data: updatedProfile, error: updateError } = await client
           .from('profiles')
           .update(profileData)
           .eq('id', user.id)
@@ -155,7 +204,7 @@ export class ProfileService {
       } else {
         // Create new profile
         console.log('Creating new profile for user:', user.id);
-        const { data: newProfile, error: createError } = await supabase
+        const { data: newProfile, error: createError } = await client
           .from('profiles')
           .insert(profileData)
           .select()
@@ -176,18 +225,26 @@ export class ProfileService {
           name: result.name,
           email: result.email,
           createdAt: result.created_at,
-          role: result.role as Role || 'Member'
+          role: result.role as Role || 'Member',
+          avatarUrl: result.avatar_url
         };
 
         // Enrich with counts, points, and badges
-        const { count: reviewCount } = await supabase
+        const { count: reviewCount } = await client
           .from('reviews')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id);
-        const { count: commentCount } = await supabase
+        const { count: commentCount } = await client
           .from('comments')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id);
+
+        console.log('Points calculation for user:', user.id, {
+          reviewCount,
+          commentCount,
+          POINTS_PER_REVIEW,
+          POINTS_PER_COMMENT
+        });
 
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
@@ -195,6 +252,13 @@ export class ProfileService {
         const badges = BADGE_THRESHOLDS
           .filter(({ threshold }) => points >= threshold)
           .map(({ badge }) => badge);
+
+        console.log('Calculated points:', {
+          reviewsCountValue,
+          commentsCountValue,
+          points,
+          badges
+        });
 
         const profile: Profile = {
           ...baseProfile,
@@ -594,5 +658,15 @@ export class ProfileService {
       // Return what we have from cache
       return result;
     }
+  }
+
+  static async forceRefreshProfile(userId: string): Promise<Profile | null> {
+    console.log('Forcing profile refresh for user:', userId);
+    this.clearProfileFromCache(userId);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.id === userId) {
+      return await this.ensureProfile(user);
+    }
+    return null;
   }
 }

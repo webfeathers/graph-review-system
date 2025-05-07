@@ -8,6 +8,7 @@ import { Profile } from '../types/supabase';
 import { SessionService, SessionEvent } from '../lib/sessionService';
 import { supabase } from '../lib/supabase'; // Import the existing client
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/env';
+import { createClient } from '@supabase/supabase-js';
 
 type AuthContextType = {
   session: Session | null;
@@ -123,17 +124,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           // Set initial state
           setSession(initialSession);
           setUser(initialUser);
-          setLoading(false);
-          setInitialized(true);
           
           // Then load profile and role if we have a user
           if (initialUser) {
-            const prof = await ProfileService.ensureProfile(initialUser);
-            if (!isUnmounted && prof) {
-              setProfile(prof);
-              setUserRole(prof.role);
+            try {
+              // Create a request-scoped client with the session token
+              const requestClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+                global: { 
+                  headers: { 
+                    Authorization: `Bearer ${initialSession?.access_token}` 
+                  } 
+                },
+              });
+
+              const prof = await ProfileService.ensureProfile(initialUser, {}, requestClient);
+              if (!isUnmounted && prof) {
+                setProfile(prof);
+                setUserRole(prof.role);
+              } else if (!isUnmounted) {
+                // If no profile found, set default role
+                setUserRole('Member');
+              }
+            } catch (error) {
+              console.error('Error loading user profile:', error);
+              if (!isUnmounted) {
+                setUserRole('Member');
+              }
             }
           }
+          
+          setLoading(false);
+          setInitialized(true);
           
           // Set up session event listener after initial state is set
           sessionListener = SessionService.addEventListener(handleSessionEvent);
@@ -211,8 +232,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSession(newSession);
     setUser(newUser);
     
-    if (newUser) {
-      const prof = await ProfileService.ensureProfile(newUser);
+    if (newUser && newSession) {
+      // Create a request-scoped client with the session token
+      const requestClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+        global: { 
+          headers: { 
+            Authorization: `Bearer ${newSession.access_token}` 
+          } 
+        },
+      });
+
+      // Clear the profile cache to ensure we get fresh data
+      ProfileService.clearProfileFromCache(newUser.id);
+      const prof = await ProfileService.ensureProfile(newUser, {}, requestClient);
       setProfile(prof);
       setUserRole(prof?.role || null);
     } else {

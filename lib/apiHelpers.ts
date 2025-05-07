@@ -29,9 +29,10 @@ const ROLE_CACHE_TTL = 5 * 60 * 1000;
  * Get user role with caching to reduce database queries
  * 
  * @param userId The user ID to get the role for
+ * @param supabaseClient The Supabase client to use for the request
  * @returns The user's role or null if not found
  */
-async function getUserRoleWithCache(userId: string): Promise<Role | null> {
+async function getUserRoleWithCache(userId: string, supabaseClient: SupabaseClient): Promise<Role | null> {
   // Check the cache first
   const cached = userRoleCache.get(userId);
   const now = Date.now();
@@ -43,7 +44,7 @@ async function getUserRoleWithCache(userId: string): Promise<Role | null> {
   
   // If not in cache or expired, fetch from database
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('profiles')
       .select('role')
       .eq('id', userId)
@@ -129,20 +130,21 @@ export function withAuth(
       
       console.log('Authenticated user:', user.id);
       
-      // If role check is required, get user's role
+      // Always get user's role
+      const userRole = await getUserRoleWithCache(user.id, supabaseClient);
+      
+      if (!userRole) {
+        console.error('Error fetching user profile or role not assigned');
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Failed to verify user role' 
+        });
+      }
+      
+      console.log('User role:', userRole);
+      
+      // If role check is required, verify the role
       if (requiredRoles && requiredRoles.length > 0) {
-        const userRole = await getUserRoleWithCache(user.id);
-          
-        if (!userRole) {
-          console.error('Error fetching user profile or role not assigned');
-          return res.status(500).json({ 
-            success: false, 
-            message: 'Failed to verify user role' 
-          });
-        }
-        
-        console.log('User role:', userRole);
-        
         // Check if the user's role is in the required roles array
         if (!requiredRoles.includes(userRole)) {
           console.error('Insufficient permissions. Required roles:', requiredRoles, 'User role:', userRole);
@@ -151,13 +153,10 @@ export function withAuth(
             message: 'You do not have permission to access this resource' 
           });
         }
-        
-        // Call the handler with the authenticated user ID, SCOPED client, and their role
-        return await handler(req, res, user.id, supabaseClient, userRole);
       }
       
-      // If no role check required, STILL call handler with 5 args, passing undefined for role
-      return await handler(req, res, user.id, supabaseClient, undefined);
+      // Call the handler with the authenticated user ID, SCOPED client, and their role
+      return await handler(req, res, user.id, supabaseClient, userRole);
     } catch (error) {
       // Sanitize error details before sending to client
       console.error('Error in authentication middleware:', error);

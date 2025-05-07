@@ -6,7 +6,6 @@ import Link from 'next/link';
 
 // Components and Hooks
 import { 
-  Layout, 
   GraphReviewCard, 
   LoadingState, 
   EmptyState,
@@ -83,7 +82,7 @@ const Dashboard: NextPage = () => {
   if (!user) return null;
 
   return (
-    <Layout>
+    <>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
         <p className="text-gray-600">Welcome back, {profile?.name || user.user_metadata?.name || user.email}!</p>
@@ -174,7 +173,7 @@ const Dashboard: NextPage = () => {
           View All Reviews
         </Link>
       </div>
-    </Layout>
+    </>
   );
 };
 

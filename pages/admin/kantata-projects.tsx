@@ -1,7 +1,6 @@
 // pages/admin/kantata-projects.tsx
 import type { NextPage } from 'next';
 import { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
 import { Button } from '../../components/Button';
 import { LoadingState } from '../../components/LoadingState';
 import { ErrorDisplay } from '../../components/ErrorDisplay';
@@ -208,13 +207,13 @@ const KantataProjectsPage: NextPage = () => {
   // Display loading state
   if (loading) {
     return (
-      <Layout>
+      <div>
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Kantata Projects</h1>
           <p className="text-gray-600">Loading active projects from Kantata...</p>
         </div>
         <LoadingState message="Fetching projects..." />
-      </Layout>
+      </div>
     );
   }
   
@@ -222,12 +221,10 @@ const KantataProjectsPage: NextPage = () => {
   const filteredProjects = getFilteredProjects();
   
   return (
-    <Layout>
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Kantata Projects</h1>
-        <p className="text-gray-600">
-          View active projects from Kantata created in the last 60 days
-        </p>
+        <p className="text-gray-600">Manage and monitor Kantata project status</p>
       </div>
       
       {error && (
@@ -402,7 +399,7 @@ const KantataProjectsPage: NextPage = () => {
           </div>
         )}
       </div>
-    </Layout>
+    </div>
   );
 };
 

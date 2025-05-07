@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabase';
 import { EmailService } from '../../../lib/emailService';
 import { FIELD_LIMITS } from '../../../constants';
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Role } from '@/types/supabase';
+import { Role, CommentWithProfile } from '@/types/supabase';
 import { supabaseAdmin } from '../../../lib/serverAuth';
 
 type ResponseData = {
@@ -73,10 +73,13 @@ const reviewHandler: AuthenticatedHandler = async (
                 id,
                 email,
                 name
-              )
+              ),
+              votes:comment_votes!left(*)
             )
           `)
           .eq('id', id)
+          .order('created_at', { foreignTable: 'comments', ascending: false })
+          .order('created_at', { foreignTable: 'comments.votes', ascending: false })
           .single();
 
         if (reviewError) {
@@ -96,18 +99,48 @@ const reviewHandler: AuthenticatedHandler = async (
           });
         }
 
+        // Transform the review data to ensure proper date handling
+        const transformedReview = {
+          ...review,
+          createdAt: review.created_at,
+          updatedAt: review.updated_at,
+          comments: review.comments?.map((comment: any) => {
+            // Ensure votes is an array
+            const votes = Array.isArray(comment.votes) ? comment.votes : [];
+            
+            // Calculate vote count
+            const voteCount = votes.reduce((sum: number, vote: any) => 
+              sum + (vote.vote_type === 'up' ? 1 : -1), 0);
+            
+            // Find user's vote
+            const userVote = votes.find((v: any) => v.user_id === userId)?.vote_type;
+            
+            return {
+              ...comment,
+              createdAt: comment.created_at,
+              user: comment.user ? {
+                ...comment.user,
+                createdAt: comment.user.created_at
+              } : undefined,
+              votes,
+              voteCount,
+              userVote
+            };
+          })
+        };
+
         console.log('Review found:', {
-          id: review.id,
-          title: review.title,
-          status: review.status,
-          hasUser: !!review.user,
-          hasProjectLead: !!review.projectLead,
-          commentCount: review.comments?.length || 0
+          id: transformedReview.id,
+          title: transformedReview.title,
+          status: transformedReview.status,
+          hasUser: !!transformedReview.user,
+          hasProjectLead: !!transformedReview.projectLead,
+          commentCount: transformedReview.comments?.length || 0
         });
 
         return res.status(200).json({
           success: true,
-          data: review
+          data: transformedReview
         });
       }
 

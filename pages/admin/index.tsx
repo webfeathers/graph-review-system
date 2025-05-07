@@ -1,7 +1,6 @@
 // pages/admin/index.tsx
 import type { NextPage } from 'next';
 import { useState } from 'react';
-import Layout from '../../components/Layout';
 import UserManagement from '../../components/UserManagement';
 import { withRoleProtection } from '../../components/withRoleProtection';
 import { Button } from '../../components/Button';
@@ -109,7 +108,7 @@ const AdminPage: NextPage = () => {
   };
 
   return (
-    <Layout>
+    <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
         <p className="text-gray-600">Manage users and application settings</p>
@@ -236,7 +235,7 @@ const AdminPage: NextPage = () => {
 
         <UserManagement />
       </div>
-    </Layout>
+    </div>
   );
 };
 

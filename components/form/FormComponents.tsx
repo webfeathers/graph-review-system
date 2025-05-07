@@ -360,7 +360,7 @@ interface SubmitButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 }
 
 /**
- * SubmitButton component with loading state
+ * SubmitButton component for form submission
  */
 export const SubmitButton: React.FC<SubmitButtonProps> = ({
   isSubmitting,
@@ -398,16 +398,17 @@ export const SubmitButton: React.FC<SubmitButtonProps> = ({
   );
 };
 
-/**
- * Form component that provides context for form controls
- */
-export const Form: React.FC<React.FormHTMLAttributes<HTMLFormElement>> = ({
+interface FormProps extends React.FormHTMLAttributes<HTMLFormElement> {
+  children: ReactNode;
+}
+
+export const Form: React.FC<FormProps> = ({
   children,
   className = '',
   ...props
 }) => {
   return (
-    <form className={`space-y-6 ${className}`} {...props}>
+    <form className={className} {...props}>
       {children}
     </form>
   );

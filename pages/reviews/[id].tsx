@@ -7,7 +7,6 @@ import { toast } from 'react-hot-toast';
 
 // Components and Hooks
 import { 
-  Layout,
   StatusBadge,
   CommentSection,
   LoadingState,
@@ -145,7 +144,20 @@ const ReviewPage: NextPage = () => {
           useCase: reviewData.use_case,
           customerFolder: reviewData.customer_folder,
           handoffLink: reviewData.handoff_link,
-          projectLeadId: reviewData.project_lead_id
+          projectLeadId: reviewData.project_lead_id,
+          comments: reviewData.comments?.map((comment: any) => ({
+            ...comment,
+            createdAt: comment.created_at,
+            userId: comment.user_id,
+            reviewId: reviewData.id,
+            user: comment.user ? {
+              ...comment.user,
+              createdAt: comment.user.created_at
+            } : undefined,
+            votes: comment.votes || [],
+            voteCount: comment.voteCount || 0,
+            userVote: comment.votes?.find((v: any) => v.user_id === user.id)?.vote_type
+          }))
         };
 
         console.log('Setting review state with transformed data:', {
@@ -244,7 +256,20 @@ const ReviewPage: NextPage = () => {
           useCase: responseData.data.use_case,
           customerFolder: responseData.data.customer_folder,
           handoffLink: responseData.data.handoff_link,
-          projectLeadId: responseData.data.project_lead_id
+          projectLeadId: responseData.data.project_lead_id,
+          comments: responseData.data.comments?.map((comment: any) => ({
+            ...comment,
+            createdAt: comment.created_at,
+            userId: comment.user_id,
+            reviewId: responseData.data.id,
+            user: comment.user ? {
+              ...comment.user,
+              createdAt: comment.user.created_at
+            } : undefined,
+            votes: comment.votes || [],
+            voteCount: comment.voteCount || 0,
+            userVote: comment.votes?.find((v: any) => v.user_id === user.id)?.vote_type
+          }))
         };
 
         setReview(transformedReview);
@@ -331,8 +356,7 @@ const ReviewPage: NextPage = () => {
 
   // Loading/Auth/Error checks
   if (loading || authLoading) {
-    console.log('Showing loading state:', { loading, authLoading });
-    return <LoadingState />;
+    return <LoadingState message="Loading review..." />;
   }
   
   if (!user) {
@@ -341,274 +365,177 @@ const ReviewPage: NextPage = () => {
   }
   
   if (error) {
-    console.log('Showing error:', error);
     return <ErrorDisplay error={error} />;
   }
   
   if (!review) {
-    console.log('No review data available');
-    return <ErrorDisplay error="Review not found or you are not authorized to view it." />;
+    return <ErrorDisplay error="Review not found" />;
   }
 
   return (
-    <Layout>
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          {/* Title with Edit button and Status Badge */}
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center gap-3">
-              {/* Edit button - now an icon button to the left of the title */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {error && (
+        <ErrorDisplay 
+          error={error} 
+          onDismiss={() => setError(null)} 
+          variant="error"
+        />
+      )}
+      
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading review...</p>
+        </div>
+      ) : review ? (
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{review.title}</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  Created by {review.user?.email || 'Unknown'} on {new Date(review.createdAt).toLocaleDateString()}
+                </p>
+              </div>
               {(isAuthor || isAdmin()) && (
-                <button 
-                  onClick={() => window.location.href = `/reviews/edit/${review.id}`}
-                  className="bg-gray-200 text-gray-700 p-2 rounded-full hover:bg-gray-300"
-                  title="Edit Review"
+                <Link
+                  href={`/reviews/${review.id}/edit`}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
-                </button>
-              )}
-              <h1 className="text-3xl font-bold">{review.title}</h1>
-            </div>
-            <StatusBadge status={currentStatus || review.status} />
-          </div>
-
-          {/* Status buttons - moved under title and made smaller */}
-          {/* Show status buttons to everyone */}
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2">
-              
-              {/* Regular status buttons - show to everyone */}
-              {(['Submitted','In Review', 'Needs Work'] as const).map((status) => (
-                <button
-                  key={status}
-                  onClick={() => handleStatusChange(status)}
-                  disabled={status === currentStatus || isUpdating}
-                  className={`px-3 py-1 text-sm rounded ${
-                    status === currentStatus
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                  } disabled:opacity-50 cursor-pointer`}
-                  type="button"
-                >
-                  {status}
-                </button>
-              ))}
-
-
-              {/* Approved button - only shown to admins */}
-              {isAdmin() && (
-                <button
-                  onClick={() => handleStatusChange('Approved')}
-                  disabled={'Approved' === currentStatus || isUpdating}
-                  className={`px-3 py-1 text-sm rounded ${
-                    'Approved' === currentStatus
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
-                  } disabled:opacity-50 cursor-pointer`}
-                  type="button"
-                >
-                  Approved
-                </button>
+                  Edit Review
+                </Link>
               )}
             </div>
           </div>
-          
-          {/* Project Info Section - NEW */}
-          <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-            <h3 className="text-lg font-medium mb-3 text-gray-700">Project Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="mb-4">
-                  <span className="font-medium">Created by:</span>{' '}
-                  <span>{review.user.name} on {new Date(review.createdAt).toLocaleDateString()}</span>
-                </div>
-                
-                <div className="mb-4">
-                  <span className="font-medium">Last updated:</span>{' '}
-                  <span>{new Date(review.updatedAt).toLocaleDateString()}</span>
+
+          {/* Content */}
+          <div className="px-6 py-4">
+            {/* Status and Project Lead at the top */}
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  review.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                  review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {review.status}
+                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-500">Project Lead:</span>
+                  {isAdmin() ? (
+                    <ProjectLeadSelector
+                      value={review.projectLeadId || ''}
+                      onChange={handleChangeProjectLead}
+                      disabled={!isAdmin()}
+                    />
+                  ) : (
+                    <span className="text-sm text-gray-900">
+                      {review.projectLead?.email || 'Not assigned'}
+                    </span>
+                  )}
                 </div>
               </div>
-              
-              <div>
-                {/* Project Lead section */}
-                <div className="mb-4">
-                  <span className="font-medium">Project Lead:</span>{' '}
-                  {review.projectLead ? (
-                    <span>{review.projectLead.name} ({review.projectLead.email})</span>
-                  ) : (
-                    <span className="text-gray-500">Not assigned</span>
-                  )}
-                  
-                  {/* Admin can change project lead */}
-                  {isAdmin() && (
-                    <div className="mt-2">
-                      {!isChangingLead ? (
-                        <button
-                          onClick={() => setIsChangingLead(true)}
-                          className="text-blue-500 text-sm hover:underline"
+            </div>
+
+            {/* Main content in two columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Left Column */}
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900 mb-2">Project Details</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Kantata Project ID</label>
+                      <div className="mt-1">
+                        <a 
+                          href={`https://app.kantata.com/project/${review.kantataProjectId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 flex items-center"
                         >
-                          Change Project Lead
-                        </button>
-                      ) : (
-                        <div className="flex items-center mt-2">
-                          <ProjectLeadSelector
-                            value={newLeadId}
-                            onChange={setNewLeadId}
-                            className="text-sm py-1"
-                          />
-                          <button
-                            onClick={handleChangeProjectLead}
-                            disabled={!newLeadId || updatingLead}
-                            className="ml-2 px-2 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50"
-                          >
-                            {updatingLead ? 'Saving...' : 'Save'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setIsChangingLead(false);
-                              setNewLeadId('');
-                            }}
-                            className="ml-2 px-2 py-1 bg-gray-300 text-gray-700 text-sm rounded hover:bg-gray-400"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
+                          <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          {review.kantataProjectId}
+                        </a>
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
-            <p className="mb-6">{review.description}</p>
-            
-            {/* Customer Info Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-3 text-gray-700">Customer Information</h3>
-                <div className="space-y-3">
-                  <div>
-                    <span className="font-medium">Account Name:</span> {review.accountName || 'Not specified'}
-                  </div>
-                  <div>
-                    <span className="font-medium">OrgID:</span> {review.orgId || 'Not specified'}
-                  </div>
 
-                  {/* Kantata Project ID field with a clickable icon */}
-                  <div className="flex items-center">
-                    <span className="font-medium">Kantata Project ID:</span>
-                    <span className="mx-1">{review.kantataProjectId || 'Not specified'}</span>
-                    {review.kantataProjectId && (
-                      <a 
-                        href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="ml-2 text-blue-600 hover:text-blue-800"
-                        title="Open in Kantata"
-                      >
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          className="h-5 w-5" 
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Customer Folder</label>
+                      <div className="mt-1">
+                        <a 
+                          href={review.customerFolder}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 flex items-center"
                         >
-                          <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
-                            strokeWidth={2} 
-                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" 
-                          />
-                        </svg>
-                      </a>
-                    )}
-                  </div>
-                  <div>
-                    <span className="font-medium">Segment:</span> {review.segment || 'Not specified'}
-                  </div>
-                  <div>
-                    <span className="font-medium">Remote Access:</span> {review.remoteAccess ? 'Yes' : 'No'}
+                          <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          Open Customer Folder
+                        </a>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Handoff Link</label>
+                      <div className="mt-1">
+                        <a 
+                          href={review.handoffLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 flex items-center"
+                        >
+                          <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          Open Handoff
+                        </a>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Remote Access</label>
+                      <div className="mt-1 text-gray-900">
+                        {review.remoteAccess ? 'Yes' : 'No'}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Graph Info Section */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="text-lg font-medium mb-3 text-gray-700">Graph Information</h3>
-                <div className="space-y-3">
-                  <div>
-                    <span className="font-medium">Graph Name:</span> {review.graphName || 'Not specified'}
-                  </div>
-                  <div>
-                    <span className="font-medium">Use Case:</span>
-                    <p className="mt-1 text-gray-600">{review.useCase || 'Not specified'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Links Section */}
-            <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <h3 className="text-lg font-medium mb-3 text-gray-700">Important Links</h3>
-              <div className="space-y-3">
-                <div>
-                  <span className="font-medium">Customer Folder:</span>{' '}
-                  {review.customerFolder ? (
-                    <a 
-                      href={review.customerFolder} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
-                    >
-                      Open in Google Drive
-                    </a>
-                  ) : (
-                    <span className="text-gray-500">Not specified</span>
-                  )}
-                </div>
-                <div>
-                  <span className="font-medium">Handoff Record:</span>{' '}
-                  {review.handoffLink ? (
-                    <a 
-                      href={review.handoffLink} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
-                    >
-                      View in Salesforce
-                    </a>
-                  ) : (
-                    <span className="text-gray-500">Not specified</span>
-                  )}
+              {/* Right Column */}
+              <div>
+                <h2 className="text-lg font-medium text-gray-900 mb-2">Review Notes</h2>
+                <div className="mt-1 prose max-w-none">
+                  {review.description}
                 </div>
               </div>
             </div>
-          </div>
-          
-          <CommentSection 
-            comments={comments} 
-            reviewId={review.id}
-            onCommentAdded={(newComment) => {
-              // Update comments state with the new comment
-              setComments(prevComments => [...prevComments, newComment]);
-            }}
-          />
 
-          <div className="mt-8 text-center">
-            <Link 
-              href="/reviews" 
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-            >
-              Back to All Reviews
-            </Link>
+            {/* Comments Section at the bottom */}
+            <div className="border-t border-gray-200 pt-6">
+              <CommentSection
+                comments={review.comments || []}
+                reviewId={review.id}
+                onCommentAdded={(newComment) => {
+                  setComments(prevComments => [...prevComments, newComment]);
+                }}
+              />
+            </div>
           </div>
         </div>
-      </div>
-    </Layout>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-gray-600">Review not found</p>
+        </div>
+      )}
+    </div>
   );
 };
 

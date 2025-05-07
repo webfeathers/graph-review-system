@@ -1,13 +1,13 @@
-// types/supabase.ts
-// Database types (matching Supabase snake_case)
-export type Role = 'Member' | 'Admin';
+export type Role = 'Admin' | 'Member';
 
+// Database types (using snake_case)
 export interface DbProfile {
   id: string;
   name: string;
   email: string;
   created_at: string;
   role: Role;
+  avatar_url?: string;
 }
 
 export interface DbReview {
@@ -19,8 +19,8 @@ export interface DbReview {
   created_at: string;
   updated_at: string;
   account_name?: string;
-  kantata_project_id?: string;
   org_id?: string;
+  kantata_project_id?: string;
   segment?: 'Enterprise' | 'MidMarket';
   remote_access?: boolean;
   graph_name?: string;
@@ -38,6 +38,26 @@ export interface DbComment {
   created_at: string;
 }
 
+export type VoteType = 'up' | 'down';
+
+export interface CommentVote {
+  id: string;
+  commentId: string;
+  userId: string;
+  voteType: VoteType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DbCommentVote {
+  id: string;
+  comment_id: string;
+  user_id: string;
+  vote_type: VoteType;
+  created_at: string;
+  updated_at: string;
+}
+
 // Frontend types (using camelCase)
 export interface Profile {
   id: string;
@@ -49,6 +69,7 @@ export interface Profile {
   commentCount?: number;
   points?: number;
   badges?: string[];
+  avatarUrl?: string;
 }
 
 export interface Review {
@@ -80,24 +101,7 @@ export interface Comment {
 }
 
 // With joined relationships
-export interface ReviewWithProfile {
-  id: string;
-  title: string;
-  description: string;
-  status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
-  userId: string;
-  createdAt: string;
-  updatedAt: string;
-  accountName?: string;
-  orgId?: string;
-  kantataProjectId?: string;
-  segment?: 'Enterprise' | 'MidMarket';
-  remoteAccess?: boolean;
-  graphName?: string;
-  useCase?: string;
-  customerFolder?: string;
-  handoffLink?: string;
-  projectLeadId?: string;
+export interface ReviewWithProfile extends Review {
   user: Profile;
   projectLead?: Profile;
   comments?: CommentWithProfile[];
@@ -105,6 +109,9 @@ export interface ReviewWithProfile {
 
 export interface CommentWithProfile extends Comment {
   user: Profile;
+  votes?: CommentVote[];
+  voteCount?: number;
+  userVote?: VoteType;
 }
 
 // Helper functions to convert between database and frontend types
@@ -127,6 +134,27 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     customerFolder: dbReview.customer_folder,
     handoffLink: dbReview.handoff_link,
     projectLeadId: dbReview.project_lead_id
+  };
+}
+
+export function dbToFrontendComment(dbComment: DbComment): Comment {
+  return {
+    id: dbComment.id,
+    content: dbComment.content,
+    reviewId: dbComment.review_id,
+    userId: dbComment.user_id,
+    createdAt: dbComment.created_at
+  };
+}
+
+export function dbToFrontendProfile(dbProfile: DbProfile): Profile {
+  return {
+    id: dbProfile.id,
+    name: dbProfile.name,
+    email: dbProfile.email,
+    createdAt: dbProfile.created_at,
+    role: dbProfile.role,
+    avatarUrl: dbProfile.avatar_url
   };
 }
 
@@ -154,99 +182,29 @@ export function dbToFrontendReviewWithProfile(dbReview: DbReview & {
   return result;
 }
 
-export function frontendToDbReview(review: Review): DbReview {
-  return {
-    id: review.id,
-    title: review.title,
-    description: review.description,
-    status: review.status,
-    user_id: review.userId,
-    created_at: review.createdAt,
-    updated_at: review.updatedAt,
-    account_name: review.accountName,
-    org_id: review.orgId,
-    kantata_project_id: review.kantataProjectId,
-    segment: review.segment,
-    remote_access: review.remoteAccess,
-    graph_name: review.graphName,
-    use_case: review.useCase,
-    customer_folder: review.customerFolder,
-    handoff_link: review.handoffLink,
-    project_lead_id: review.projectLeadId
-  };
-}
-
-export function dbToFrontendComment(dbComment: DbComment): Comment {
-  return {
-    id: dbComment.id,
-    content: dbComment.content,
-    reviewId: dbComment.review_id,
-    userId: dbComment.user_id,
-    createdAt: dbComment.created_at
-  };
-}
-
 export function dbToFrontendCommentWithProfile(dbComment: DbComment & { profiles?: DbProfile }): CommentWithProfile {
   const comment = dbToFrontendComment(dbComment);
   
-  if (!dbComment.profiles) {
-    throw new Error('Profile data is missing from the database result');
-  }
+  // Create a default profile if none exists
+  const defaultProfile: Profile = {
+    id: dbComment.user_id,
+    name: 'Unknown User',
+    email: '',
+    createdAt: new Date().toISOString(),
+    role: 'Member'
+  };
   
   return {
     ...comment,
-    user: dbToFrontendProfile(dbComment.profiles)
+    user: dbComment.profiles ? dbToFrontendProfile(dbComment.profiles) : defaultProfile
   };
 }
 
-export function dbToFrontendProfile(dbProfile: DbProfile): Profile {
-  return {
-    id: dbProfile.id,
-    name: dbProfile.name,
-    email: dbProfile.email,
-    createdAt: dbProfile.created_at,
-    role: dbProfile.role
-  };
-}
-
-export const transformReview = (dbReview: Review): ReviewWithProfile => ({
-  id: dbReview.id,
-  title: dbReview.title,
-  description: dbReview.description,
-  status: dbReview.status,
-  userId: dbReview.userId,
-  createdAt: dbReview.createdAt,
-  updatedAt: dbReview.updatedAt,
-  accountName: dbReview.accountName,
-  orgId: dbReview.orgId,
-  kantataProjectId: dbReview.kantataProjectId,
-  segment: dbReview.segment,
-  remoteAccess: dbReview.remoteAccess,
-  graphName: dbReview.graphName,
-  useCase: dbReview.useCase,
-  customerFolder: dbReview.customerFolder,
-  handoffLink: dbReview.handoffLink,
-  projectLeadId: dbReview.projectLeadId,
-  user: {} as Profile,
-  projectLead: undefined
-});
-
-export const transformReviewToDb = (review: ReviewWithProfile): Review => ({
-  id: review.id,
-  title: review.title,
-  description: review.description,
-  status: review.status,
-  userId: review.userId,
-  createdAt: review.createdAt,
-  updatedAt: review.updatedAt,
-  accountName: review.accountName,
-  orgId: review.orgId,
-  kantataProjectId: review.kantataProjectId,
-  segment: review.segment,
-  remoteAccess: review.remoteAccess,
-  graphName: review.graphName,
-  useCase: review.useCase,
-  customerFolder: review.customerFolder,
-  handoffLink: review.handoffLink,
-  projectLeadId: review.projectLeadId
-});
+export const dbToFrontendCommentVote = (vote: DbCommentVote): CommentVote => ({
+  id: vote.id,
+  commentId: vote.comment_id,
+  userId: vote.user_id,
+  voteType: vote.vote_type,
+  createdAt: vote.created_at,
+  updatedAt: vote.updated_at
+}); 
