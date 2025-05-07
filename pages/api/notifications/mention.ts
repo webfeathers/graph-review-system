@@ -3,6 +3,8 @@ import { EmailService } from '../../../lib/emailService';
 
 // POST /api/notifications/mention
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('[Mention API] request method:', req.method);
+  console.log('[Mention API] request body:', req.body);
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ success: false, error: 'Method not allowed' });
@@ -35,6 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         });
       })
     );
+    console.log('[Mention API] emails sent to:', mentionedUsers.map(u => u.email));
 
     return res.status(200).json({ success: true });
   } catch (error) {
