@@ -405,13 +405,25 @@ export async function createComment(
       throw commentError;
     }
 
+    // Get the review title for the activity description
+    const { data: review, error: reviewError } = await client
+      .from('reviews')
+      .select('title')
+      .eq('id', commentData.reviewId)
+      .single();
+
+    if (reviewError) {
+      console.error('[createComment] Error fetching review:', reviewError);
+      // Don't throw error here, as the comment was created successfully
+    }
+
     // Create activity record for the comment
     const { error: activityError } = await client
       .from('activities')
       .insert({
         type: 'comment',
         action: 'created',
-        description: `New comment on review: ${commentData.reviewId}`,
+        description: `New comment on review: ${review?.title || commentData.reviewId}`,
         user_id: commentData.userId,
         review_id: commentData.reviewId,
         link: `/reviews/${commentData.reviewId}#comment-${comment.id}`

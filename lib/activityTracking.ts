@@ -8,6 +8,7 @@ interface CreateActivityParams {
   link?: string;
   reviewId?: string;
   projectId?: string;
+  reviewTitle?: string;
 }
 
 /**
@@ -22,20 +23,25 @@ interface CreateActivityParams {
  * await createActivity({
  *   type: 'review',
  *   action: 'created',
- *   description: 'New Graph Review for Project X',
+ *   description: 'New Graph Review',
  *   userId: 'user123',
  *   link: '/reviews/123',
- *   reviewId: 'review123'
+ *   reviewId: 'review123',
+ *   reviewTitle: 'Project X Review'
  * });
  * ```
  */
 export const createActivity = async (params: CreateActivityParams) => {
+  const description = params.reviewTitle 
+    ? `${params.description}: ${params.reviewTitle}`
+    : params.description;
+
   const { data, error } = await supabase
     .from('activities')
     .insert({
       type: params.type,
       action: params.action,
-      description: params.description,
+      description: description,
       user_id: params.userId,
       link: params.link,
       review_id: params.reviewId,
