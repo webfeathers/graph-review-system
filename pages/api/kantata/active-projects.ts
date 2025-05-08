@@ -65,7 +65,8 @@ async function handler(
                status !== 'Archived' && 
                status !== 'Completed' &&
                !title.includes('prem support') &&
-               !title.includes('premium support');
+               !title.includes('premium support') &&
+               !title.includes('premium services');
       })
     );
 
