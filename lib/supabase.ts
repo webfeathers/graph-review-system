@@ -29,7 +29,5 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // Only log in development and only once
 if (IS_DEV && !process.env.SUPABASE_LOGGED) {
-  console.log('Supabase URL:', SUPABASE_URL);
-  console.log('Supabase key available:', SUPABASE_ANON_KEY ? 'Yes' : 'No');
   process.env.SUPABASE_LOGGED = 'true';
 }

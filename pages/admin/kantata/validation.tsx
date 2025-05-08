@@ -32,7 +32,6 @@ const KantataValidationPage: NextPage = () => {
 
   const runValidation = async () => {
     try {
-      console.log("Starting validation process");
       setValidating(true);
       setMessage(null);
       setError(null);
@@ -46,9 +45,7 @@ const KantataValidationPage: NextPage = () => {
         throw new Error('No authentication token available');
       }
       
-      console.log("Calling validation API endpoint");
-      
-      // Call your API endpoint
+      // Call validation API endpoint
       const response = await fetch('/api/kantata/validate-projects', {
         method: 'POST',
         headers: {
@@ -57,12 +54,8 @@ const KantataValidationPage: NextPage = () => {
         }
       });
       
-      console.log("API response status:", response.status);
-      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response text:', errorText);
-        
         try {
           const errorData = JSON.parse(errorText);
           throw new Error(errorData.message || 'Failed to validate projects');
@@ -71,27 +64,14 @@ const KantataValidationPage: NextPage = () => {
         }
       }
       
-      // Log the full response data for debugging
-      const responseText = await response.text();
-      console.log("Raw response:", responseText);
+      const data = await response.json();
       
-      // Parse the response manually to avoid double-parsing
-      let data;
-      try {
-        data = JSON.parse(responseText);
-        console.log("Parsed validation data:", data);
-      } catch (e) {
-        console.error("Failed to parse response JSON:", e);
-        throw new Error("Invalid response format from validation API");
-      }
-      
-      // Set the message and results directly from the response
+      // Set the message and results
       setMessage(data.message || 'Validation complete!');
       setResults(data.validationResults || []);
       
     } catch (error) {
       console.error('Error running validation:', error);
-      // Make sure we're setting a string for the error
       setError(typeof error === 'string' ? error : 
                error instanceof Error ? error.message : 
                'An unexpected error occurred');

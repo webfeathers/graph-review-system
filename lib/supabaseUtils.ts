@@ -147,7 +147,7 @@ export async function getReviewById(id: string) {
           created_at,
           role
         ),
-        comments:comments!inner (
+        comments:comments!left (
           id,
           content,
           created_at,
@@ -300,12 +300,9 @@ export async function createReview(
   reviewData: Omit<Review, 'id' | 'createdAt' | 'updatedAt'>,
   client: SupabaseClient
 ) {
-  console.log('Creating review with data:', reviewData);
-  console.log('[createReview] Received client:', typeof client, Object.keys(client || {}));
-  
   if (!client || typeof client.from !== 'function') {
-     console.error('[createReview] Invalid client object received!');
-     throw new Error('Internal server error: Invalid database client provided.');
+    console.error('[createReview] Invalid client object received!');
+    throw new Error('Internal server error: Invalid database client provided.');
   }
 
   // Convert the camelCase to snake_case for the database

@@ -37,7 +37,6 @@ async function handler(
     const pageSize = 100;
     for (let page = 1; ; page++) {
       const url = `https://api.mavenlink.com/api/v1/workspaces?page=${page}&per_page=${pageSize}`;
-      console.log(`Fetching page ${page} from ${url}`);
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${kantataApiToken}`, 'Accept': 'application/json' },
         signal: AbortSignal.timeout(10000)
@@ -80,19 +79,10 @@ async function handler(
       throw new Error(`Error fetching reviews: ${reviewsError.message}`);
     }
 
-    console.log('Found reviews with Kantata project IDs:', reviews?.filter(r => r.kantata_project_id).map(r => ({
-      id: r.id,
-      kantata_project_id: r.kantata_project_id
-    })));
-
     // Create a map of Kantata project IDs to review data
     const reviewMap = new Map();
     reviews?.forEach(review => {
       if (review.kantata_project_id) {
-        console.log('Adding review to map:', {
-          kantata_project_id: review.kantata_project_id,
-          review_id: review.id
-        });
         reviewMap.set(review.kantata_project_id, review);
       }
     });
@@ -100,11 +90,6 @@ async function handler(
     // Transform the workspaces data
     const projects = Object.entries(workspaces).map(([id, workspace]: [string, any]) => {
       const review = reviewMap.get(id);
-      console.log('Workspace dates:', {
-        workspace_id: id,
-        created_at: workspace.created_at,
-        updated_at: workspace.updated_at
-      });
       return {
         id: review?.id || id,
         title: workspace.title,
@@ -117,12 +102,6 @@ async function handler(
         graphReviewId: review?.id
       };
     });
-
-    console.log('Final projects with review status:', projects.map(p => ({
-      id: p.id,
-      kantata_project_id: p.kantataProjectId,
-      has_graph_review: p.hasGraphReview
-    })));
 
     const apiResponse = {
       message: `Found ${projects.length} projects`,

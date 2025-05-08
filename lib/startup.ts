@@ -11,6 +11,4 @@ export function runStartupValidations() {
   
   // Add additional startup validations here as needed
   // e.g., database connection tests, feature flags, etc.
-  
-  console.log('✅ Startup validations complete');
 }
