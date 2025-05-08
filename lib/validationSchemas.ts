@@ -42,7 +42,13 @@ export const reviewValidationSchema: ValidationSchema = {
   ),
   accountName: createValidator(
     required('Account name is required'),
-    minLength(2, 'Account name must be at least 2 characters')
+    minLength(2, 'Account name must be at least 2 characters'),
+    maxLength(FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH, `Graph name must be no more than ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`)
+  ),
+  graphName: createValidator(
+    required('Graph name is required'),
+    minLength(3, 'Graph name must be at least 3 characters'),
+    maxLength(FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH, `Graph name must be no more than ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`)
   ),
   projectLeadId: createValidator(
     required('Project Lead is required')

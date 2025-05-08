@@ -93,10 +93,10 @@ async function handler(
     // Transform the workspaces data
     const projects = Object.entries(workspaces).map(([id, workspace]: [string, any]) => {
       const review = reviewMap.get(id);
-      console.log('Checking workspace:', {
+      console.log('Workspace dates:', {
         workspace_id: id,
-        has_review: !!review,
-        review_id: review?.id
+        created_at: workspace.created_at,
+        updated_at: workspace.updated_at
       });
       return {
         id: review?.id || id,
@@ -104,6 +104,7 @@ async function handler(
         kantataProjectId: id,
         kantataStatus: workspace.status,
         lastUpdated: workspace.updated_at,
+        createdAt: workspace.created_at,
         hasGraphReview: !!review,
         graphReviewStatus: review?.status,
         graphReviewId: review?.id

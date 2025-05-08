@@ -150,7 +150,7 @@ const NewReview: NextPage = () => {
     if (isSubmitting || isValidatingKantata) return;
 
     // Validate required fields
-    const requiredFields = ['title', 'description', 'accountName', 'graphName', 'projectLeadId'];
+    const requiredFields = ['title', 'description', 'accountName', 'graphName', 'projectLeadId', 'kantataProjectId'];
     const missingFields = requiredFields.filter(field => !values[field as keyof ReviewFormValues]);
     
     if (missingFields.length > 0) {
@@ -354,7 +354,7 @@ const NewReview: NextPage = () => {
             <TextInput
               id="kantataProjectId"
               name="kantataProjectId"
-              label="Kantata Project ID (Optional)"
+              label="Kantata Project ID"
               placeholder="Enter associated Kantata (Mavenlink) project ID"
               value={form.values.kantataProjectId || ''}
               onChange={form.handleChange('kantataProjectId')}
@@ -363,6 +363,7 @@ const NewReview: NextPage = () => {
               touched={form.touched.kantataProjectId}
               maxLength={FIELD_LIMITS.KANTATA_PROJECT_ID_MAX_LENGTH}
               helpText="Link this review to a Kantata (Mavenlink) project"
+              required
               className={
                 kantataValidationStatus === 'validating' ? 'border-yellow-500' : 
                 kantataValidationStatus === 'invalid' ? 'border-red-500' : 
@@ -418,6 +419,8 @@ const NewReview: NextPage = () => {
               error={form.errors.graphName}
               touched={form.touched.graphName}
               maxLength={FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH}
+              required
+              helpText={`Maximum ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`}
             />
     
             <TextArea

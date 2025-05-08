@@ -236,7 +236,8 @@ const EditReview: NextPage = () => {
       description: reviewValidationSchema.description,
       accountName: reviewValidationSchema.accountName,
       customerFolder: reviewValidationSchema.customerFolder,
-      handoffLink: reviewValidationSchema.handoffLink
+      handoffLink: reviewValidationSchema.handoffLink,
+      graphName: reviewValidationSchema.graphName
     };
     
     const errors = validateForm(values, schema);
@@ -520,7 +521,7 @@ const EditReview: NextPage = () => {
           <TextInput
             id="kantataProjectId"
             name="kantataProjectId"
-            label="Kantata Project ID (Optional)"
+            label="Kantata Project ID"
             placeholder="Enter associated Kantata (Mavenlink) project ID"
             value={kantataProjectId}
             onChange={(e) => setKantataProjectId(e.target.value)}
@@ -529,6 +530,7 @@ const EditReview: NextPage = () => {
             touched={touched.kantataProjectId}
             maxLength={FIELD_LIMITS.KANTATA_PROJECT_ID_MAX_LENGTH}
             helpText="Link this review to a Kantata (Mavenlink) project"
+            required
             className={
               kantataValidationStatus === 'validating' ? 'border-yellow-500' : 
               kantataValidationStatus === 'invalid' ? 'border-red-500' : 
@@ -584,6 +586,8 @@ const EditReview: NextPage = () => {
             error={formErrors.graphName}
             touched={touched.graphName}
             maxLength={FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH}
+            required
+            helpText={`Maximum ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`}
           />
 
           <TextArea

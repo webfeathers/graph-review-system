@@ -39,20 +39,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <button onClick={() => handleNavigation('/reviews')} className="hover:underline">
                 Reviews
               </button>
-              <button onClick={() => handleNavigation('/reviews/new')} className="hover:underline">
-                New Review
-              </button>
               <button onClick={() => handleNavigation(`/profile/${user.id}`)} className="hover:underline">
                 Profile
+              </button>
+              <button onClick={() => handleNavigation('/help')} className="hover:underline">
+                Help
               </button>
               {/* Only show Admin links for users with Admin role */}
               {isAdmin() && (
                 <>
                   <button onClick={() => handleNavigation('/admin')} className="hover:underline">
                     Admin
-                  </button>
-                  <button onClick={() => handleNavigation('/admin/kantata-projects')} className="hover:underline">
-                    Kantata Projects
                   </button>
                 </>
               )}
