@@ -97,9 +97,8 @@ const KantataProjectsPage: NextPage = () => {
         if (statusFilter === 'all') return true;
         if (statusFilter === 'in-development') return project.kantataStatus.message === 'In Development';
         if (statusFilter === 'live') return project.kantataStatus.message === 'Live';
-        if (statusFilter === 'complete') return project.kantataStatus.message === 'Complete';
         if (statusFilter === 'confirmed') return project.kantataStatus.message === 'Confirmed';
-        if (statusFilter === 'other') return !['In Development', 'Live', 'Complete', 'Confirmed'].includes(project.kantataStatus.message);
+        if (statusFilter === 'other') return !['In Development', 'Live', 'Confirmed'].includes(project.kantataStatus.message);
         return true;
       })
       .filter(project => {
@@ -214,7 +213,6 @@ const KantataProjectsPage: NextPage = () => {
                 <option value="all">All Statuses</option>
                 <option value="in-development">In Development</option>
                 <option value="live">Live</option>
-                <option value="complete">Complete</option>
                 <option value="confirmed">Confirmed</option>
                 <option value="other">Other Statuses</option>
               </select>
