@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAdminAuth } from '../../../lib/apiHelpers';
 import { Role } from '../../../types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { EmailService } from '../../../lib/emailService';
 
 // Interface for validation result
 interface ValidationResult {
@@ -77,7 +78,8 @@ async function fetchWorkspaceData(projectId: string, kantataApiToken: string): P
 
 async function processReviewBatch(
   reviews: any[],
-  kantataApiToken: string
+  kantataApiToken: string,
+  supabaseClient: SupabaseClient
 ): Promise<ValidationResult[]> {
   return Promise.all(reviews.map(async (review) => {
     const result: ValidationResult = {
@@ -113,33 +115,26 @@ async function processReviewBatch(
         result.isValid = false;
         result.message = 'Project is Live in Kantata but review is not Approved';
         
-        try {
-          const updateResponse = await fetch(`https://api.mavenlink.com/api/v1/workspaces/${review.kantata_project_id}`, {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${kantataApiToken}`,
-              'Accept': 'application/json',
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              workspace: {
-                status_key: 305
-              }
-            })
-          });
-
-          if (updateResponse.ok) {
-            result.statusUpdated = true;
-            result.message += ' - Status updated to In Development';
-            result.kantataStatus = { message: 'In Development', key: 305, color: 'green' };
-          } else {
-            const errorText = await updateResponse.text();
-            console.error('Failed to update Kantata status:', errorText);
-            result.message += ' - Failed to update status';
+        // Send email notification for mismatch
+        if (review.project_lead_id) {
+          const { data: projectLead } = await supabaseClient
+            .from('profiles')
+            .select('email, name')
+            .eq('id', review.project_lead_id)
+            .single();
+            
+          if (projectLead?.email) {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://graph-review-system-3a7t.vercel.app';
+            await EmailService.sendValidationMismatchNotification(
+              review.id,
+              review.title,
+              projectLead.email,
+              projectLead.name || 'Project Lead',
+              workspace.status.message,
+              review.status,
+              appUrl
+            );
           }
-        } catch (updateError) {
-          console.error('Error updating Kantata status:', updateError);
-          result.message += ' - Error updating status';
         }
       } else if (!isLive && isApproved) {
         result.isValid = false;
@@ -194,7 +189,7 @@ async function handler(
     const validationResults: ValidationResult[] = [];
     for (let i = 0; i < reviews.length; i += BATCH_SIZE) {
       const batch = reviews.slice(i, i + BATCH_SIZE);
-      const batchResults = await processReviewBatch(batch, kantataApiToken);
+      const batchResults = await processReviewBatch(batch, kantataApiToken, supabaseClient);
       validationResults.push(...batchResults);
     }
 

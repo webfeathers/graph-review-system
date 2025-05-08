@@ -195,4 +195,59 @@ export class EmailService {
       return { success: false, error };
     }
   }
+
+  /**
+   * Send notification about a validation mismatch between Kantata and Graph Review
+   * 
+   * @param reviewId Review ID
+   * @param reviewTitle Review title
+   * @param projectLeadEmail Email of the project lead
+   * @param projectLeadName Name of the project lead
+   * @param kantataStatus Status in Kantata
+   * @param graphReviewStatus Status in Graph Review
+   * @param appUrl Base URL of the application
+   * @returns Result of the email sending
+   */
+  static async sendValidationMismatchNotification(
+    reviewId: string,
+    reviewTitle: string,
+    projectLeadEmail: string,
+    projectLeadName: string,
+    kantataStatus: string,
+    graphReviewStatus: string,
+    appUrl: string
+  ): Promise<{ success: boolean; error?: any }> {
+    try {
+      const reviewUrl = `${appUrl}/reviews/${reviewId}`;
+      
+      const emailHtml = `
+        <h1>Status Mismatch Alert</h1>
+        <p>Hello ${projectLeadName},</p>
+        <p>There is a status mismatch between Kantata and Graph Review for "${reviewTitle}".</p>
+        <table style="border-collapse: collapse; width: 100%; margin: 15px 0; border: 1px solid #e0e0e0;">
+          <tr>
+            <td style="padding: 8px; border: 1px solid #e0e0e0; background-color: #f5f5f5; font-weight: bold;">Kantata Status:</td>
+            <td style="padding: 8px; border: 1px solid #e0e0e0;">${kantataStatus}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; border: 1px solid #e0e0e0; background-color: #f5f5f5; font-weight: bold;">Graph Review Status:</td>
+            <td style="padding: 8px; border: 1px solid #e0e0e0;">${graphReviewStatus}</td>
+          </tr>
+        </table>
+        <p><a href="${reviewUrl}" style="background-color: #2db670; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">View Review</a></p>
+        <p>Thank you,<br>LeanData Graph Review System</p>
+      `;
+      
+      return await this.sendEmail({
+        to: projectLeadEmail,
+        subject: `Status Mismatch Alert: ${reviewTitle}`,
+        html: emailHtml
+      });
+    } catch (error) {
+      console.error('Error sending validation mismatch notification:', error);
+      return { success: false, error };
+    }
+  }
 }
+
+export default EmailService;
