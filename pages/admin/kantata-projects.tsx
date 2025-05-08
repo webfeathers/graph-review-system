@@ -34,6 +34,7 @@ const KantataProjectsPage: NextPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [hasReviewFilter, setHasReviewFilter] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   
   // Sorting state
   const [sortField, setSortField] = useState<string>('createdAt');
@@ -238,7 +239,24 @@ const KantataProjectsPage: NextPage = () => {
       
       {/* Filters */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-4">Filters</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Filters</h2>
+          {/* View Mode Toggle */}
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setViewMode('card')}
+              className={`px-3 py-1 rounded ${viewMode === 'card' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+            >
+              Card View
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-1 rounded ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
+            >
+              List View
+            </button>
+          </div>
+        </div>
         
         <div className="flex flex-wrap gap-4">
           <div className="space-y-2">
@@ -297,105 +315,158 @@ const KantataProjectsPage: NextPage = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
-                    onClick={() => handleSort('title')}
-                  >
-                    <div className="flex items-center">
-                      Project
-                      <span className="ml-2">{getSortIcon('title')}</span>
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
-                    onClick={() => handleSort('status')}
-                  >
-                    <div className="flex items-center">
-                      Status
-                      <span className="ml-2">{getSortIcon('status')}</span>
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
-                    onClick={() => handleSort('createdAt')}
-                  >
-                    <div className="flex items-center">
-                      Created
-                      <span className="ml-2">{getSortIcon('createdAt')}</span>
-                    </div>
-                  </th>
-                  <th 
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 group"
-                    onClick={() => handleSort('hasGraphReview')}
-                  >
-                    <div className="flex items-center">
-                      Graph Review
-                      <span className="ml-2">{getSortIcon('hasGraphReview')}</span>
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+            {viewMode === 'card' ? (
+              // Grid Layout for card view
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 p-4">
                 {filteredProjects.map((project) => (
-                  <tr key={project.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {project.title}
+                  <div key={project.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <div className="p-4">
+                      {/* Header with Title and Status */}
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-medium text-gray-900 truncate" title={project.title}>
+                            {project.title}
+                          </h3>
+                          <p className="text-xs text-gray-500">
+                            ID: {project.id}
+                          </p>
+                        </div>
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(project.kantataStatus?.message)}`}>
+                          {project.kantataStatus?.message || 'Unknown'}
+                        </span>
                       </div>
-                      <div className="text-sm text-gray-500">
-                        ID: {project.id}
+
+                      {/* Project Details */}
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center text-gray-500">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {new Date(project.lastUpdated).toLocaleDateString()}
+                        </div>
+
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {project.hasGraphReview ? (
+                            <Link 
+                              href={`/reviews/${project.graphReviewId}`}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              View Review ({project.graphReviewStatus})
+                            </Link>
+                          ) : (
+                            <span className="text-red-500">No Review</span>
+                          )}
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(project.kantataStatus?.message)}`}>
-                        {project.kantataStatus?.message || 'Unknown'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(project.lastUpdated).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {project.hasGraphReview ? (
-                        <Link 
-                          href={`/reviews/${project.graphReviewId}`}
-                          className="text-blue-600 hover:text-blue-900"
-                        >
-                          View Review ({project.graphReviewStatus})
-                        </Link>
-                      ) : (
-                        <span className="text-red-500">No Review</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+
+                      {/* Actions */}
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
                         <a 
                           href={`https://leandata.mavenlink.com/workspaces/${project.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-900"
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md"
                         >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
                           View in Kantata
                         </a>
                         {!project.hasGraphReview && (
                           <Link
                             href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}`}
-                            className="text-green-600 hover:text-green-900 ml-4"
+                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md"
                           >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
                             Create Review
                           </Link>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : (
+              // List View
+              <div className="divide-y divide-gray-200">
+                {filteredProjects.map((project) => (
+                  <div key={project.id} className="py-4 px-6 flex items-center">
+                    {/* Status indicator */}
+                    <div className="mr-4 flex flex-col items-center">
+                      <div className={`w-2 h-full rounded-full ${getStatusColor(project.kantataStatus?.message)}`}></div>
+                    </div>
+                    
+                    {/* Project content */}
+                    <div className="flex-grow">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-900">
+                            {project.title}
+                          </h3>
+                          <p className="text-xs text-gray-500">
+                            ID: {project.id}
+                          </p>
+                        </div>
+                        <span className={`ml-4 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(project.kantataStatus?.message)}`}>
+                          {project.kantataStatus?.message || 'Unknown'}
+                        </span>
+                      </div>
+                      
+                      <div className="mt-2 flex items-center text-sm text-gray-500">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {new Date(project.lastUpdated).toLocaleDateString()}
+                      </div>
+                      
+                      <div className="mt-1">
+                        {project.hasGraphReview ? (
+                          <Link 
+                            href={`/reviews/${project.graphReviewId}`}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            View Review ({project.graphReviewStatus})
+                          </Link>
+                        ) : (
+                          <span className="text-red-500">No Review</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="ml-4 flex items-center space-x-2">
+                      <a 
+                        href={`https://leandata.mavenlink.com/workspaces/${project.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        View in Kantata
+                      </a>
+                      {!project.hasGraphReview && (
+                        <Link
+                          href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}`}
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-md"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Create Review
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
