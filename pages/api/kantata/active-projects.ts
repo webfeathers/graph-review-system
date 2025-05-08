@@ -66,7 +66,8 @@ async function handler(
                status !== 'Completed' &&
                !title.includes('prem support') &&
                !title.includes('premium support') &&
-               !title.includes('premium services');
+               !title.includes('premium services') &&
+               !title.includes('csm investment');
       })
     );
 
