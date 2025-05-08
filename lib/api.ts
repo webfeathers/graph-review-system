@@ -74,7 +74,6 @@ export const getReviewById = async (id: string): Promise<ReviewWithProfile> => {
 
   if (error) {
     if (error.code === 'PGRST116') {
-      console.log(`Review with ID ${id} not found.`);
       throw new Error('Review not found');
     }
     console.error("Error fetching review by ID:", error);
@@ -89,9 +88,6 @@ export const getReviewById = async (id: string): Promise<ReviewWithProfile> => {
   const { data: { user } } = await supabase.auth.getUser();
   const currentUserId = user?.id;
 
-  console.log('Raw data from Supabase:', JSON.stringify(typedRawData, null, 2));
-  console.log('Current user ID:', currentUserId);
-
   const review = dbToFrontendReview(typedRawData as DbReview);
 
   const reviewWithProfile: ReviewWithProfile = {
@@ -105,25 +101,18 @@ export const getReviewById = async (id: string): Promise<ReviewWithProfile> => {
     },
     projectLead: typedRawData.projectLead ? dbToFrontendProfile(typedRawData.projectLead as DbProfile) : undefined,
     comments: typedRawData.comments ? (typedRawData.comments as any[]).map(comment => {
-      console.log('Processing comment:', comment.id);
-      console.log('Raw comment votes:', comment.votes);
-      
       // Ensure votes is an array
       const rawVotes = Array.isArray(comment.votes) ? comment.votes : [];
-      console.log('Normalized raw votes:', rawVotes);
       
       // Transform votes
       const votes = rawVotes.map(dbToFrontendCommentVote);
-      console.log('Transformed votes:', votes);
       
       // Calculate vote count
       const voteCount = votes.reduce((sum: number, vote: CommentVote) => 
         sum + (vote.voteType === 'up' ? 1 : -1), 0);
-      console.log('Vote count:', voteCount);
       
       // Find user's vote
       const userVote = votes.find((v: CommentVote) => v.userId === currentUserId)?.voteType;
-      console.log('User vote:', userVote);
       
       return {
         id: comment.id,
@@ -151,7 +140,6 @@ export const getReviewById = async (id: string): Promise<ReviewWithProfile> => {
     }) : []
   };
 
-  console.log('Final review data:', JSON.stringify(reviewWithProfile, null, 2));
   return reviewWithProfile;
 };
 

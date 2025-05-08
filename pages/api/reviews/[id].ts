@@ -26,18 +26,6 @@ const reviewHandler: AuthenticatedHandler = async (
   const { id } = req.query;
   const method = req.method;
 
-  console.log('Review API request:', {
-    method,
-    id,
-    path: req.url,
-    userId,
-    userRole,
-    headers: {
-      authorization: req.headers.authorization ? 'Bearer [REDACTED]' : 'none',
-      'content-type': req.headers['content-type']
-    }
-  });
-
   if (!id || Array.isArray(id)) {
     console.error('Invalid review ID:', id);
     return res.status(400).json({
@@ -49,7 +37,6 @@ const reviewHandler: AuthenticatedHandler = async (
   try {
     switch (method) {
       case 'GET': {
-        console.log('Fetching review:', id);
         const { data: review, error: reviewError } = await supabaseClient
           .from('reviews')
           .select(`
@@ -129,15 +116,6 @@ const reviewHandler: AuthenticatedHandler = async (
           })
         };
 
-        console.log('Review found:', {
-          id: transformedReview.id,
-          title: transformedReview.title,
-          status: transformedReview.status,
-          hasUser: !!transformedReview.user,
-          hasProjectLead: !!transformedReview.projectLead,
-          commentCount: transformedReview.comments?.length || 0
-        });
-
         return res.status(200).json({
           success: true,
           data: transformedReview
@@ -195,13 +173,6 @@ const reviewHandler: AuthenticatedHandler = async (
       }
 
       case 'PUT': {
-        console.log('PUT request received:', {
-          id,
-          body: req.body,
-          userId,
-          userRole
-        });
-
         // Check if the review exists and get the owner
         const { data: initialFetch, error: initialFetchError } = await supabaseClient
           .from('reviews')
@@ -237,14 +208,6 @@ const reviewHandler: AuthenticatedHandler = async (
 
         const { title, status, projectLeadId } = req.body;
 
-        console.log('Update data:', {
-          title,
-          status,
-          projectLeadId,
-          isAuthor,
-          isAdmin
-        });
-
         // Validate required fields
         if (!title) {
           return res.status(400).json({
@@ -275,8 +238,6 @@ const reviewHandler: AuthenticatedHandler = async (
         if (projectLeadId) {
           putUpdateData.project_lead_id = projectLeadId;
         }
-
-        console.log('Final update data:', putUpdateData);
 
         try {
           // Perform the update using admin client
@@ -326,11 +287,12 @@ const reviewHandler: AuthenticatedHandler = async (
             success: true,
             data
           });
+
         } catch (error) {
           console.error('Unexpected error in PUT handler:', error);
           return res.status(500).json({
             success: false,
-            message: error instanceof Error ? error.message : 'An unexpected error occurred'
+            message: 'Internal server error'
           });
         }
       }
@@ -338,14 +300,14 @@ const reviewHandler: AuthenticatedHandler = async (
       default:
         return res.status(405).json({
           success: false,
-          message: `Method ${method} not allowed`
+          message: 'Method not allowed'
         });
     }
   } catch (error) {
     console.error('Unexpected error in review handler:', error);
     return res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : 'An unexpected error occurred'
+      message: 'Internal server error'
     });
   }
 };

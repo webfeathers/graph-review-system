@@ -46,96 +46,53 @@ const ReviewPage: NextPage = () => {
   // Fetch review data
   useEffect(() => {
     const fetchReview = async () => {
-      // Don't fetch if we don't have an ID or if auth is still loading
-      if (!router.isReady || !id || authLoading) {
-        console.log('Skipping fetch - missing requirements:', { 
-          isReady: router.isReady, 
-          id, 
-          authLoading 
-        });
+      if (!id || authLoading || !user) {
         return;
       }
 
-      // Show success message if coming from new review creation
-      if (router.query.success === 'true' && router.query.message) {
-        toast.success(router.query.message as string);
-        // Remove the query params after showing the message
-        router.replace(`/reviews/${id}`, undefined, { shallow: true });
-      }
-
-      // Don't fetch if we're not authenticated
       if (!user) {
-        console.log('User not authenticated, redirecting to login with returnTo');
-        router.push(`/login?returnTo=${encodeURIComponent(router.asPath as string)}`);
-        setLoading(false);
+        router.push(`/login?returnTo=/reviews/${id}`);
         return;
       }
 
       try {
         setLoading(true);
         setError(null);
-        
-        console.log('Fetching review with ID:', id);
 
-        // Get session token
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
         if (!token) {
           console.error('No authentication token available');
-          // Redirect to login if no token
-          router.push('/login');
+          router.push(`/login?returnTo=/reviews/${id}`);
           return;
         }
 
-        console.log('Making API request with token:', token.substring(0, 10) + '...');
-
-        // Fetch the review data via API
         const response = await fetch(`/api/reviews/${id}`, {
-          method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
 
-        console.log('API Response status:', response.status);
-        const data = await response.json();
-        console.log('API Response data:', data);
-
         if (response.status === 401) {
-          // Handle authentication error, redirect back to this review after login
-          console.error('Authentication error, redirecting to login with returnTo');
-          router.push(`/login?returnTo=${encodeURIComponent(router.asPath as string)}`);
-          setLoading(false);
+          router.push(`/login?returnTo=/reviews/${id}`);
           return;
         }
 
         if (!response.ok) {
-          console.error('API request failed:', {
-            status: response.status,
-            statusText: response.statusText,
-            data
-          });
-          throw new Error(data.message || 'Failed to fetch review');
+          throw new Error(`API request failed: ${response.status}`);
         }
 
+        const data = await response.json();
+
         if (!data.success || !data.data) {
-          console.error('Invalid API response format:', data);
-          throw new Error(data.message || 'Invalid response format');
+          throw new Error('Invalid API response format');
         }
 
         const reviewData = data.data;
-        console.log('Review data received:', {
-          id: reviewData.id,
-          title: reviewData.title,
-          hasUser: !!reviewData.user,
-          hasProjectLead: !!reviewData.projectLead,
-          commentCount: reviewData.comments?.length || 0,
-          status: reviewData.status
-        });
 
         if (!reviewData.title) {
-          console.warn('Review has no title:', reviewData);
+          throw new Error('Review has no title');
         }
 
         // Transform the data to match the frontend format
@@ -169,12 +126,6 @@ const ReviewPage: NextPage = () => {
           }))
         };
 
-        console.log('Setting review state with transformed data:', {
-          id: transformedReview.id,
-          title: transformedReview.title,
-          status: transformedReview.status
-        });
-
         setReview(transformedReview);
         setCurrentStatus(transformedReview.status);
         setIsAuthor(transformedReview.userId === user.id);
@@ -185,57 +136,35 @@ const ReviewPage: NextPage = () => {
         }
       } catch (err) {
         console.error('Error fetching review:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load review';
-        setError(errorMessage);
-        toast.error(errorMessage);
+        setError(err instanceof Error ? err.message : 'Failed to fetch review');
       } finally {
         setLoading(false);
       }
     };
 
     fetchReview();
-  }, [router.isReady, id, user, authLoading, router]);
+  }, [id, user, authLoading, router]);
 
   const handleStatusChange = async (newStatus: ReviewWithProfile['status']) => {
-    if (!user || !review || isUpdating) return;
+    if (!user || !review) return;
     
     try {
       setIsUpdating(true);
-      setError(null);
 
-      // Get the session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('No valid session found');
-      }
-
-      console.log('Sending status update request:', {
-        id,
-        newStatus,
-        currentTitle: review.title,
-        token: session.access_token.substring(0, 10) + '...'
-      });
-
-      // Use the API endpoint
-      const response = await fetch(`/api/reviews/${id}/status`, {
+      const response = await fetch(`/api/reviews/${review.id}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
         },
         body: JSON.stringify({ newStatus })
       });
 
-      const responseData = await response.json();
-      console.log('Received response:', {
-        status: response.status,
-        ok: response.ok,
-        data: responseData
-      });
-
       if (!response.ok) {
-        throw new Error(responseData.message || `Failed to update status: ${response.statusText}`);
+        throw new Error(`Failed to update status: ${response.status}`);
       }
+
+      const responseData = await response.json();
 
       if (!responseData.success) {
         throw new Error(responseData.message || 'Failed to update status');
@@ -243,12 +172,6 @@ const ReviewPage: NextPage = () => {
 
       // Update local state with the complete review data
       if (responseData.data) {
-        console.log('Updating review state with:', {
-          id: responseData.data.id,
-          title: responseData.data.title,
-          status: responseData.data.status
-        });
-
         // Transform the data to match the frontend format
         const transformedReview = {
           ...responseData.data,
@@ -287,40 +210,19 @@ const ReviewPage: NextPage = () => {
 
     } catch (err) {
       console.error('Error updating status:', err);
-      if (err instanceof Error) {
-        console.error('Error details:', {
-          message: err.message,
-          stack: err.stack
-        });
-      }
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update status';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      toast.error(err instanceof Error ? err.message : 'Failed to update status');
     } finally {
       setIsUpdating(false);
     }
   };
   
   // Handler for project lead selection
-  const handleProjectLeadChange = (value: string) => {
-    setNewLeadId(value);
-    setIsChangingLead(true);
-  };
-
-  // Handler to change project lead
-  const handleChangeProjectLead = async () => {
-    if (!newLeadId || !review) return;
+  const handleProjectLeadChange = async (newLeadId: string) => {
+    if (!user || !review) return;
     
     try {
-      setUpdatingLead(true);
-      setError(null);
-      
-      // Check if user is admin before proceeding
-      if (!isAdmin()) {
-        throw new Error('Only administrators can change the Project Lead');
-      }
-      
-      // Call the API endpoint
+      setIsChangingLead(true);
+
       const response = await fetch(`/api/reviews/${review.id}/project-lead`, {
         method: 'PATCH',
         headers: {
@@ -331,38 +233,26 @@ const ReviewPage: NextPage = () => {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update project lead');
+        throw new Error(`Failed to update project lead: ${response.status}`);
       }
 
-      const { data } = await response.json();
-      
-      // Update local state with the transformed data
-      setReview({
-        ...review,
-        projectLeadId: newLeadId,
-        projectLead: data.projectLead ? {
-          id: data.projectLead.id,
-          name: data.projectLead.name || 'Unknown User',
-          email: data.projectLead.email || '',
-          createdAt: data.projectLead.created_at,
-          role: data.projectLead.role || 'Member'
-        } : undefined
-      });
-      
-      // Reset UI state
-      setIsChangingLead(false);
-      setNewLeadId('');
-      
-      // Show success message
-      toast.success('Project lead updated successfully');
-      
+      const responseData = await response.json();
+
+      if (!responseData.success) {
+        throw new Error(responseData.message || 'Failed to update project lead');
+      }
+
+      // Update local state with the complete review data
+      if (responseData.data) {
+        setReview(responseData.data);
+        toast.success('Project lead updated successfully');
+      }
+
     } catch (err) {
       console.error('Error changing project lead:', err);
-      setError(err instanceof Error ? err.message : 'Failed to update project lead');
-      toast.error('Failed to update project lead');
+      toast.error(err instanceof Error ? err.message : 'Failed to update project lead');
     } finally {
-      setUpdatingLead(false);
+      setIsChangingLead(false);
     }
   };
 
@@ -471,7 +361,7 @@ const ReviewPage: NextPage = () => {
                       />
                       {isChangingLead && (
                         <button
-                          onClick={handleChangeProjectLead}
+                          onClick={() => handleProjectLeadChange(newLeadId)}
                           disabled={updatingLead}
                           className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                         >
