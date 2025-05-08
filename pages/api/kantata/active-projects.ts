@@ -56,9 +56,11 @@ async function handler(
 
     // Filter to exclude Completed and Archived projects
     const workspaces = Object.fromEntries(
-      Object.entries(allWorkspaces).filter(([, ws]: [string, any]) => {
+      Object.entries(allWorkspaces).filter(([id, ws]: [string, any]) => {
         const status = ws.status?.message;
-        return status !== 'Archived' && status !== 'Completed';
+        // Exclude specific project IDs and statuses
+        const excludedIds = ['36811925', '36811995', '43209426'];
+        return !excludedIds.includes(id) && status !== 'Archived' && status !== 'Completed';
       })
     );
 
