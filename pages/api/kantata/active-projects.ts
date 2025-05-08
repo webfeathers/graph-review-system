@@ -59,7 +59,7 @@ async function handler(
       Object.entries(allWorkspaces).filter(([id, ws]: [string, any]) => {
         const status = ws.status?.message;
         // Exclude specific project IDs and statuses
-        const excludedIds = ['36811925', '36811995', '43209426'];
+        const excludedIds = ['36811925', '36811995', '43209426', '39003075'];
         return !excludedIds.includes(id) && status !== 'Archived' && status !== 'Completed';
       })
     );
