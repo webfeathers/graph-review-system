@@ -73,9 +73,41 @@ async function handler(
       });
     }
 
+    // Transform the data to match the frontend format
+    const transformedData = {
+      ...data,
+      userId: data.user_id,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      accountName: data.account_name,
+      orgId: data.org_id,
+      kantataProjectId: data.kantata_project_id,
+      segment: data.segment,
+      remoteAccess: data.remote_access,
+      graphName: data.graph_name,
+      useCase: data.use_case,
+      customerFolder: data.customer_folder,
+      handoffLink: data.handoff_link,
+      projectLeadId: data.project_lead_id,
+      user: data.user ? {
+        id: data.user.id,
+        name: data.user.name || 'Unknown User',
+        email: data.user.email || '',
+        createdAt: data.user.created_at,
+        role: data.user.role || 'Member'
+      } : undefined,
+      projectLead: data.projectLead ? {
+        id: data.projectLead.id,
+        name: data.projectLead.name || 'Unknown User',
+        email: data.projectLead.email || '',
+        createdAt: data.projectLead.created_at,
+        role: data.projectLead.role || 'Member'
+      } : undefined
+    };
+
     return res.status(200).json({
       success: true,
-      data
+      data: transformedData
     });
 
   } catch (error) {

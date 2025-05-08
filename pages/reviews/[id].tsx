@@ -222,6 +222,7 @@ const ReviewPage: NextPage = () => {
     
     try {
       setIsChangingLead(true);
+      setUpdatingLead(true);
 
       const response = await fetch(`/api/reviews/${review.id}/project-lead`, {
         method: 'PATCH',
@@ -245,6 +246,7 @@ const ReviewPage: NextPage = () => {
       // Update local state with the complete review data
       if (responseData.data) {
         setReview(responseData.data);
+        setNewLeadId(responseData.data.projectLeadId || '');
         toast.success('Project lead updated successfully');
       }
 
@@ -253,6 +255,7 @@ const ReviewPage: NextPage = () => {
       toast.error(err instanceof Error ? err.message : 'Failed to update project lead');
     } finally {
       setIsChangingLead(false);
+      setUpdatingLead(false);
     }
   };
 
@@ -355,18 +358,12 @@ const ReviewPage: NextPage = () => {
                   {isAdmin() ? (
                     <div className="flex items-center space-x-2">
                       <ProjectLeadSelector
-                        value={newLeadId || review.projectLeadId || ''}
+                        value={review.projectLeadId || ''}
                         onChange={handleProjectLeadChange}
                         disabled={updatingLead}
                       />
                       {isChangingLead && (
-                        <button
-                          onClick={() => handleProjectLeadChange(newLeadId)}
-                          disabled={updatingLead}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                        >
-                          {updatingLead ? 'Updating...' : 'Update'}
-                        </button>
+                        <span className="text-sm text-gray-500">Updating...</span>
                       )}
                     </div>
                   ) : (
