@@ -131,6 +131,23 @@ async function handler(
       });
     }
 
+    // Create activity record for the status update
+    const { error: activityError } = await supabaseAdmin
+      .from('activities')
+      .insert({
+        type: 'review',
+        action: 'updated status',
+        description: `Review status changed to ${newStatus}`,
+        user_id: userId,
+        review_id: id,
+        link: `/reviews/${id}`
+      });
+
+    if (activityError) {
+      console.error('Error creating activity record:', activityError);
+      // Don't throw error here, as the status was updated successfully
+    }
+
     console.log('Status updated successfully, fetching updated review');
 
     // Fetch the updated review with all related data

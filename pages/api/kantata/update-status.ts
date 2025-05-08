@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withAuth } from '../../../lib/apiHelpers';
 import { updateKantataStatus } from '../../../lib/kantataService';
+import { supabaseAdmin } from '../../../lib/serverAuth';
 
 async function handler(
   req: NextApiRequest,
@@ -50,6 +51,23 @@ async function handler(
     const result = await updateKantataStatus(kantataProjectId, status, KANTATA_API_TOKEN);
     
     if (result.success) {
+      // Create activity record for the status update
+      const { error: activityError } = await supabaseAdmin
+        .from('activities')
+        .insert({
+          type: 'project',
+          action: 'updated status',
+          description: `Kantata project status changed to ${status}`,
+          user_id: userId,
+          project_id: kantataProjectId,
+          link: `https://leandata.mavenlink.com/workspaces/${kantataProjectId}`
+        });
+
+      if (activityError) {
+        console.error('Error creating activity record:', activityError);
+        // Don't throw error here, as the status was updated successfully
+      }
+
       return res.status(201).json({
         success: true,
         message: result.message,

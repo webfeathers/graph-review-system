@@ -93,6 +93,16 @@ A Next.js application for managing and reviewing graphs.
 - Type-safe API routes and data transformations
 - File upload support for user avatars
 - Strict TypeScript checks and linting
+- Points and rewards system:
+  - Earn points for creating reviews, comments, and completing tasks
+  - Track activities and contributions
+  - Earn badges for reaching milestones
+  - View points and badges on your dashboard
+- Activity tracking:
+  - Real-time activity feed on dashboard
+  - Track review creation and updates
+  - Monitor comments and feedback
+  - View points earned and badges awarded
 
 ## Prerequisites
 

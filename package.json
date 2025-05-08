@@ -16,6 +16,7 @@
     "@supabase/supabase-js": "^2.49.4",
     "autoprefixer": "^10.4.16",
     "critters": "^0.0.23",
+    "date-fns": "^4.1.0",
     "next": "^15.3.2",
     "nodemailer": "^6.9.9",
     "postcss": "^8.4.31",

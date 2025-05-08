@@ -17,6 +17,7 @@ import {
   DbProfile, 
   DbComment 
 } from '../types/supabase';
+import { createComment } from './supabaseUtils';
 
 // Reviews
 export const getReviews = async (userId?: string) => {
@@ -200,30 +201,21 @@ export async function getCommentsByReviewId(reviewId: string): Promise<CommentWi
 }
 
 export const addComment = async (reviewId: string, content: string, userId: string) => {
-  const { data, error } = await supabase
-    .from('comments')
-    .insert([
-      {
-        review_id: reviewId,
-        content,
-        user_id: userId
-      }
-    ])
-    .select(`
-      *,
-      user:profiles!fk_comments_user(id, name, email, created_at, role),
-      votes:comment_votes(*)
-    `)
-    .single();
+  const { data: session } = await supabase.auth.getSession();
+  if (!session?.session) {
+    throw new Error('No active session');
+  }
 
-  if (error) throw error;
+  const comment = await createComment({
+    content,
+    reviewId,
+    userId
+  }, supabase);
 
   return {
-    ...dbToFrontendComment(data),
-    user: dbToFrontendProfile(data.user),
-    votes: data.votes?.map(dbToFrontendCommentVote),
-    voteCount: data.votes?.reduce((sum: number, vote: DbCommentVote) => 
-      sum + (vote.vote_type === 'up' ? 1 : -1), 0) || 0
+    ...comment,
+    votes: [],
+    voteCount: 0
   } as CommentWithProfile;
 };
 

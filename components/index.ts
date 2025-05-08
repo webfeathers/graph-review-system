@@ -10,6 +10,7 @@ export { default as GoogleLoginButton } from './GoogleLoginButton';
 export { EmptyState } from './EmptyState';
 export { Button } from './Button';
 export { default as UserManagement } from './UserManagement';
+export { ActivityFeed } from './ActivityFeed';
 
 // HOCs
 export { withRoleProtection } from './withRoleProtection';

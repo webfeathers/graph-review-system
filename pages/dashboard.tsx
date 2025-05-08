@@ -9,7 +9,8 @@ import {
   GraphReviewCard, 
   LoadingState, 
   EmptyState,
-  useAuth 
+  useAuth,
+  ActivityFeed 
 } from '../components';
 
 // API
@@ -29,6 +30,7 @@ const Dashboard: NextPage = () => {
   const router = useRouter();
   const [reviews, setReviews] = useState<ReviewWithCommentCount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -39,8 +41,8 @@ const Dashboard: NextPage = () => {
       return;
     }
 
-    // Fetch only the user's reviews with comment counts
-    const fetchReviewsWithCommentCounts = async () => {
+    // Fetch reviews and activities
+    const fetchData = async () => {
       try {
         // Get the user's reviews
         const reviewsData = await getReviews(user.id);
@@ -65,14 +67,42 @@ const Dashboard: NextPage = () => {
         );
         
         setReviews(reviewsWithCounts);
+
+        // Fetch recent activities
+        const { data: recentActivities, error: activitiesError } = await supabase
+          .from('activities')
+          .select(`
+            *,
+            user:profiles!fk_activities_user(id, name, email)
+          `)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (activitiesError) throw activitiesError;
+
+        // Transform activities to match the ActivityFeed format
+        const transformedActivities = recentActivities.map(activity => ({
+          id: activity.id,
+          type: activity.type,
+          action: activity.action,
+          description: activity.description,
+          timestamp: activity.created_at,
+          link: activity.link,
+          user: activity.user ? {
+            id: activity.user.id,
+            name: activity.user.name || activity.user.email.split('@')[0]
+          } : undefined
+        }));
+
+        setActivities(transformedActivities);
       } catch (error) {
-        console.error('Error fetching reviews:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReviewsWithCommentCounts();
+    fetchData();
   }, [user, authLoading, router]);
 
   if (authLoading || loading) {
@@ -84,94 +114,94 @@ const Dashboard: NextPage = () => {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-        <p className="text-gray-600">Welcome back, {profile?.name || user.user_metadata?.name || user.email}!</p>
-        {profile && (
-          <p className="text-gray-600 mt-2">
-            You have {profile.reviewCount ?? 0} reviews and {profile.commentCount ?? 0} comments, totaling {profile.points ?? 0} points.
-          </p>
-        )}
-        {profile?.badges && profile.badges.length > 0 && (
-          <div className="mt-2 flex space-x-2">
-            {profile.badges.map((badge) => (
-              <span key={badge} className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-sm">
-                {badge}
-              </span>
-            ))}
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+            <p className="text-gray-600">Welcome back, {profile?.name || user.user_metadata?.name || user.email}!</p>
           </div>
-        )}
-        <p>This app should replace the 
-          <Link
-            href="https://docs.google.com/presentation/d/1nkoiTak8G3vkOt8UcYYOai5S7dYxnEjziYf0bK4RFgw/edit#slide=id.g13a8af19432_0_229"
-            target="_blank"
-            className="text-blue-500 hover:underline p-1"
-          >
-            process
-          </Link>
-           and the  
-          <Link
-            href="https://docs.google.com/forms/d/e/1FAIpQLSfKnIiFZe7BTBbE_qZU0RKjbMMZsbVQPOpjCcZfZc9-Ca_82Q/formResponse"
-            target="_blank"
-            className="text-blue-500 hover:underline p-1"
-          >
-            Google form
-          </Link>.
-        </p>
+          
+          {/* Stats and Badges Card */}
+          <div className="bg-white rounded-lg shadow-sm p-4 w-64">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center">
+                <h3 className="text-sm font-medium text-gray-900">Points</h3>
+                <Link
+                  href="/help#points-system"
+                  className="ml-1.5 text-gray-400 hover:text-gray-600"
+                  title="Learn more about points"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </Link>
+              </div>
+              <span className="text-xl font-bold text-blue-600">{profile?.points ?? 0}</span>
+            </div>
+            
+            {profile?.badges && profile.badges.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {profile.badges.map((badge) => (
+                  <span 
+                    key={badge} 
+                    className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium flex items-center"
+                  >
+                    <svg className="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-xs">No badges earned yet</p>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">Your Active Graph Reviews</h2>
-          <Link
-            href="/reviews/new"
-            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-          >
-            New Review
-          </Link>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Activity Section */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Recent Activity</h2>
+          <ActivityFeed activities={activities} />
         </div>
 
-        {reviews.length === 0 ? (
-          <EmptyState
-            message="You don't have any active graph reviews. Approved reviews are not shown here."
-            action={
-              <Link
-                href="/reviews/new"
-                className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 inline-block mt-2"
-              >
-                Submit a New Review
-              </Link>
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {reviews.map((review) => (
-              <GraphReviewCard 
-                key={review.id} 
-                review={review} 
-                commentCount={review.commentCount}
-              />
-            ))}
+        {/* Active Graph Reviews Section */}
+        <div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold">Your Active Graph Reviews</h2>
+            <Link
+              href="/reviews/new"
+              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+            >
+              New Review
+            </Link>
           </div>
-        )}
-      </div>
-      
-      {/* Optional: Add a section to see approved reviews */}
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold">View All Reviews</h2>
+
+          {reviews.length === 0 ? (
+            <EmptyState
+              message="You don't have any active graph reviews. Approved reviews are not shown here."
+              action={
+                <Link
+                  href="/reviews/new"
+                  className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 inline-block mt-2"
+                >
+                  Submit a New Review
+                </Link>
+              }
+            />
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <GraphReviewCard
+                  key={review.id}
+                  review={review}
+                  commentCount={review.commentCount}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        
-        <p className="text-gray-600 mb-4">
-          Need to see your approved reviews or reviews from other users? 
-          Visit the reviews page to see all reviews in the system.
-        </p>
-        
-        <Link
-          href="/reviews"
-          className="bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300 inline-block"
-        >
-          View All Reviews
-        </Link>
       </div>
     </>
   );

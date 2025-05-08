@@ -342,6 +342,23 @@ export async function createReview(
       if (!newReview) {
         throw new Error('Review creation failed - no data returned');
       }
+
+      // Create activity record for the new review
+      const { error: activityError } = await client
+        .from('activities')
+        .insert({
+          type: 'review',
+          action: 'created',
+          description: `New Graph Review: ${reviewData.title}`,
+          user_id: reviewData.userId,
+          review_id: newReview.id,
+          link: `/reviews/${newReview.id}`
+        });
+
+      if (activityError) {
+        console.error('Error creating activity record:', activityError);
+        // Don't throw error here, as the review was created successfully
+      }
       
       return dbToFrontendReview(newReview);
       
@@ -355,9 +372,18 @@ export async function createReview(
  * Create a new comment
  * 
  * @param commentData The comment data to create
+ * @param client The Supabase client instance scoped to the authenticated user
  * @returns The created comment
  */
-export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt'>) {
+export async function createComment(
+  commentData: Omit<Comment, 'id' | 'createdAt'>,
+  client: SupabaseClient
+) {
+  if (!client || typeof client.from !== 'function') {
+    console.error('[createComment] Invalid client object received!');
+    throw new Error('Internal server error: Invalid database client provided.');
+  }
+
   // Convert the camelCase to snake_case for the database
   const dbCommentData = {
     content: commentData.content,
@@ -366,40 +392,41 @@ export async function createComment(commentData: Omit<Comment, 'id' | 'createdAt
     created_at: new Date().toISOString()
   };
   
-  // First create the comment
-  const { data: comment, error: commentError } = await supabase
-    .from('comments')
-    .insert(dbCommentData)
-    .select()
-    .single();
+  try {
+    // First create the comment
+    const { data: comment, error: commentError } = await client
+      .from('comments')
+      .insert(dbCommentData)
+      .select()
+      .single();
 
-  if (commentError) {
-    console.error('Error creating comment:', commentError);
-    throw commentError;
+    if (commentError) {
+      console.error('[createComment] Error creating comment:', commentError);
+      throw commentError;
+    }
+
+    // Create activity record for the comment
+    const { error: activityError } = await client
+      .from('activities')
+      .insert({
+        type: 'comment',
+        action: 'created',
+        description: `New comment on review: ${commentData.reviewId}`,
+        user_id: commentData.userId,
+        review_id: commentData.reviewId,
+        link: `/reviews/${commentData.reviewId}#comment-${comment.id}`
+      });
+
+    if (activityError) {
+      console.error('[createComment] Error creating activity record:', activityError);
+      // Don't throw error here, as the comment was created successfully
+    }
+
+    return dbToFrontendComment(comment);
+  } catch (error) {
+    console.error('[createComment] Error:', error);
+    throw error;
   }
-
-  // Then fetch the comment with the user profile
-  const { data: commentWithProfile, error: profileError } = await supabase
-    .from('comments')
-    .select(`
-      *,
-      profiles:user_id (
-        id,
-        name,
-        email,
-        created_at,
-        role
-      )
-    `)
-    .eq('id', comment.id)
-    .single();
-
-  if (profileError) {
-    console.error('Error fetching comment with profile:', profileError);
-    throw profileError;
-  }
-
-  return dbToFrontendCommentWithProfile(commentWithProfile);
 }
 
 /**
