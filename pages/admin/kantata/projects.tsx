@@ -12,7 +12,11 @@ import { supabase } from '../../../lib/supabase';
 interface KantataProject {
   id: string;
   title: string;
-  status: string;
+  kantataStatus: {
+    message: string;
+    key: number;
+    color: string;
+  };
   hasReview: boolean;
   reviewId?: string;
   reviewStatus?: string;
@@ -91,9 +95,11 @@ const KantataProjectsPage: NextPage = () => {
     return projects
       .filter(project => {
         if (statusFilter === 'all') return true;
-        if (statusFilter === 'in-development') return project.status === 'In Development';
-        if (statusFilter === 'live') return project.status === 'Live';
-        if (statusFilter === 'other') return !['In Development', 'Live'].includes(project.status);
+        if (statusFilter === 'in-development') return project.kantataStatus.message === 'In Development';
+        if (statusFilter === 'live') return project.kantataStatus.message === 'Live';
+        if (statusFilter === 'complete') return project.kantataStatus.message === 'Complete';
+        if (statusFilter === 'confirmed') return project.kantataStatus.message === 'Confirmed';
+        if (statusFilter === 'other') return !['In Development', 'Live', 'Complete', 'Confirmed'].includes(project.kantataStatus.message);
         return true;
       })
       .filter(project => {
@@ -126,18 +132,18 @@ const KantataProjectsPage: NextPage = () => {
   };
 
   // Get status color class
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (status: { message: string; color: string }) => {
+    switch (status.message) {
       case 'In Development':
-        return 'bg-blue-200 text-blue-800';
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
       case 'Live':
-        return 'bg-green-200 text-green-800';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'Complete':
-        return 'bg-gray-200 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
       case 'Confirmed':
-        return 'bg-purple-200 text-purple-800';
+        return 'bg-purple-100 text-purple-800 border border-purple-200';
       default:
-        return 'bg-yellow-200 text-yellow-800';
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
     }
   };
   
@@ -208,6 +214,8 @@ const KantataProjectsPage: NextPage = () => {
                 <option value="all">All Statuses</option>
                 <option value="in-development">In Development</option>
                 <option value="live">Live</option>
+                <option value="complete">Complete</option>
+                <option value="confirmed">Confirmed</option>
                 <option value="other">Other Statuses</option>
               </select>
             </div>
@@ -315,8 +323,8 @@ const KantataProjectsPage: NextPage = () => {
                           </div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                            {project.status}
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.kantataStatus)}`}>
+                            {project.kantataStatus.message}
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
@@ -364,8 +372,8 @@ const KantataProjectsPage: NextPage = () => {
                           {project.title}
                         </a>
                       </h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-                        {project.status}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.kantataStatus)}`}>
+                        {project.kantataStatus.message}
                       </span>
                     </div>
                     
