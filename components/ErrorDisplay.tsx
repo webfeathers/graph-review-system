@@ -2,15 +2,47 @@
 import React, { useState, useEffect } from 'react';
 import { ErrorService } from '../lib/errorService';
 
+/**
+ * Props for the ErrorDisplay component
+ */
 interface ErrorDisplayProps {
+  /** The error to display. Can be an Error object or string message */
   error: Error | string | null;
+  /** Optional callback when the error is dismissed */
   onDismiss?: () => void;
-  autoHideDuration?: number; // in milliseconds
+  /** Duration in milliseconds before auto-hiding the error. If not set, error stays visible */
+  autoHideDuration?: number;
+  /** Visual style variant of the error display */
   variant?: 'error' | 'warning' | 'info';
+  /** Additional CSS classes to apply */
   className?: string;
+  /** Test ID for testing purposes */
   testId?: string;
 }
 
+/**
+ * A reusable error display component that shows error messages with different styles
+ * and supports auto-dismissal and manual dismissal.
+ * 
+ * @example
+ * // Basic usage
+ * <ErrorDisplay error="Something went wrong" />
+ * 
+ * @example
+ * // With auto-dismissal
+ * <ErrorDisplay 
+ *   error={new Error("Network error")}
+ *   autoHideDuration={5000}
+ *   onDismiss={() => console.log('Error dismissed')}
+ * />
+ * 
+ * @example
+ * // Warning variant
+ * <ErrorDisplay 
+ *   error="Please save your changes"
+ *   variant="warning"
+ * />
+ */
 export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   error,
   onDismiss,
@@ -19,6 +51,7 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   className = '',
   testId = 'error-display'
 }) => {
+  // Track visibility state
   const [visible, setVisible] = useState(!!error);
 
   // Reset visibility when error changes
@@ -53,6 +86,9 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
     info: 'bg-blue-100 text-blue-700 border-blue-300'
   }[variant];
 
+  /**
+   * Handles the dismiss action, hiding the error and calling the onDismiss callback
+   */
   const handleDismiss = () => {
     setVisible(false);
     if (onDismiss) onDismiss();

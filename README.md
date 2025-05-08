@@ -1,6 +1,76 @@
 # Graph Review System
 
-A modern web application built with Next.js and Supabase for managing and reviewing graph-based projects.
+A Next.js application for managing and reviewing graphs.
+
+## Key Components
+
+### Layout Components
+- `Layout.tsx` - Main application layout with navigation and common UI elements
+- `AdminLayout.tsx` - Specialized layout for admin pages with additional controls
+
+### Core Components
+- `Button.tsx` - Reusable button component with variants (primary, secondary, danger, ghost)
+- `ErrorDisplay.tsx` - Error handling and display component
+- `LoadingState.tsx` - Loading indicator component
+- `EmptyState.tsx` - Component for displaying empty states
+
+### Feature Components
+- `GraphReviewCard.tsx` - Card component for displaying graph reviews
+- `commentSection.tsx` - Comment system for reviews
+- `MentionAutocomplete.tsx` - Autocomplete component for user mentions in comments
+- `ProjectLeadSelector.tsx` - Component for selecting project leads
+
+### Authentication
+- `AuthProvider.tsx` - Authentication context provider
+- `AuthForm.tsx` - Authentication form component
+- `GoogleLoginButton.tsx` - Google OAuth login button
+
+### Admin Features
+- `UserManagement.tsx` - User management interface
+- `withRoleProtection.tsx` - HOC for protecting admin routes
+
+### Utility Components
+- `withErrorHandling.tsx` - HOC for error handling
+- `Skeleton.tsx` - Loading skeleton component
+- `ReviewCardSkeleton.tsx` - Skeleton for review cards
+- `CommentSkeleton.tsx` - Skeleton for comments
+- `StatusBadge.tsx` - Status indicator component
+
+## Getting Started
+
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Set up environment variables:
+   Create a `.env.local` file with:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
+
+3. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+## Development
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm run typecheck` - Run TypeScript type checking
+
+## Project Structure
+
+```
+├── components/         # React components
+├── pages/             # Next.js pages
+├── public/            # Static assets
+└── styles/            # Global styles
+```
 
 ## Table of Contents
 - [Features](#features)

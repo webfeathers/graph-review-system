@@ -63,6 +63,7 @@ async function handler(
         return !excludedIds.includes(id) && 
                status !== 'Archived' && 
                status !== 'Completed' &&
+               status !== 'Rejected' &&
                !title.includes('prem support') &&
                !title.includes('premium support') &&
                !title.includes('premium services') &&

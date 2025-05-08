@@ -3,36 +3,85 @@ import React from 'react';
 
 /**
  * Button variant types for styling
+ * @typedef {('primary'|'secondary'|'danger'|'ghost')} ButtonVariant
+ * @property {string} primary - Green background with white text
+ * @property {string} secondary - Gray background with dark text
+ * @property {string} danger - Red background with white text
+ * @property {string} ghost - Transparent background with green text
  */
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
 /**
  * Button size types
+ * @typedef {('sm'|'md'|'lg')} ButtonSize
+ * @property {string} sm - Small size (px-2 py-1 text-sm)
+ * @property {string} md - Medium size (px-4 py-2)
+ * @property {string} lg - Large size (px-6 py-3 text-lg)
  */
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 /**
  * Props for the Button component
+ * @interface ButtonProps
+ * @extends {React.ButtonHTMLAttributes<HTMLButtonElement>}
  */
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Button content */
   children: React.ReactNode;
-  /** Visual variant */
+  /** Visual variant of the button */
   variant?: ButtonVariant;
-  /** Size variant */
+  /** Size variant of the button */
   size?: ButtonSize;
-  /** Loading state */
+  /** Whether the button is in a loading state */
   isLoading?: boolean;
-  /** Full width style */
+  /** Whether the button should take up the full width of its container */
   fullWidth?: boolean;
-  /** Icon to display before text */
+  /** Icon to display before the button text */
   leftIcon?: React.ReactNode;
-  /** Icon to display after text */
+  /** Icon to display after the button text */
   rightIcon?: React.ReactNode;
 }
 
 /**
- * Reusable button component with variants and loading state
+ * A versatile button component that supports multiple variants, sizes, and states.
+ * Includes built-in loading state with spinner and support for icons.
+ * 
+ * Features:
+ * - Multiple visual variants (primary, secondary, danger, ghost)
+ * - Three size options (sm, md, lg)
+ * - Loading state with spinner animation
+ * - Support for left and right icons
+ * - Full width option
+ * - Disabled state styling
+ * - Hover and focus states
+ * 
+ * @example
+ * // Basic usage
+ * <Button>Click me</Button>
+ * 
+ * @example
+ * // With variant and size
+ * <Button variant="primary" size="lg">
+ *   Submit
+ * </Button>
+ * 
+ * @example
+ * // With loading state
+ * <Button isLoading>
+ *   Processing...
+ * </Button>
+ * 
+ * @example
+ * // With icons
+ * <Button leftIcon={<Icon />} rightIcon={<ArrowIcon />}>
+ *   Next
+ * </Button>
+ * 
+ * @example
+ * // Full width button
+ * <Button fullWidth variant="secondary">
+ *   Cancel
+ * </Button>
  */
 export const Button: React.FC<ButtonProps> = ({
   children,

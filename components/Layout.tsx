@@ -3,18 +3,55 @@ import React, { ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { useAuth } from './AuthProvider';
 
+/**
+ * Props for the Layout component
+ */
 interface LayoutProps {
+  /** The content to be rendered within the layout */
   children: ReactNode;
 }
 
+/**
+ * The main layout component that provides the application's structure.
+ * It includes a header with navigation, a main content area, and a footer.
+ * The navigation adapts based on the user's authentication status and role.
+ * 
+ * Features:
+ * - Responsive header with logo and navigation
+ * - Role-based navigation (admin links only shown to admin users)
+ * - Authentication-aware navigation (different options for logged-in vs logged-out users)
+ * - Consistent footer across all pages
+ * 
+ * @example
+ * // Basic usage
+ * <Layout>
+ *   <YourPageContent />
+ * </Layout>
+ * 
+ * @example
+ * // With nested components
+ * <Layout>
+ *   <div className="your-content">
+ *     <h1>Welcome</h1>
+ *     <p>Your content here</p>
+ *   </div>
+ * </Layout>
+ */
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const router = useRouter();
   const { user, signOut, isAdmin } = useAuth();
   
+  /**
+   * Handles user logout by calling the signOut function from AuthProvider
+   */
   const handleLogout = async () => {
     await signOut();
   };
 
+  /**
+   * Handles navigation to different routes using Next.js router
+   * @param path - The target route path
+   */
   const handleNavigation = (path: string) => {
     router.replace(path);
   };
