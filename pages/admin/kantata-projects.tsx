@@ -20,6 +20,7 @@ interface KantataProject {
     color: string;
   };
   lastUpdated: string;
+  createdAt: string;
   hasGraphReview: boolean;
   graphReviewStatus?: string;
   graphReviewId?: string;
@@ -111,6 +112,15 @@ const KantataProjectsPage: NextPage = () => {
     }
   };
   
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date.getTime()) 
+      ? date.toLocaleDateString()
+      : 'N/A';
+  };
+  
   // Get filtered and sorted projects
   const getFilteredProjects = () => {
     // First filter
@@ -154,7 +164,7 @@ const KantataProjectsPage: NextPage = () => {
           comparison = (a.kantataStatus?.message || '').localeCompare(b.kantataStatus?.message || '');
           break;
         case 'createdAt':
-          comparison = new Date(a.lastUpdated).getTime() - new Date(b.lastUpdated).getTime();
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
           break;
         case 'hasGraphReview':
           comparison = (a.hasGraphReview === b.hasGraphReview) ? 0 : a.hasGraphReview ? -1 : 1;
@@ -301,12 +311,44 @@ const KantataProjectsPage: NextPage = () => {
       {/* Projects Table */}
       <div className="bg-white shadow overflow-hidden rounded-lg">
         <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Active Kantata Projects
-          </h3>
-          <p className="mt-1 max-w-2xl text-sm text-gray-500">
-            {filteredProjects.length} projects found
-          </p>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h3 className="text-lg leading-6 font-medium text-gray-900">
+                Active Kantata Projects
+              </h3>
+              <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                {filteredProjects.length} projects found
+              </p>
+            </div>
+            <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-lg">
+              <span className="text-sm font-medium text-gray-700">Sort by:</span>
+              <div className="flex items-center space-x-1">
+                <select
+                  value={sortField}
+                  onChange={(e) => handleSort(e.target.value)}
+                  className="block w-40 pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md bg-white"
+                >
+                  <option value="title">Title</option>
+                  <option value="createdAt">Created Date</option>
+                </select>
+                <button
+                  onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                  title={sortDirection === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                >
+                  {sortDirection === 'asc' ? (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         
         {filteredProjects.length === 0 ? (
@@ -342,7 +384,16 @@ const KantataProjectsPage: NextPage = () => {
                           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                           </svg>
-                          {new Date(project.lastUpdated).toLocaleDateString()}
+                          <span className="mr-2">Created:</span>
+                          {formatDate(project.createdAt)}
+                        </div>
+
+                        <div className="flex items-center text-gray-500">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="mr-2">Last Updated:</span>
+                          {formatDate(project.lastUpdated)}
                         </div>
 
                         <div className="flex items-center">
@@ -421,7 +472,16 @@ const KantataProjectsPage: NextPage = () => {
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        {new Date(project.lastUpdated).toLocaleDateString()}
+                        <span className="mr-2">Created:</span>
+                        {formatDate(project.createdAt)}
+                      </div>
+                      
+                      <div className="mt-1 flex items-center text-sm text-gray-500">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="mr-2">Last Updated:</span>
+                        {formatDate(project.lastUpdated)}
                       </div>
                       
                       <div className="mt-1">
