@@ -265,6 +265,7 @@ const KantataProjectsPage: NextPage = () => {
                   >
                     <option value="title">Title</option>
                     <option value="createdAt">Created Date</option>
+                    <option value="lastUpdated">Last Updated</option>
                   </select>
                   <button
                     onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
