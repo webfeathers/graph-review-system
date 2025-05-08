@@ -114,6 +114,26 @@ export interface CommentWithProfile extends Comment {
   userVote?: VoteType;
 }
 
+export interface Task {
+  id: string;
+  reviewId: string;
+  title: string;
+  description?: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+  assignedTo?: string;
+  createdBy: string;
+  dueDate?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  priority: 'low' | 'medium' | 'high';
+}
+
+export interface TaskWithProfiles extends Task {
+  assignedToUser?: Profile;
+  createdByUser: Profile;
+}
+
 // Helper functions to convert between database and frontend types
 export function dbToFrontendReview(dbReview: DbReview): Review {
   return {

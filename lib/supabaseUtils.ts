@@ -5,7 +5,7 @@ import {
   Review, Comment, Profile, ReviewWithProfile, CommentWithProfile,
   dbToFrontendReview, dbToFrontendComment, dbToFrontendProfile,
   dbToFrontendReviewWithProfile, dbToFrontendCommentWithProfile,
-  Role
+  Role, Task
 } from '../types/supabase';
 
 /**
@@ -347,12 +347,9 @@ export async function createReview(
       const { error: activityError } = await client
         .from('activities')
         .insert({
-          type: 'review',
-          action: 'created',
-          description: `New Graph Review: ${reviewData.title}`,
+          type: 'review_created',
           user_id: reviewData.userId,
-          review_id: newReview.id,
-          link: `/reviews/${newReview.id}`
+          review_id: newReview.id
         });
 
       if (activityError) {
@@ -393,7 +390,7 @@ export async function createComment(
   };
   
   try {
-    // First create the comment
+    // Create the comment
     const { data: comment, error: commentError } = await client
       .from('comments')
       .insert(dbCommentData)
@@ -403,35 +400,6 @@ export async function createComment(
     if (commentError) {
       console.error('[createComment] Error creating comment:', commentError);
       throw commentError;
-    }
-
-    // Get the review title for the activity description
-    const { data: review, error: reviewError } = await client
-      .from('reviews')
-      .select('title')
-      .eq('id', commentData.reviewId)
-      .single();
-
-    if (reviewError) {
-      console.error('[createComment] Error fetching review:', reviewError);
-      // Don't throw error here, as the comment was created successfully
-    }
-
-    // Create activity record for the comment
-    const { error: activityError } = await client
-      .from('activities')
-      .insert({
-        type: 'comment',
-        action: 'created',
-        description: `New comment on review: ${review?.title || commentData.reviewId}`,
-        user_id: commentData.userId,
-        review_id: commentData.reviewId,
-        link: `/reviews/${commentData.reviewId}#comment-${comment.id}`
-      });
-
-    if (activityError) {
-      console.error('[createComment] Error creating activity record:', activityError);
-      // Don't throw error here, as the comment was created successfully
     }
 
     return dbToFrontendComment(comment);
@@ -732,6 +700,279 @@ export async function validateKantataProject(kantataProjectId: string) {
     };
   } catch (error) {
     console.error('Error validating Kantata project:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get tasks for a review with optimized query
+ * 
+ * @param reviewId The review ID to get tasks for
+ * @returns Array of tasks with user profile data
+ */
+export const getTasksByReviewId = async (reviewId: string) => {
+  const { data: tasks, error } = await supabase
+    .from('tasks')
+    .select(`
+      *,
+      assigned_to_user:profiles!tasks_assigned_to_fkey (
+        id,
+        name,
+        email,
+        created_at,
+        role
+      ),
+      created_by_user:profiles!tasks_created_by_fkey (
+        id,
+        name,
+        email,
+        created_at,
+        role
+      )
+    `)
+    .eq('review_id', reviewId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  // Transform to frontend format
+  return tasks.map(task => ({
+    id: task.id,
+    reviewId: task.review_id,
+    title: task.title,
+    description: task.description,
+    status: task.status,
+    assignedTo: task.assigned_to,
+    createdBy: task.created_by,
+    dueDate: task.due_date,
+    completedAt: task.completed_at,
+    createdAt: task.created_at,
+    updatedAt: task.updated_at,
+    assignedToUser: task.assigned_to_user ? {
+      id: task.assigned_to_user.id,
+      name: task.assigned_to_user.name || 'Unknown User',
+      email: task.assigned_to_user.email || '',
+      createdAt: task.assigned_to_user.created_at,
+      role: task.assigned_to_user.role || 'Member'
+    } : undefined,
+    createdByUser: {
+      id: task.created_by_user.id,
+      name: task.created_by_user.name || 'Unknown User',
+      email: task.created_by_user.email || '',
+      createdAt: task.created_by_user.created_at,
+      role: task.created_by_user.role || 'Member'
+    }
+  }));
+};
+
+/**
+ * Create a new task
+ * 
+ * @param taskData The task data to create
+ * @param client The Supabase client instance scoped to the authenticated user
+ * @returns The created task
+ */
+export async function createTask(
+  taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>,
+  client: SupabaseClient
+) {
+  if (!client || typeof client.from !== 'function') {
+    console.error('[createTask] Invalid client object received!');
+    throw new Error('Internal server error: Invalid database client provided.');
+  }
+
+  // Convert the camelCase to snake_case for the database
+  const dbTaskData = {
+    review_id: taskData.reviewId,
+    title: taskData.title,
+    description: taskData.description,
+    status: taskData.status,
+    assigned_to: taskData.assignedTo,
+    created_by: taskData.createdBy,
+    due_date: taskData.dueDate,
+    completed_at: taskData.completedAt
+  };
+
+  try {
+    // Create the task
+    const { data: task, error: taskError } = await client
+      .from('tasks')
+      .insert(dbTaskData)
+      .select(`
+        *,
+        assigned_to_user:profiles!tasks_assigned_to_fkey (
+          id,
+          name,
+          email,
+          created_at,
+          role
+        ),
+        created_by_user:profiles!tasks_created_by_fkey (
+          id,
+          name,
+          email,
+          created_at,
+          role
+        )
+      `)
+      .single();
+
+    if (taskError) {
+      console.error('[createTask] Error creating task:', taskError);
+      throw taskError;
+    }
+
+    // Transform to frontend format
+    return {
+      id: task.id,
+      reviewId: task.review_id,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      assignedTo: task.assigned_to,
+      createdBy: task.created_by,
+      dueDate: task.due_date,
+      completedAt: task.completed_at,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at,
+      assignedToUser: task.assigned_to_user ? {
+        id: task.assigned_to_user.id,
+        name: task.assigned_to_user.name || 'Unknown User',
+        email: task.assigned_to_user.email || '',
+        createdAt: task.assigned_to_user.created_at,
+        role: task.assigned_to_user.role || 'Member'
+      } : undefined,
+      createdByUser: {
+        id: task.created_by_user.id,
+        name: task.created_by_user.name || 'Unknown User',
+        email: task.created_by_user.email || '',
+        createdAt: task.created_by_user.created_at,
+        role: task.created_by_user.role || 'Member'
+      }
+    };
+  } catch (error) {
+    console.error('[createTask] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update a task
+ * 
+ * @param taskId The ID of the task to update
+ * @param updates The updates to apply
+ * @param client The Supabase client instance scoped to the authenticated user
+ * @returns The updated task
+ */
+export async function updateTask(
+  taskId: string,
+  updates: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>,
+  client: SupabaseClient
+) {
+  if (!client || typeof client.from !== 'function') {
+    console.error('[updateTask] Invalid client object received!');
+    throw new Error('Internal server error: Invalid database client provided.');
+  }
+
+  // Convert the camelCase to snake_case for the database
+  const dbUpdates = {
+    title: updates.title,
+    description: updates.description,
+    status: updates.status,
+    assigned_to: updates.assignedTo,
+    due_date: updates.dueDate,
+    completed_at: updates.completedAt
+  };
+
+  try {
+    // Update the task
+    const { data: task, error: taskError } = await client
+      .from('tasks')
+      .update(dbUpdates)
+      .eq('id', taskId)
+      .select(`
+        *,
+        assigned_to_user:profiles!tasks_assigned_to_fkey (
+          id,
+          name,
+          email,
+          created_at,
+          role
+        ),
+        created_by_user:profiles!tasks_created_by_fkey (
+          id,
+          name,
+          email,
+          created_at,
+          role
+        )
+      `)
+      .single();
+
+    if (taskError) {
+      console.error('[updateTask] Error updating task:', taskError);
+      throw taskError;
+    }
+
+    // Transform to frontend format
+    return {
+      id: task.id,
+      reviewId: task.review_id,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      assignedTo: task.assigned_to,
+      createdBy: task.created_by,
+      dueDate: task.due_date,
+      completedAt: task.completed_at,
+      createdAt: task.created_at,
+      updatedAt: task.updated_at,
+      assignedToUser: task.assigned_to_user ? {
+        id: task.assigned_to_user.id,
+        name: task.assigned_to_user.name || 'Unknown User',
+        email: task.assigned_to_user.email || '',
+        createdAt: task.assigned_to_user.created_at,
+        role: task.assigned_to_user.role || 'Member'
+      } : undefined,
+      createdByUser: {
+        id: task.created_by_user.id,
+        name: task.created_by_user.name || 'Unknown User',
+        email: task.created_by_user.email || '',
+        createdAt: task.created_by_user.created_at,
+        role: task.created_by_user.role || 'Member'
+      }
+    };
+  } catch (error) {
+    console.error('[updateTask] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a task
+ * 
+ * @param taskId The ID of the task to delete
+ * @param client The Supabase client instance scoped to the authenticated user
+ */
+export async function deleteTask(taskId: string, client: SupabaseClient) {
+  if (!client || typeof client.from !== 'function') {
+    console.error('[deleteTask] Invalid client object received!');
+    throw new Error('Internal server error: Invalid database client provided.');
+  }
+
+  try {
+    // Delete the task
+    const { error: deleteError } = await client
+      .from('tasks')
+      .delete()
+      .eq('id', taskId);
+
+    if (deleteError) {
+      console.error('[deleteTask] Error deleting task:', deleteError);
+      throw deleteError;
+    }
+  } catch (error) {
+    console.error('[deleteTask] Error:', error);
     throw error;
   }
 }

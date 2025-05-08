@@ -1,18 +1,28 @@
 import React from 'react';
 import Link from 'next/link';
-import { formatDistanceToNow } from 'date-fns';
+import { Profile } from '@/types/supabase';
+import { 
+  ChatBubbleLeftIcon,
+  DocumentTextIcon,
+  CheckCircleIcon,
+  PencilSquareIcon,
+  DocumentPlusIcon,
+  ArrowPathIcon
+} from '@heroicons/react/24/outline';
 
 interface Activity {
   id: string;
-  type: 'review' | 'comment' | 'project' | 'user';
-  action: string;
-  description: string;
-  timestamp: string;
-  link?: string;
-  user?: {
-    id: string;
-    name: string;
-  };
+  user_id: string;
+  type: 'task_created' | 'task_updated' | 'task_completed' | 'comment_added' | 'review_created' | 'review_updated' | 'review_status_changed';
+  review_id: string;
+  task_id?: string;
+  comment_id?: string;
+  metadata: any;
+  created_at: string;
+  user: Profile;
+  review?: { id: string; title: string };
+  task?: { id: string; title: string };
+  comment?: { id: string; content: string };
 }
 
 interface ActivityFeedProps {
@@ -41,83 +51,147 @@ interface ActivityFeedProps {
  * ]} />
  * ```
  */
-export const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
+const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric'
+    });
+  };
+
   const getActivityIcon = (type: Activity['type']) => {
     switch (type) {
-      case 'review':
+      case 'task_created':
+        return <DocumentPlusIcon className="h-5 w-5 text-blue-500" />;
+      case 'task_updated':
+        return <PencilSquareIcon className="h-5 w-5 text-yellow-500" />;
+      case 'task_completed':
+        return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
+      case 'comment_added':
+        return <ChatBubbleLeftIcon className="h-5 w-5 text-purple-500" />;
+      case 'review_created':
+        return <DocumentPlusIcon className="h-5 w-5 text-blue-500" />;
+      case 'review_updated':
+        return <PencilSquareIcon className="h-5 w-5 text-yellow-500" />;
+      case 'review_status_changed':
+        return <ArrowPathIcon className="h-5 w-5 text-indigo-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const renderActivityContent = (activity: Activity) => {
+    switch (activity.type) {
+      case 'task_created':
         return (
-          <svg className="h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+          <>
+            created a new task <span className="font-medium">{activity.metadata.title}</span>
+            {activity.metadata.priority && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
+                {activity.metadata.priority} priority
+              </span>
+            )}
+            {' in review '}
+            <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
+              {activity.review?.title || `#${activity.review_id}`}
+            </Link>
+          </>
         );
-      case 'comment':
+      case 'task_updated':
         return (
-          <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
+          <>
+            updated task <span className="font-medium">{activity.metadata.title}</span>
+            <span className="ml-2 text-gray-500">
+              from {activity.metadata.old_status} to {activity.metadata.new_status}
+            </span>
+            {' in review '}
+            <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
+              {activity.review?.title || `#${activity.review_id}`}
+            </Link>
+          </>
         );
-      case 'project':
+      case 'task_completed':
         return (
-          <svg className="h-5 w-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
+          <>
+            completed task <span className="font-medium">{activity.metadata.title}</span>
+            {' in review '}
+            <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
+              {activity.review?.title || `#${activity.review_id}`}
+            </Link>
+          </>
         );
-      case 'user':
+      case 'comment_added':
         return (
-          <svg className="h-5 w-5 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
+          <>
+            added a comment to review{' '}
+            <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
+              {activity.review?.title || `#${activity.review_id}`}
+            </Link>
+          </>
         );
+      case 'review_created':
+        return (
+          <>
+            created a new review{' '}
+            <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
+              {activity.review?.title || `#${activity.review_id}`}
+            </Link>
+          </>
+        );
+      case 'review_updated':
+        return (
+          <>
+            updated review{' '}
+            <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
+              {activity.review?.title || `#${activity.review_id}`}
+            </Link>
+          </>
+        );
+      case 'review_status_changed':
+        return (
+          <>
+            changed review status to <span className="font-medium">{activity.metadata.new_status}</span> for review{' '}
+            <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
+              {activity.review?.title || `#${activity.review_id}`}
+            </Link>
+          </>
+        );
+      default:
+        return null;
     }
   };
 
   return (
-    <div className="flow-root">
-      <ul role="list" className="-mb-8">
-        {activities.map((activity, activityIdx) => (
-          <li key={activity.id}>
-            <div className="relative pb-8">
-              {activityIdx !== activities.length - 1 ? (
-                <span
-                  className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
-                  aria-hidden="true"
-                />
-              ) : null}
-              <div className="relative flex space-x-3">
-                <div>
-                  <span className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center ring-8 ring-white">
-                    {getActivityIcon(activity.type)}
-                  </span>
-                </div>
-                <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
-                  <div>
-                    <p className="text-sm text-gray-500">
-                      {activity.user ? (
-                        <Link href={`/profile/${activity.user.id}`} className="font-medium text-gray-900">
-                          {activity.user.name}
-                        </Link>
-                      ) : null}{' '}
-                      {activity.action}{' '}
-                      {activity.link ? (
-                        <Link href={activity.link} className="font-medium text-gray-900">
-                          {activity.description}
-                        </Link>
-                      ) : (
-                        activity.description
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                    <time dateTime={activity.timestamp}>
-                      {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
-                    </time>
-                  </div>
-                </div>
+    <div className="space-y-4">
+      {activities.length === 0 ? (
+        <p className="text-gray-500 text-center">No recent activity</p>
+      ) : (
+        activities.map((activity) => (
+          <div key={activity.id} className="bg-white p-4 rounded-lg shadow-sm">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 mt-0.5">
+                {getActivityIcon(activity.type)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-900">
+                  <Link href={`/profile/${activity.user.id}`} className="font-medium text-blue-600 hover:underline">
+                    {activity.user.name}
+                  </Link>{' '}
+                  {renderActivityContent(activity)}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formatDate(activity.created_at)}
+                </p>
               </div>
             </div>
-          </li>
-        ))}
-      </ul>
+          </div>
+        ))
+      )}
     </div>
   );
-}; 
+};
+
+export default ActivityFeed; 

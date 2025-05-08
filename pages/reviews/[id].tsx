@@ -14,6 +14,7 @@ import {
   ProjectLeadSelector,
   useAuth
 } from '../../components';
+import TaskList from '../../components/TaskList';
 
 // API
 import { 
@@ -297,94 +298,40 @@ const ReviewPage: NextPage = () => {
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{review.title}</h1>
-                <p className="mt-1 text-sm text-gray-500">
-                  Created by {review.user?.email || 'Unknown'} on {new Date(review.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              {(isAuthor || isAdmin()) && (
-                <Link
-                  href={`/reviews/edit/${review.id}`}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit Review
-                </Link>
-              )}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="px-6 py-4">
-            {/* Status and Project Lead at the top */}
-            <div className="mb-6 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {(isAuthor || isAdmin()) ? (
-                  <div className="flex items-center space-x-2">
-                    <select
-                      value={currentStatus}
-                      onChange={(e) => handleStatusChange(e.target.value as ReviewWithProfile['status'])}
-                      disabled={isUpdating}
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        currentStatus === 'Approved' ? 'bg-green-100 text-green-800' :
-                        currentStatus === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
-                        currentStatus === 'In Review' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-100 text-gray-800'
-                      } border-0 focus:ring-2 focus:ring-blue-500`}
-                    >
-                      <option value="Submitted">Submitted</option>
-                      <option value="In Review">In Review</option>
-                      <option value="Needs Work">Needs Work</option>
-                      <option value="Approved">Approved</option>
-                    </select>
-                    {isUpdating && (
-                      <span className="text-sm text-gray-500">Updating...</span>
-                    )}
-                  </div>
-                ) : (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    review.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                    review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {review.status}
-                  </span>
+              <div className="flex items-center space-x-2">
+                {(isAuthor || isAdmin()) && (
+                  <Link
+                    href={`/reviews/edit/${review.id}`}
+                    className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                    title="Edit Review"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </Link>
                 )}
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-500">Project Lead:</span>
-                  {isAdmin() ? (
-                    <div className="flex items-center space-x-2">
-                      <ProjectLeadSelector
-                        value={review.projectLeadId || ''}
-                        onChange={handleProjectLeadChange}
-                        disabled={updatingLead}
-                      />
-                      {isChangingLead && (
-                        <span className="text-sm text-gray-500">Updating...</span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-sm text-gray-900">
-                      {review.projectLead?.email || 'Not assigned'}
-                    </span>
-                  )}
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">{review.title}</h1>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Created by {review.user?.email || 'Unknown'} on {new Date(review.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Main content in two columns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {/* Left Column */}
-              <div className="space-y-6">
+          {/* Main Content */}
+          <div className="px-6 py-4">
+            {/* Project Details Section */}
+            <div className="mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column - Project Details */}
                 <div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-2">Project Details</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Kantata Project ID</label>
-                      <div className="mt-1">
+                  <h2 className="text-lg font-medium text-gray-900 mb-4">Project Details</h2>
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <span className="w-40 text-sm font-medium text-gray-700">Kantata Project ID:</span>
+                      <div>
                         <a 
                           href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}?tab=project-workspace`}
                           target="_blank"
@@ -399,16 +346,14 @@ const ReviewPage: NextPage = () => {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">OrgID</label>
-                      <div className="mt-1 text-gray-900">
-                        {review.orgId || 'Not Added'}
-                      </div>
+                    <div className="flex items-center">
+                      <span className="w-40 text-sm font-medium text-gray-700">OrgID:</span>
+                      <span className="text-gray-900">{review.orgId || 'Not Added'}</span>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Customer Folder</label>
-                      <div className="mt-1">
+                    <div className="flex items-center">
+                      <span className="w-40 text-sm font-medium text-gray-700">Customer Folder:</span>
+                      <div>
                         {review.customerFolder ? (
                           <a 
                             href={review.customerFolder}
@@ -427,9 +372,9 @@ const ReviewPage: NextPage = () => {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Handoff Link</label>
-                      <div className="mt-1">
+                    <div className="flex items-center mt-3">
+                      <span className="w-40 text-sm font-medium text-gray-700">Handoff Link:</span>
+                      <div>
                         {review.handoffLink ? (
                           <a 
                             href={review.handoffLink}
@@ -448,34 +393,130 @@ const ReviewPage: NextPage = () => {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Remote Access</label>
-                      <div className="mt-1 text-gray-900">
-                        {review.remoteAccess ? 'Yes' : 'No'}
-                      </div>
+                    <div className="flex items-center mt-3">
+                      <span className="w-40 text-sm font-medium text-gray-700">Remote Access:</span>
+                      <span className="text-gray-900">{review.remoteAccess ? 'Yes' : 'No'}</span>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Right Column */}
-              <div>
-                <h2 className="text-lg font-medium text-gray-900 mb-2">Review Notes</h2>
-                <div className="mt-1 prose max-w-none">
-                  {review.description}
+                {/* Right Column - Status and Project Lead */}
+                <div className="flex flex-col items-end space-y-3">
+                  {(isAuthor || isAdmin()) ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleStatusChange('Submitted')}
+                          disabled={isUpdating}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'Submitted' 
+                              ? 'bg-gray-100 text-gray-800' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Submitted
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange('In Review')}
+                          disabled={isUpdating}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'In Review' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          In Review
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange('Needs Work')}
+                          disabled={isUpdating}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'Needs Work' 
+                              ? 'bg-yellow-100 text-yellow-800' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Needs Work
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange('Approved')}
+                          disabled={isUpdating}
+                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'Approved' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Approved
+                        </button>
+                      </div>
+                      {isUpdating && (
+                        <span className="text-sm text-gray-500">Updating...</span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                      review.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                      review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
+                      review.status === 'In Review' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {review.status}
+                    </span>
+                  )}
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-500">Project Lead:</span>
+                    {isAdmin() ? (
+                      <div className="flex items-center space-x-2">
+                        <ProjectLeadSelector
+                          value={review.projectLeadId || ''}
+                          onChange={handleProjectLeadChange}
+                          disabled={updatingLead}
+                        />
+                        {isChangingLead && (
+                          <span className="text-sm text-gray-500">Updating...</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-gray-900">
+                        {review.projectLead?.email || 'Not assigned'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Comments Section at the bottom */}
-            <div className="border-t border-gray-200 pt-6">
-              <CommentSection
-                comments={review.comments || []}
-                reviewId={review.id}
-                onCommentAdded={(newComment) => {
-                  setComments(prevComments => [...prevComments, newComment]);
-                }}
-              />
+          <div className="mt-6 px-6">
+            <h2 className="text-lg font-medium text-gray-900 mb-2">Review Notes</h2>
+            <div className="prose max-w-none">
+              {review.description}
+            </div>
+          </div>
+
+          {/* Bottom Section - Tasks and Comments */}
+          <div className="mt-8 border-t border-gray-200 pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Comments Section */}
+              <div className="rounded-lg p-6">
+                <CommentSection
+                  comments={review.comments || []}
+                  reviewId={review.id}
+                  onCommentAdded={(newComment) => {
+                    setComments(prevComments => [...prevComments, newComment]);
+                  }}
+                />
+              </div>
+
+              {/* Tasks Section */}
+              <div className="rounded-lg p-6">
+                <TaskList 
+                  reviewId={review.id} 
+                  reviewTitle={review.title} 
+                  review={review}
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -280,52 +280,55 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         />
       )}
 
-      <Form onSubmit={form.handleSubmit}>
-        <TextArea
-          id="content"
-          name="content"
-          label="Add a comment"
-          placeholder="Type your comment here... Use @ to mention someone"
-          value={form.values.content}
-          onChange={handleContentChange}
-          onBlur={form.handleBlur('content')}
-          error={form.errors.content}
-          touched={form.touched.content}
-          rows={4}
-          disabled={isSubmitting}
-        />
-        
-        {/* Replace the old suggestions list with the new MentionAutocomplete */}
-        {showSuggestions && suggestions.length > 0 && (
-          <MentionAutocomplete
-            suggestions={suggestions}
-            onSelect={(user) => {
-              const current = form.values.content;
-              const newContent = current.replace(/@(\w*)$/, `@${user.name} `);
-              form.setFieldValue('content', newContent);
-              setShowSuggestions(false);
-            }}
-            onClose={() => setShowSuggestions(false)}
-            position={mentionPosition}
+      {/* Comment Form */}
+      <div className="bg-white p-6">
+        <Form onSubmit={form.handleSubmit}>
+          <TextArea
+            id="content"
+            name="content"
+            label="Add a comment"
+            placeholder="Type your comment here... Use @ to mention someone"
+            value={form.values.content}
+            onChange={handleContentChange}
+            onBlur={form.handleBlur('content')}
+            error={form.errors.content}
+            touched={form.touched.content}
+            rows={4}
+            disabled={isSubmitting}
           />
-        )}
-        
-        <div className="mt-4">
-          <SubmitButton
-            label="Post Comment"
-            submittingLabel="Posting..."
-            isSubmitting={isSubmitting}
-            disabled={isSubmitting || !form.values.content.trim()}
-          />
-        </div>
-      </Form>
+          
+          {/* Replace the old suggestions list with the new MentionAutocomplete */}
+          {showSuggestions && suggestions.length > 0 && (
+            <MentionAutocomplete
+              suggestions={suggestions}
+              onSelect={(user) => {
+                const current = form.values.content;
+                const newContent = current.replace(/@(\w*)$/, `@${user.name} `);
+                form.setFieldValue('content', newContent);
+                setShowSuggestions(false);
+              }}
+              onClose={() => setShowSuggestions(false)}
+              position={mentionPosition}
+            />
+          )}
+          
+          <div className="mt-4 flex justify-end">
+            <SubmitButton
+              label="Post Comment"
+              submittingLabel="Posting..."
+              isSubmitting={isSubmitting}
+              disabled={isSubmitting || !form.values.content.trim()}
+            />
+          </div>
+        </Form>
+      </div>
 
       <div className="mt-8 space-y-4">
         {comments.length === 0 ? (
           <p className="text-gray-500 text-center">No comments yet. Be the first to comment!</p>
         ) : (
           comments.map((comment) => (
-            <div id={`comment-${comment.id}`} key={comment.id} className="bg-white p-4 rounded-lg shadow">
+            <div key={comment.id} className="bg-white p-4 rounded-lg shadow">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">

@@ -66,12 +66,7 @@ const AdminDashboard: NextPage = () => {
           ))}
         </div>
 
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
-            <h2 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h2>
-            <p className="text-gray-500">Activity feed coming soon...</p>
-          </div>
-
+        <div className="mt-8">
           <div className="bg-white p-6 rounded-lg shadow-sm">
             <h2 className="text-lg font-medium text-gray-900 mb-4">System Status</h2>
             <div className="space-y-4">

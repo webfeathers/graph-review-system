@@ -9,9 +9,9 @@ import {
   GraphReviewCard, 
   LoadingState, 
   EmptyState,
-  useAuth,
-  ActivityFeed 
+  useAuth
 } from '../components';
+import ActivityFeed from '../components/ActivityFeed';
 
 // API
 import { getReviews } from '../lib/api';
@@ -73,30 +73,18 @@ const Dashboard: NextPage = () => {
           .from('activities')
           .select(`
             *,
-            user:profiles!fk_activities_user(id, name, email)
+            user:profiles!user_id(id, name, email),
+            review:reviews!activities_review_id_fkey(id, title),
+            task:tasks(id, title),
+            comment:comments(id, content)
           `)
           .order('created_at', { ascending: false })
           .limit(10);
 
         if (activitiesError) throw activitiesError;
-
-        // Transform activities to match the ActivityFeed format
-        const transformedActivities = recentActivities.map(activity => ({
-          id: activity.id,
-          type: activity.type,
-          action: activity.action,
-          description: activity.description,
-          timestamp: activity.created_at,
-          link: activity.link,
-          user: activity.user ? {
-            id: activity.user.id,
-            name: activity.user.name || activity.user.email.split('@')[0]
-          } : undefined
-        }));
-
-        setActivities(transformedActivities);
+        setActivities(recentActivities || []);
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
       }
@@ -177,19 +165,8 @@ const Dashboard: NextPage = () => {
               New Review
             </Link>
           </div>
-
           {reviews.length === 0 ? (
-            <EmptyState
-              message="You don't have any active graph reviews. Approved reviews are not shown here."
-              action={
-                <Link
-                  href="/reviews/new"
-                  className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 inline-block mt-2"
-                >
-                  Submit a New Review
-                </Link>
-              }
-            />
+            <p className="text-gray-500">No active reviews</p>
           ) : (
             <div className="space-y-4">
               {reviews.map((review) => (
