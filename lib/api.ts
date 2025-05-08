@@ -212,10 +212,30 @@ export const addComment = async (reviewId: string, content: string, userId: stri
     userId
   }, supabase);
 
+  // Get the user profile
+  const { data: userData } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single();
+
   return {
     ...comment,
     votes: [],
-    voteCount: 0
+    voteCount: 0,
+    user: userData ? {
+      id: userData.id,
+      name: userData.name || 'Unknown User',
+      email: userData.email || '',
+      createdAt: userData.created_at || new Date().toISOString(),
+      role: userData.role || 'Member'
+    } : {
+      id: userId,
+      name: 'Unknown User',
+      email: '',
+      createdAt: new Date().toISOString(),
+      role: 'Member'
+    }
   } as CommentWithProfile;
 };
 
