@@ -162,13 +162,18 @@ const ReviewPage: NextPage = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to update status: ${response.status}`);
+        const errorData = await response.json();
+        const errorMessage = errorData.error || `Failed to update status: ${response.status}`;
+        toast.error(errorMessage);
+        return;
       }
 
       const responseData = await response.json();
 
       if (!responseData.success) {
-        throw new Error(responseData.message || 'Failed to update status');
+        const errorMessage = responseData.error || responseData.message || 'Failed to update status';
+        toast.error(errorMessage);
+        return;
       }
 
       // Update local state with the complete review data
