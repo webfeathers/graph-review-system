@@ -203,7 +203,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     try {
       setIsVoting(commentId);
       
-      // If the user has already voted this way, remove the vote
+      // If the user has already voted this way on this comment, remove the vote
       const comment = comments.find(c => c.id === commentId);
       if (comment?.userVote === voteType) {
         await removeVote(commentId, user.id);
