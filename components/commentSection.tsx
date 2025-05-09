@@ -200,11 +200,17 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const handleVote = async (commentId: string, voteType: VoteType) => {
     if (!user) return;
     
+    // Prevent voting on own comments
+    const comment = comments.find(c => c.id === commentId);
+    if (comment?.userId === user.id) {
+      toast.error("You cannot vote on your own comments.");
+      return;
+    }
+    
     try {
       setIsVoting(commentId);
       
       // If the user has already voted this way on this comment, remove the vote
-      const comment = comments.find(c => c.id === commentId);
       if (comment?.userVote === voteType) {
         await removeVote(commentId, user.id);
         setComments(prevComments => 
