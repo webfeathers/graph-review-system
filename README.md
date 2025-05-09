@@ -103,6 +103,11 @@ A Next.js application for managing and reviewing graphs.
   - Track review creation and updates
   - Monitor comments and feedback
   - View points earned and badges awarded
+- Review workflow:
+  - Create and manage tasks for each review
+  - All tasks must be completed before a review can be approved
+  - User-friendly notifications for incomplete tasks
+  - Track task completion status in real-time
 
 ## Prerequisites
 

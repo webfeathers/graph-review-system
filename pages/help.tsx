@@ -52,7 +52,7 @@ const HelpPage: NextPage = () => {
                 <li>Getting a review approved (+20 points)</li>
                 <li>Adding comments to reviews (+5 points per comment)</li>
                 <li>Receiving upvotes on your comments (+2 points per upvote)</li>
-                <li>Completing review tasks (+5 points per task) <span className="text-blue-600 text-sm">(Coming Soon)</span></li>
+                <li>Completing review tasks (+5 points per task)</li>
               </ul>
             </div>
 
@@ -87,9 +87,9 @@ const HelpPage: NextPage = () => {
             </div>
 
             <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-2">Review Tasks <span className="text-blue-600 text-sm">(Coming Soon)</span></h3>
+              <h3 className="text-lg font-medium mb-2">Review Tasks</h3>
               <p className="text-gray-600 mb-4">
-                Reviewers will soon be able to create specific tasks that must be completed before a review can be approved. Tasks will help ensure all necessary changes and improvements are addressed:
+                Reviewers can create specific tasks that must be completed before a review can be approved. Tasks help ensure all necessary changes and improvements are addressed:
               </p>
               <ul className="list-disc list-inside space-y-2 text-gray-600">
                 <li>Tasks can be created by reviewers during the review process</li>
