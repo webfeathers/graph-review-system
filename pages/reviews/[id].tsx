@@ -373,7 +373,7 @@ const ReviewPage: NextPage = () => {
                     </div>
 
                     <div className="flex items-center mt-3">
-                      <span className="w-40 text-sm font-medium text-gray-700">Handoff Link:</span>
+                      <span className="w-40 text-sm font-medium text-gray-700">Sales to PS Handoff:</span>
                       <div>
                         {review.handoffLink ? (
                           <a 
@@ -385,7 +385,7 @@ const ReviewPage: NextPage = () => {
                             <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
-                            Open Handoff
+                            Open Handoff Form
                           </a>
                         ) : (
                           <span className="text-gray-500">Not Added</span>
