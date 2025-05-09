@@ -248,6 +248,45 @@ export class EmailService {
       return { success: false, error };
     }
   }
+
+  /**
+   * Send notification when a task is assigned to a project lead
+   * 
+   * @param taskId Task ID
+   * @param taskTitle Task title
+   * @param projectLeadEmail Email of the project lead
+   * @param projectLeadName Name of the project lead
+   * @param appUrl Base URL of the application
+   * @returns Result of the email sending
+   */
+  static async sendTaskAssignedNotification(
+    taskId: string,
+    taskTitle: string,
+    projectLeadEmail: string,
+    projectLeadName: string,
+    appUrl: string
+  ): Promise<{ success: boolean; error?: any }> {
+    try {
+      const taskUrl = `${appUrl}/reviews/${taskId}`;
+      
+      const emailHtml = `
+        <h1>Task Assigned to You</h1>
+        <p>Hello ${projectLeadName},</p>
+        <p>A new task has been assigned to you: <strong>${taskTitle}</strong>.</p>
+        <p><a href="${taskUrl}" style="background-color: #2db670; color: white; padding: 10px 15px; text-decoration: none; border-radius: 4px; display: inline-block;">View Task</a></p>
+        <p>Thank you,<br>LeanData Graph Review System</p>
+      `;
+      
+      return await this.sendEmail({
+        to: projectLeadEmail,
+        subject: `New Task Assigned: ${taskTitle}`,
+        html: emailHtml
+      });
+    } catch (error) {
+      console.error('Error sending task assigned notification:', error);
+      return { success: false, error };
+    }
+  }
 }
 
 export default EmailService;
