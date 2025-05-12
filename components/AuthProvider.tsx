@@ -227,8 +227,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear the profile cache to ensure we get fresh data
       ProfileService.clearProfileFromCache(newUser.id);
       const prof = await ProfileService.ensureProfile(newUser);
-      setProfile(prof);
-      setUserRole(prof?.role || null);
+      if (prof) {
+        setProfile(prof);
+        setUserRole(prof.role);
+        // Update role cache
+        userRoleCache.set(newUser.id, { 
+          role: prof.role, 
+          timestamp: Date.now(),
+          version: globalCacheVersion
+        });
+      } else {
+        setProfile(null);
+        setUserRole(null);
+      }
     } else {
       setProfile(null);
       setUserRole(null);
@@ -237,6 +248,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // <<< Wrap isAdmin in useCallback, dependent on userRole >>>
   const isAdmin = useCallback((): boolean => {
+    if (!userRole) return false;
     return userRole === 'Admin';
   }, [userRole]);
 

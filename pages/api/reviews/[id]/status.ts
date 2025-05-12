@@ -93,6 +93,37 @@ async function handler(
       });
     }
 
+    // Get current review data to check status and required fields
+    const { data: currentReview, error: currentReviewError } = await supabaseClient
+      .from('reviews')
+      .select('status, description, graph_name, account_name, org_id')
+      .eq('id', id)
+      .single();
+
+    if (currentReviewError) {
+      console.error('Error fetching current review:', currentReviewError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch current review data'
+      });
+    }
+
+    // If changing from Draft, validate required fields
+    if (currentReview.status === 'Draft' && newStatus !== 'Draft') {
+      const missingFields = [];
+      if (!currentReview.description) missingFields.push('Description');
+      if (!currentReview.graph_name) missingFields.push('Graph Name');
+      if (!currentReview.account_name) missingFields.push('Account Name');
+      if (!currentReview.org_id) missingFields.push('Organization ID');
+
+      if (missingFields.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot change status from Draft. The following fields are required: ${missingFields.join(', ')}`
+        });
+      }
+    }
+
     // Only admins can approve reviews
     if (newStatus === 'Approved' && !isAdmin) {
       console.error('Non-admin attempting to approve review:', {

@@ -161,18 +161,20 @@ const ReviewPage: NextPage = () => {
         body: JSON.stringify({ newStatus })
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.error || `Failed to update status: ${response.status}`;
-        toast.error(errorMessage);
-        return;
-      }
-
       const responseData = await response.json();
 
-      if (!responseData.success) {
-        const errorMessage = responseData.error || responseData.message || 'Failed to update status';
-        toast.error(errorMessage);
+      if (!response.ok || !responseData.success) {
+        const errorMessage = responseData.message || 'Failed to update status';
+        toast.error(errorMessage, {
+          duration: 5000,
+          style: {
+            background: '#FEE2E2',
+            color: '#991B1B',
+            padding: '16px',
+            borderRadius: '8px',
+            maxWidth: '500px'
+          }
+        });
         return;
       }
 
@@ -213,10 +215,9 @@ const ReviewPage: NextPage = () => {
         setCurrentStatus(transformedReview.status);
         toast.success('Status updated successfully');
       }
-
     } catch (err) {
       console.error('Error updating status:', err);
-      toast.error(err instanceof Error ? err.message : 'Failed to update status');
+      toast.error('Failed to update status');
     } finally {
       setIsUpdating(false);
     }

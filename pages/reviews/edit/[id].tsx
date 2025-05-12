@@ -221,20 +221,27 @@ const EditReview: NextPage = () => {
     
     // Required fields
     if (!title) errors.title = 'Title is required';
-    if (!description) errors.description = 'Description is required';
-    if (!graphName) errors.graphName = 'Graph name is required';
     if (!newLeadId) errors.projectLeadId = 'Project Lead is required';
     if (!kantataProjectId) errors.kantataProjectId = 'Kantata Project ID is required';
     
-    // Optional fields with validation
-    if (accountName && accountName.length < 2) {
-      errors.accountName = 'Account name must be at least 2 characters if provided';
-    }
-    if (accountName && accountName.length > FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH) {
-      errors.accountName = `Account name must be no more than ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`;
+    // If the review is currently in Draft status, validate required fields for submission
+    if (review?.status === 'Draft') {
+      if (!description) errors.description = 'Description is required to submit the review';
+      if (!graphName) errors.graphName = 'Graph name is required to submit the review';
+      if (!accountName) errors.accountName = 'Account name is required to submit the review';
+      if (!orgId) errors.orgId = 'Organization ID is required to submit the review';
     }
     
-    // Other validations...
+    // Optional fields with validation
+    if (customerFolder && !customerFolder.startsWith('http')) {
+      errors.customerFolder = 'Please enter a valid URL for the customer folder';
+    }
+    if (handoffLink && !handoffLink.startsWith('http')) {
+      errors.handoffLink = 'Please enter a valid URL for the handoff link';
+    }
+    if (useCase && useCase.length < 10) {
+      errors.useCase = 'Use case must be at least 10 characters if provided';
+    }
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;

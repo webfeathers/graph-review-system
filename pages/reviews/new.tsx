@@ -77,25 +77,17 @@ const NewReview: NextPage = () => {
   // Memoize the validation schema (excluding Kantata)
   const validationSchema = useMemo(() => ({
     title: reviewValidationSchema.title,
-    description: createValidator(
-      minLength(10, 'Description must be at least 10 characters if provided'),
-      maxLength(FIELD_LIMITS.DESCRIPTION_MAX_LENGTH, `Description must be no more than ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`)
-    ),
-    accountName: reviewValidationSchema.accountName,
+    description: createValidator(),
+    accountName: createValidator(),
     customerFolder: reviewValidationSchema.customerFolder,
     handoffLink: reviewValidationSchema.handoffLink,
     projectLeadId: reviewValidationSchema.projectLeadId,
     kantataProjectId: reviewValidationSchema.kantataProjectId,
-    graphName: createValidator(
-      required('Graph name is required'),
-      minLength(3, 'Graph name must be at least 3 characters')
-    ),
+    graphName: createValidator(),
     segment: createValidator(
       required('Please select a customer segment')
     ),
-    orgId: createValidator(
-      required('Organization ID is required')
-    ),
+    orgId: createValidator(),
     useCase: createValidator(
       (value: string) => {
         if (!value) return null;
@@ -164,7 +156,7 @@ const NewReview: NextPage = () => {
     if (isSubmitting || isValidatingKantata) return;
 
     // Validate required fields
-    const requiredFields = ['title', 'graphName', 'projectLeadId', 'kantataProjectId'];
+    const requiredFields = ['title', 'projectLeadId', 'kantataProjectId'];
     const missingFields = requiredFields.filter(field => !values[field as keyof ReviewFormValues]);
     
     if (missingFields.length > 0) {
@@ -213,7 +205,7 @@ const NewReview: NextPage = () => {
       const reviewData = {
         ...values,
         userId: user!.id, // Use user from useAuth context directly
-        status: 'Submitted' as const,
+        status: (values.status || 'Draft') as 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
         projectLeadId: projectLead.id, 
         segment: values.segment as 'Enterprise' | 'MidMarket'
       };
@@ -265,14 +257,11 @@ const NewReview: NextPage = () => {
     // Only validate required fields
     const schema = {
       title: reviewValidationSchema.title,
-      description: reviewValidationSchema.description,
-      accountName: reviewValidationSchema.accountName,
-      orgId: createValidator(required('Organization ID is required')),
+      description: createValidator(),
+      accountName: createValidator(),
+      orgId: createValidator(),
       segment: createValidator(required('Please select a customer segment')),
-      graphName: createValidator(
-        required('Graph name is required'),
-        minLength(3, 'Graph name must be at least 3 characters')
-      ),
+      graphName: createValidator(),
       projectLeadId: reviewValidationSchema.projectLeadId,
       kantataProjectId: reviewValidationSchema.kantataProjectId
     };
@@ -410,7 +399,6 @@ const NewReview: NextPage = () => {
               onBlur={form.handleBlur('accountName')}
               error={form.errors.accountName}
               touched={form.touched.accountName}
-              required
               maxLength={FIELD_LIMITS.ACCOUNT_NAME_MAX_LENGTH}
             />
 

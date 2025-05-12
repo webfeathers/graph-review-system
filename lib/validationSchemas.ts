@@ -32,23 +32,13 @@ export const reviewValidationSchema: ValidationSchema = {
     minLength(3, 'Title must be at least 3 characters'),
     maxLength(FIELD_LIMITS.TITLE_MAX_LENGTH, `Title must be no more than ${FIELD_LIMITS.TITLE_MAX_LENGTH} characters`)
   ),
-  description: createValidator(
-    required('Description is required'),
-    minLength(10, 'Description must be at least 10 characters'),
-    maxLength(FIELD_LIMITS.DESCRIPTION_MAX_LENGTH, `Description must be no more than ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`)
-  ),
+  description: createValidator(),
   kantataProjectId: createValidator(
     required('Kantata (Mavenlink) Project ID is required')
   ),
-  accountName: createValidator(
-    minLength(2, 'Account name must be at least 2 characters'),
-    maxLength(FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH, `Graph name must be no more than ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`)
-  ),
-  graphName: createValidator(
-    required('Graph name is required'),
-    minLength(3, 'Graph name must be at least 3 characters'),
-    maxLength(FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH, `Graph name must be no more than ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`)
-  ),
+  accountName: createValidator(),
+  graphName: createValidator(),
+  orgId: createValidator(),
   projectLeadId: createValidator(
     required('Project Lead is required')
   ),
