@@ -1,7 +1,7 @@
 import type { NextPage } from 'next';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useRef } from 'react';
-import { LoadingState, ErrorDisplay, useAuth, withRoleProtection } from '../../components';
+import { LoadingState, ErrorDisplay, useAuth, withRoleProtection, ActivityFeed } from '../../components';
 import { getProfileById } from '../../lib/api';
 import type { Profile } from '../../types/supabase';
 import { ProfileService } from '../../lib/profileService';
@@ -13,6 +13,7 @@ const ProfilePage: NextPage = () => {
   const { id } = router.query;
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedProfile = useRef(false);
@@ -55,6 +56,22 @@ const ProfilePage: NextPage = () => {
           points,
           badges
         });
+
+        // Fetch activities for this user
+        const { data: userActivities, error: activitiesError } = await supabase
+          .from('activities')
+          .select(`
+            *,
+            user:profiles!activities_user_id_fkey(*),
+            review:reviews!activities_review_id_fkey(id, title)
+          `)
+          .eq('user_id', id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (activitiesError) throw activitiesError;
+        setActivities(userActivities || []);
+
         hasLoadedProfile.current = true;
       } catch (err) {
         console.error('Error loading profile:', err);
@@ -83,7 +100,7 @@ const ProfilePage: NextPage = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto py-8">
+    <div className="max-w-4xl mx-auto py-8 px-4">
       <div className="flex items-center space-x-4 mb-6">
         {profile.avatarUrl ? (
           <img 
@@ -100,24 +117,38 @@ const ProfilePage: NextPage = () => {
         )}
         <h1 className="text-3xl font-bold">{profile.name}</h1>
       </div>
-      <div className="bg-white p-6 rounded-lg shadow">
-        <p><strong>Name:</strong> {profile.name}</p>
-        <p><strong>Email:</strong> {profile.email}</p>
-        <p><strong>Role:</strong> {profile.role}</p>
-        <p><strong>Joined:</strong> {new Date(profile.createdAt).toLocaleDateString()}</p>
-        <p><strong>Reviews:</strong> {profile.reviewCount ?? 0}</p>
-        <p><strong>Comments:</strong> {profile.commentCount ?? 0}</p>
-        <p><strong>Points:</strong> {profile.points ?? 0}</p>
-        {profile.badges && profile.badges.length > 0 && (
-          <div className="mt-4">
-            <h2 className="text-xl font-semibold">Badges</h2>
-            <div className="flex flex-wrap gap-2 mt-2">
-              {profile.badges.map(badge => (
-                <span key={badge} className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">{badge}</span>
-              ))}
-            </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Profile Info */}
+        <div className="md:col-span-1">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <p><strong>Name:</strong> {profile.name}</p>
+            <p><strong>Email:</strong> {profile.email}</p>
+            <p><strong>Role:</strong> {profile.role}</p>
+            <p><strong>Joined:</strong> {new Date(profile.createdAt).toLocaleDateString()}</p>
+            <p><strong>Reviews:</strong> {profile.reviewCount ?? 0}</p>
+            <p><strong>Comments:</strong> {profile.commentCount ?? 0}</p>
+            <p><strong>Points:</strong> {profile.points ?? 0}</p>
+            {profile.badges && profile.badges.length > 0 && (
+              <div className="mt-4">
+                <h2 className="text-xl font-semibold">Badges</h2>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {profile.badges.map(badge => (
+                    <span key={badge} className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">{badge}</span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Activities */}
+        <div className="md:col-span-2">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+            <ActivityFeed activities={activities} />
+          </div>
+        </div>
       </div>
     </div>
   );
