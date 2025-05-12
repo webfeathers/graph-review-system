@@ -52,7 +52,7 @@ async function handler(
       const reviewDataToCreate = {
         ...formData,
         userId: userId, // Add the authenticated user ID
-        status: 'Submitted' // Set initial status
+        status: 'Draft' // Set initial status
       };
       
       // Call createReview, passing the SCOPED client

@@ -6,7 +6,7 @@ import React from 'react';
  */
 interface StatusBadgeProps {
   /** The status to display in the badge */
-  status: 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
+  status: 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
 }
 
 /**
@@ -20,10 +20,11 @@ interface StatusBadgeProps {
  * - Accessible text contrast
  * 
  * Status Colors:
- * - Submitted: Gray background with dark text
- * - In Review: Blue background with dark blue text
- * - Needs Work: Yellow background with dark yellow text
- * - Approved: Light green background with green text
+ * - Draft: Light gray background with dark gray text
+ * - Submitted: Purple background with white text
+ * - In Review: Blue background with white text
+ * - Needs Work: Orange background with white text
+ * - Approved: Green background with white text
  * 
  * @example
  * // Basic usage
@@ -32,6 +33,7 @@ interface StatusBadgeProps {
  * @example
  * // Different statuses
  * <div className="space-x-2">
+ *   <StatusBadge status="Draft" />
  *   <StatusBadge status="Submitted" />
  *   <StatusBadge status="In Review" />
  *   <StatusBadge status="Needs Work" />
@@ -45,21 +47,23 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
    */
   const getStatusColor = () => {
     switch (status) {
+      case 'Draft':
+        return 'bg-gray-100 text-gray-700';
       case 'Submitted':
-        return 'bg-gray-200 text-[#58595b]';
+        return 'bg-purple-600 text-white';
       case 'In Review':
-        return 'bg-blue-200 text-blue-800';
+        return 'bg-blue-600 text-white';
       case 'Needs Work':
-        return 'bg-yellow-200 text-yellow-800';
+        return 'bg-orange-500 text-white';
       case 'Approved':
-        return 'bg-[#d1f0e1] text-[#2db670]';
+        return 'bg-green-600 text-white';
       default:
-        return 'bg-gray-200 text-[#58595b]';
+        return 'bg-gray-100 text-gray-700';
     }
   };
 
   return (
-    <span className={`px-3 py-1 text-sm rounded-full ${getStatusColor()}`}>
+    <span className={`inline-flex items-center justify-center min-w-[80px] px-3 py-1 text-sm font-medium rounded-full ${getStatusColor()}`}>
       {status}
     </span>
   );

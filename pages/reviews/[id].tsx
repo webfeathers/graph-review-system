@@ -409,13 +409,27 @@ const ReviewPage: NextPage = () => {
                 <div className="flex flex-col items-end space-y-3">
                   {(isAuthor || isAdmin()) ? (
                     <div className="flex items-center space-x-2">
-                      <div className="flex space-x-2">
+                      {isUpdating && (
+                        <span className="text-sm text-gray-500">Updating...</span>
+                      )}
+                      <div className="flex space-x-2 h-8">
+                        <button
+                          onClick={() => handleStatusChange('Draft')}
+                          disabled={isUpdating}
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'Draft' 
+                              ? 'bg-gray-100 text-gray-700' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Draft
+                        </button>
                         <button
                           onClick={() => handleStatusChange('Submitted')}
                           disabled={isUpdating}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
                             currentStatus === 'Submitted' 
-                              ? 'bg-gray-100 text-gray-800' 
+                              ? 'bg-purple-600 text-white' 
                               : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                           }`}
                         >
@@ -424,9 +438,9 @@ const ReviewPage: NextPage = () => {
                         <button
                           onClick={() => handleStatusChange('In Review')}
                           disabled={isUpdating}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
                             currentStatus === 'In Review' 
-                              ? 'bg-blue-100 text-blue-800' 
+                              ? 'bg-blue-600 text-white' 
                               : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                           }`}
                         >
@@ -435,9 +449,9 @@ const ReviewPage: NextPage = () => {
                         <button
                           onClick={() => handleStatusChange('Needs Work')}
                           disabled={isUpdating}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
                             currentStatus === 'Needs Work' 
-                              ? 'bg-yellow-100 text-yellow-800' 
+                              ? 'bg-orange-500 text-white' 
                               : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                           }`}
                         >
@@ -446,18 +460,15 @@ const ReviewPage: NextPage = () => {
                         <button
                           onClick={() => handleStatusChange('Approved')}
                           disabled={isUpdating}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
                             currentStatus === 'Approved' 
-                              ? 'bg-green-100 text-green-800' 
+                              ? 'bg-green-600 text-white' 
                               : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                           }`}
                         >
                           Approved
                         </button>
                       </div>
-                      {isUpdating && (
-                        <span className="text-sm text-gray-500">Updating...</span>
-                      )}
                     </div>
                   ) : (
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${

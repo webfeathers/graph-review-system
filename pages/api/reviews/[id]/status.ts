@@ -84,7 +84,7 @@ async function handler(
     }
 
     // Validate that the status is one of the allowed values
-    const validStatuses = ['Submitted', 'In Review', 'Needs Work', 'Approved'] as const;
+    const validStatuses = ['Draft', 'Submitted', 'In Review', 'Needs Work', 'Approved'] as const;
     if (!validStatuses.includes(newStatus as any)) {
       console.error('Invalid status value:', newStatus);
       return res.status(400).json({
