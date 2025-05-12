@@ -226,8 +226,8 @@ const NewReview: NextPage = () => {
   // --- Initialize useForm AFTER handlers are defined ---
   const form = useForm<ReviewFormValues>({
     initialValues,
-    validationSchema: {}, // Bypass internal validation for schema fields
-    validateOnChange: false,
+    validationSchema: validationSchema, // Use the validation schema we defined
+    validateOnChange: true, // Enable validation on change
     validateOnBlur: true,
     onSubmit: handleSubmit, // Pass the handler directly
   });
@@ -300,12 +300,17 @@ const NewReview: NextPage = () => {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold mb-8">New Graph Review</h1>
           
-          {generalError && (
-            <ErrorDisplay 
-              error={generalError} 
-              onDismiss={() => setGeneralError(null)} 
-              className="mb-6"
-            />
+          {/* Error Display */}
+          {(generalError || kantataValidationError) && (
+            <div className="mb-6">
+              <ErrorDisplay 
+                error={generalError || kantataValidationError || ''} 
+                onDismiss={() => {
+                  setGeneralError(null);
+                  setKantataValidationError(null);
+                }}
+              />
+            </div>
           )}
 
           <Form onSubmit={form.handleSubmit}>
