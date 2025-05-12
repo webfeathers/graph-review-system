@@ -22,6 +22,11 @@ interface KantataProject {
   reviewStatus?: string;
   lastUpdated: string;
   createdAt: string;
+  projectLead?: {
+    name: string;
+    headline: string;
+    id: string;
+  };
 }
 
 const KantataProjectsPage: NextPage = () => {
@@ -342,7 +347,7 @@ const KantataProjectsPage: NextPage = () => {
                           ) : (
                             <div>
                               <a
-                                href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}`}
+                                href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}${project.projectLead?.id ? `&projectLeadId=${project.projectLead.id}` : ''}`}
                                 className="text-blue-600 hover:text-blue-900"
                               >
                                 Create Review
@@ -350,6 +355,19 @@ const KantataProjectsPage: NextPage = () => {
                               <div className="text-gray-500">
                                 No review yet
                               </div>
+                            </div>
+                          )}
+                          <div className="mt-2">
+                            <a
+                              href={`/admin/kantata/project/${project.id}`}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
+                              View Details
+                            </a>
+                          </div>
+                          {project.projectLead && (
+                            <div className="mt-2 text-sm text-gray-500">
+                              Lead: {project.projectLead.name}
                             </div>
                           )}
                         </td>
@@ -367,74 +385,89 @@ const KantataProjectsPage: NextPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-              {filteredProjects.map((project) => (
-                <div key={project.id} className="bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                  <div className="p-4">
-                    <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-medium text-gray-900">
-                        <a
-                          href={`https://leandata.mavenlink.com/workspaces/${project.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-blue-600"
-                        >
-                          {project.title}
-                        </a>
-                      </h3>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.kantataStatus)}`}>
-                        {project.kantataStatus.message}
-                      </span>
-                    </div>
-                    
-                    <div className="mt-2 text-sm text-gray-500">
-                      ID: {project.id}
-                    </div>
-                    
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Created: {new Date(project.createdAt).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Updated: {new Date(project.lastUpdated).toLocaleDateString()}
-                      </div>
-                    </div>
-                    
-                    <div className="mt-4 pt-4 border-t">
-                      {project.hasReview ? (
-                        <div>
+              {filteredProjects.map((project) => {
+                return (
+                  <div key={project.id} className="bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                    <div className="p-4">
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-lg font-medium text-gray-900">
                           <a
-                            href={`/reviews/${project.reviewId}`}
+                            href={`https://leandata.mavenlink.com/workspaces/${project.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-blue-600"
+                          >
+                            {project.title}
+                          </a>
+                        </h3>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.kantataStatus)}`}>
+                          {project.kantataStatus.message}
+                        </span>
+                      </div>
+                      
+                      <div className="mt-2 text-sm text-gray-500">
+                        ID: {project.id}
+                      </div>
+                      
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center text-sm text-gray-500">
+                          <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          Created: {new Date(project.createdAt).toLocaleDateString()}
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Updated: {new Date(project.lastUpdated).toLocaleDateString()}
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 pt-4 border-t">
+                        {project.hasReview ? (
+                          <div>
+                            <a
+                              href={`/reviews/${project.reviewId}`}
+                              className="text-sm text-blue-600 hover:text-blue-900"
+                            >
+                              View Graph Review
+                            </a>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Status: {project.reviewStatus}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <a
+                              href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}${project.projectLead?.id ? `&projectLeadId=${project.projectLead.id}` : ''}`}
+                              className="text-sm text-blue-600 hover:text-blue-900"
+                            >
+                              Create Graph Review
+                            </a>
+                            <div className="text-xs text-gray-500 mt-1">
+                              No review yet
+                            </div>
+                          </div>
+                        )}
+                        <div className="mt-2">
+                          <a
+                            href={`/admin/kantata/project/${project.id}`}
                             className="text-sm text-blue-600 hover:text-blue-900"
                           >
-                            View Graph Review
+                            View Details
                           </a>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Status: {project.reviewStatus}
-                          </div>
                         </div>
-                      ) : (
-                        <div>
-                          <a
-                            href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}`}
-                            className="text-sm text-blue-600 hover:text-blue-900"
-                          >
-                            Create Graph Review
-                          </a>
-                          <div className="text-xs text-gray-500 mt-1">
-                            No review yet
+                        {project.projectLead && (
+                          <div className="mt-2 text-sm text-gray-500">
+                            Lead: {project.projectLead.name}
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

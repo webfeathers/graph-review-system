@@ -69,8 +69,8 @@ const NewReview: NextPage = () => {
     useCase: '',
     customerFolder: '',
     handoffLink: '',
-    projectLeadId: user?.id || ''
-  }), [router.query.kantataProjectId, user?.id]);
+    projectLeadId: router.query.projectLeadId as string || user?.id || ''
+  }), [router.query.kantataProjectId, router.query.projectLeadId, user?.id]);
 
   // Memoize the validation schema (excluding Kantata)
   const validationSchema = useMemo(() => ({

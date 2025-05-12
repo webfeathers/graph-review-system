@@ -34,9 +34,10 @@ async function handler(
 
     // Fetch all workspaces from Kantata with pagination
     let allWorkspaces: Record<string, any> = {};
+    let allUsers: Record<string, any> = {};
     const pageSize = 100;
     for (let page = 1; ; page++) {
-      const url = `https://api.mavenlink.com/api/v1/workspaces?page=${page}&per_page=${pageSize}`;
+      const url = `https://api.mavenlink.com/api/v1/workspaces?page=${page}&per_page=${pageSize}&include=lead,creator,participants`;
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${kantataApiToken}`, 'Accept': 'application/json' },
         signal: AbortSignal.timeout(10000)
@@ -47,10 +48,12 @@ async function handler(
       }
       const pageData = await response.json();
       const pageWorkspaces = pageData.workspaces || {};
+      const pageUsers = pageData.users || {};
       if (Object.keys(pageWorkspaces).length === 0) {
         break;
       }
       Object.assign(allWorkspaces, pageWorkspaces);
+      Object.assign(allUsers, pageUsers);
     }
 
     // Filter to exclude Completed and Archived projects
@@ -89,24 +92,44 @@ async function handler(
     });
 
     // Transform the workspaces data
-    const projects = Object.entries(workspaces).map(([id, workspace]: [string, any]) => {
-      const review = reviewMap.get(id);
+    const transformedWorkspaces = await Promise.all(Object.values(workspaces).map(async (workspace: any) => {
+      const projectLead = allUsers[workspace.primary_maven_id];
+      const review = reviewMap.get(workspace.id);
+      
+      // Look up project lead in our database by email
+      let projectLeadId = null;
+      if (projectLead?.email_address) {
+        const { data: leadData } = await supabaseClient
+          .from('profiles')
+          .select('id')
+          .eq('email', projectLead.email_address)
+          .single();
+        if (leadData) {
+          projectLeadId = leadData.id;
+        }
+      }
+
       return {
-        id: review?.id || id,
+        id: workspace.id,
         title: workspace.title,
-        kantataProjectId: id,
         kantataStatus: workspace.status,
+        hasReview: !!review,
+        reviewId: review?.id,
+        reviewStatus: review?.status,
         lastUpdated: workspace.updated_at,
         createdAt: workspace.created_at,
-        hasGraphReview: !!review,
-        graphReviewStatus: review?.status,
-        graphReviewId: review?.id
+        projectLead: projectLead ? {
+          id: projectLeadId,
+          name: projectLead.full_name,
+          email: projectLead.email_address,
+          headline: projectLead.headline
+        } : null
       };
-    });
+    }));
 
     const apiResponse = {
-      message: `Found ${projects.length} projects`,
-      projects
+      message: `Found ${transformedWorkspaces.length} projects`,
+      projects: transformedWorkspaces
     };
 
     // Cache the results
