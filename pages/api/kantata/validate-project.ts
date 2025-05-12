@@ -24,7 +24,7 @@ async function handler(
     });
   }
 
-  const { kantataProjectId } = req.body;
+  const { kantataProjectId, currentReviewId } = req.body;
 
   if (!kantataProjectId || typeof kantataProjectId !== 'string') {
     return res.status(400).json({ 
@@ -36,8 +36,8 @@ async function handler(
 
   try {
     console.log(`User ${userId} validating Kantata Project ID: ${kantataProjectId}`);
-    // Call the validation function (which uses the server-side token)
-    const validationResult = await validateKantataProject(kantataProjectId);
+    // Call the validation function with the current review ID if provided
+    const validationResult = await validateKantataProject(kantataProjectId, currentReviewId);
 
     if (validationResult.isValid) {
       return res.status(200).json({

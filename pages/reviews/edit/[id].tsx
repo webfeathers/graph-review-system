@@ -272,7 +272,10 @@ const EditReview: NextPage = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ kantataProjectId: projectId }),
+        body: JSON.stringify({ 
+          kantataProjectId: projectId,
+          currentReviewId: id
+        }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -293,7 +296,7 @@ const EditReview: NextPage = () => {
     } finally {
       setIsValidatingKantata(false);
     }
-  }, []);
+  }, [id]);
   
   // useEffect for Kantata Blur Validation
   useEffect(() => {
