@@ -41,7 +41,6 @@ export const reviewValidationSchema: ValidationSchema = {
     required('Kantata (Mavenlink) Project ID is required')
   ),
   accountName: createValidator(
-    required('Account name is required'),
     minLength(2, 'Account name must be at least 2 characters'),
     maxLength(FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH, `Graph name must be no more than ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`)
   ),
@@ -55,7 +54,7 @@ export const reviewValidationSchema: ValidationSchema = {
   ),
   status: createValidator(
     required('Status is required'),
-    pattern(/^(Submitted|In Review|Needs Work|Approved)$/, 'Invalid status')
+    pattern(/^(Draft|Submitted|In Review|Needs Work|Approved)$/, 'Invalid status')
   ),
   customerFolder: createValidator(
     url('Please enter a valid URL for the customer folder')

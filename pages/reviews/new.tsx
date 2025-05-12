@@ -26,7 +26,7 @@ import { createReview } from '../../lib/supabaseUtils';
 import ProjectLeadSelector from '../../components/ProjectLeadSelector';
 import { withRoleProtection } from '../../components/withRoleProtection';
 import React from 'react';
-import { createValidator, required, minLength, validateForm } from '../../lib/validationUtils';
+import { createValidator, required, minLength, maxLength, validateForm } from '../../lib/validationUtils';
 
 interface ReviewFormValues {
   title: string;
@@ -41,6 +41,7 @@ interface ReviewFormValues {
   customerFolder: string;
   handoffLink: string;
   projectLeadId: string;
+  status: string;
 }
 
 const NewReview: NextPage = () => {
@@ -63,19 +64,23 @@ const NewReview: NextPage = () => {
     accountName: '',
     orgId: '',
     kantataProjectId: router.query.kantataProjectId as string || '',
-    segment: '', // Change default to empty string
+    segment: 'Enterprise',
     remoteAccess: false,
     graphName: '',
     useCase: '',
     customerFolder: '',
     handoffLink: '',
-    projectLeadId: router.query.projectLeadId as string || user?.id || ''
+    projectLeadId: router.query.projectLeadId as string || user?.id || '',
+    status: 'Draft'
   }), [router.query.kantataProjectId, router.query.projectLeadId, user?.id]);
 
   // Memoize the validation schema (excluding Kantata)
   const validationSchema = useMemo(() => ({
     title: reviewValidationSchema.title,
-    description: reviewValidationSchema.description,
+    description: createValidator(
+      minLength(10, 'Description must be at least 10 characters if provided'),
+      maxLength(FIELD_LIMITS.DESCRIPTION_MAX_LENGTH, `Description must be no more than ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`)
+    ),
     accountName: reviewValidationSchema.accountName,
     customerFolder: reviewValidationSchema.customerFolder,
     handoffLink: reviewValidationSchema.handoffLink,
@@ -159,7 +164,7 @@ const NewReview: NextPage = () => {
     if (isSubmitting || isValidatingKantata) return;
 
     // Validate required fields
-    const requiredFields = ['title', 'description', 'accountName', 'graphName', 'projectLeadId', 'kantataProjectId'];
+    const requiredFields = ['title', 'graphName', 'projectLeadId', 'kantataProjectId'];
     const missingFields = requiredFields.filter(field => !values[field as keyof ReviewFormValues]);
     
     if (missingFields.length > 0) {
@@ -499,7 +504,6 @@ const NewReview: NextPage = () => {
               onBlur={form.handleBlur('description')}
               error={form.errors.description}
               touched={form.touched.description}
-              required
               rows={6}
               helpText={`Maximum ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`}
             />

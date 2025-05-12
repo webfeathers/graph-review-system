@@ -156,7 +156,7 @@ const EditReview: NextPage = () => {
           id: reviewData.id,
           title: reviewData.title || '',
           description: reviewData.description || '',
-          status: (reviewData.status || 'Submitted') as 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
+          status: (reviewData.status || 'Draft') as 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
           userId: reviewData.user_id,
           createdAt: reviewData.created_at,
           updatedAt: reviewData.updated_at,
@@ -217,30 +217,25 @@ const EditReview: NextPage = () => {
   
   // Handle form validation
   const validate = () => {
-    const values = {
-      title,
-      description,
-      accountName,
-      orgId,
-      segment,
-      graphName,
-      useCase,
-      customerFolder,
-      handoffLink,
-      kantataProjectId
-    };
+    const errors: Record<string, string> = {};
     
-    // Only validate required fields
-    const schema = {
-      title: reviewValidationSchema.title,
-      description: reviewValidationSchema.description,
-      accountName: reviewValidationSchema.accountName,
-      customerFolder: reviewValidationSchema.customerFolder,
-      handoffLink: reviewValidationSchema.handoffLink,
-      graphName: reviewValidationSchema.graphName
-    };
+    // Required fields
+    if (!title) errors.title = 'Title is required';
+    if (!description) errors.description = 'Description is required';
+    if (!graphName) errors.graphName = 'Graph name is required';
+    if (!newLeadId) errors.projectLeadId = 'Project Lead is required';
+    if (!kantataProjectId) errors.kantataProjectId = 'Kantata Project ID is required';
     
-    const errors = validateForm(values, schema);
+    // Optional fields with validation
+    if (accountName && accountName.length < 2) {
+      errors.accountName = 'Account name must be at least 2 characters if provided';
+    }
+    if (accountName && accountName.length > FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH) {
+      errors.accountName = `Account name must be no more than ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`;
+    }
+    
+    // Other validations...
+    
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -517,7 +512,6 @@ const EditReview: NextPage = () => {
             onBlur={() => handleBlur('accountName')}
             error={formErrors.accountName}
             touched={touched.accountName}
-            required
             maxLength={FIELD_LIMITS.ACCOUNT_NAME_MAX_LENGTH}
           />
 
