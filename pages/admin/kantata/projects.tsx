@@ -340,7 +340,17 @@ const KantataProjectsPage: NextPage = () => {
                               </div>
                             </div>
                           ) : (
-                            <span className="text-gray-500">No review</span>
+                            <div>
+                              <a
+                                href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}`}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                Create Review
+                              </a>
+                              <div className="text-gray-500">
+                                No review yet
+                              </div>
+                            </div>
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
@@ -409,7 +419,17 @@ const KantataProjectsPage: NextPage = () => {
                           </div>
                         </div>
                       ) : (
-                        <span className="text-sm text-gray-500">No Graph Review</span>
+                        <div>
+                          <a
+                            href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}`}
+                            className="text-sm text-blue-600 hover:text-blue-900"
+                          >
+                            Create Graph Review
+                          </a>
+                          <div className="text-xs text-gray-500 mt-1">
+                            No review yet
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>
