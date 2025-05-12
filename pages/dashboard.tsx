@@ -109,7 +109,7 @@ const Dashboard: NextPage = () => {
           </div>
           
           {/* Stats and Badges Card */}
-          <div className="bg-white rounded-lg shadow-sm p-4 w-64">
+          <div className="bg-white rounded-lg shadow-sm p-4 w-64 border border-gray-200 bg-gray-50">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center">
                 <h3 className="text-sm font-medium text-gray-900">Points</h3>
@@ -143,6 +143,7 @@ const Dashboard: NextPage = () => {
             ) : (
               <p className="text-gray-500 text-xs">No badges earned yet</p>
             )}
+            <a href="/leaderboard" className="text-sm text-blue-600 hover:text-blue-800 mt-2 block">View Leaderboard</a>
           </div>
         </div>
       </div>
