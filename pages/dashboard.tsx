@@ -31,7 +31,11 @@ const Dashboard: NextPage = () => {
   const [reviews, setReviews] = useState<ReviewWithCommentCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState<any[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
 
+  // Initial data load
   useEffect(() => {
     if (authLoading) return;
 
@@ -41,9 +45,21 @@ const Dashboard: NextPage = () => {
       return;
     }
 
-    // Fetch reviews and activities
-    const fetchData = async () => {
+    // Set initial selected user to current user
+    setSelectedUserId(user.id);
+
+    // Fetch initial data
+    const fetchInitialData = async () => {
       try {
+        // Get all users for the filter
+        const { data: usersData, error: usersError } = await supabase
+          .from('profiles')
+          .select('id, name')
+          .order('name');
+
+        if (usersError) throw usersError;
+        setUsers(usersData || []);
+
         // Get the user's reviews
         const reviewsData = await getReviews(user.id);
         
@@ -67,9 +83,24 @@ const Dashboard: NextPage = () => {
         );
         
         setReviews(reviewsWithCounts);
+      } catch (error) {
+        console.error('Error fetching initial data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        // Fetch recent activities
-        const { data: recentActivities, error: activitiesError } = await supabase
+    fetchInitialData();
+  }, [user, authLoading, router]);
+
+  // Separate effect for activities
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchActivities = async () => {
+      setLoadingActivities(true);
+      try {
+        let query = supabase
           .from('activities')
           .select(`
             *,
@@ -81,17 +112,24 @@ const Dashboard: NextPage = () => {
           .order('created_at', { ascending: false })
           .limit(10);
 
+        // Filter by selected user if not showing all users
+        if (selectedUserId) {
+          query = query.eq('user_id', selectedUserId);
+        }
+
+        const { data: recentActivities, error: activitiesError } = await query;
+
         if (activitiesError) throw activitiesError;
         setActivities(recentActivities || []);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Error fetching activities:', error);
       } finally {
-        setLoading(false);
+        setLoadingActivities(false);
       }
     };
 
-    fetchData();
-  }, [user, authLoading, router]);
+    fetchActivities();
+  }, [selectedUserId, user]);
 
   if (authLoading || loading) {
     return <LoadingState message="Loading dashboard..." />;
@@ -151,8 +189,31 @@ const Dashboard: NextPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity Section */}
         <div>
-          <h2 className="text-2xl font-semibold mb-4">Recent Activity</h2>
-          <ActivityFeed activities={activities} />
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold">Recent Activity</h2>
+            <div className="flex items-center space-x-2">
+              <select
+                value={selectedUserId || ''}
+                onChange={(e) => setSelectedUserId(e.target.value || null)}
+                className="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[150px]"
+                disabled={loadingActivities}
+              >
+                <option value="">All Users</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.id === selectedUserId ? `✓ ${user.name}` : user.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {loadingActivities ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
+            </div>
+          ) : (
+            <ActivityFeed activities={activities} />
+          )}
         </div>
 
         {/* Active Graph Reviews Section */}
