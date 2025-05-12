@@ -26,7 +26,7 @@ import { createReview } from '../../lib/supabaseUtils';
 import ProjectLeadSelector from '../../components/ProjectLeadSelector';
 import { withRoleProtection } from '../../components/withRoleProtection';
 import React from 'react';
-import { createValidator, required, minLength } from '../../lib/validationUtils';
+import { createValidator, required, minLength, validateForm } from '../../lib/validationUtils';
 
 interface ReviewFormValues {
   title: string;
@@ -63,7 +63,7 @@ const NewReview: NextPage = () => {
     accountName: '',
     orgId: '',
     kantataProjectId: router.query.kantataProjectId as string || '',
-    segment: 'Enterprise',
+    segment: '', // Change default to empty string
     remoteAccess: false,
     graphName: '',
     useCase: '',
@@ -85,8 +85,17 @@ const NewReview: NextPage = () => {
       required('Graph name is required'),
       minLength(3, 'Graph name must be at least 3 characters')
     ),
+    segment: createValidator(
+      required('Please select a customer segment')
+    ),
+    orgId: createValidator(
+      required('Organization ID is required')
+    ),
     useCase: createValidator(
-      minLength(10, 'Use case must be at least 10 characters if provided')
+      (value: string) => {
+        if (!value) return null;
+        return value.length >= 10 ? null : 'Use case must be at least 10 characters if provided';
+      }
     )
   }), []);
 
@@ -226,11 +235,54 @@ const NewReview: NextPage = () => {
   // --- Initialize useForm AFTER handlers are defined ---
   const form = useForm<ReviewFormValues>({
     initialValues,
-    validationSchema: validationSchema, // Use the validation schema we defined
-    validateOnChange: true, // Enable validation on change
+    validationSchema: {}, // Remove validation schema from useForm
+    validateOnChange: true,
     validateOnBlur: true,
-    onSubmit: handleSubmit, // Pass the handler directly
+    onSubmit: handleSubmit,
   });
+
+  // Handle form validation
+  const validate = useCallback(() => {
+    const values = {
+      title: form.values.title,
+      description: form.values.description,
+      accountName: form.values.accountName,
+      orgId: form.values.orgId,
+      segment: form.values.segment,
+      graphName: form.values.graphName,
+      useCase: form.values.useCase,
+      customerFolder: form.values.customerFolder,
+      handoffLink: form.values.handoffLink,
+      kantataProjectId: form.values.kantataProjectId,
+      projectLeadId: form.values.projectLeadId
+    };
+    
+    // Only validate required fields
+    const schema = {
+      title: reviewValidationSchema.title,
+      description: reviewValidationSchema.description,
+      accountName: reviewValidationSchema.accountName,
+      orgId: createValidator(required('Organization ID is required')),
+      segment: createValidator(required('Please select a customer segment')),
+      graphName: createValidator(
+        required('Graph name is required'),
+        minLength(3, 'Graph name must be at least 3 characters')
+      ),
+      projectLeadId: reviewValidationSchema.projectLeadId,
+      kantataProjectId: reviewValidationSchema.kantataProjectId
+    };
+    
+    const errors = validateForm(values, schema);
+    form.setErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [form.values, form.setErrors]);
+
+  // Add effect to validate on value changes
+  useEffect(() => {
+    if (Object.keys(form.touched).length > 0) {
+      validate();
+    }
+  }, [form.values, form.touched, validate]);
 
   // Add effect to scroll to top when generalError changes
   useEffect(() => {
@@ -356,38 +408,53 @@ const NewReview: NextPage = () => {
               required
               maxLength={FIELD_LIMITS.ACCOUNT_NAME_MAX_LENGTH}
             />
-            <TextInput
-              id="kantataProjectId"
-              name="kantataProjectId"
-              label="Kantata Project ID"
-              placeholder="Enter associated Kantata (Mavenlink) project ID"
-              value={form.values.kantataProjectId || ''}
-              onChange={form.handleChange('kantataProjectId')}
-              onBlur={form.handleBlur('kantataProjectId')}
-              error={form.errors.kantataProjectId}
-              touched={form.touched.kantataProjectId}
-              maxLength={FIELD_LIMITS.KANTATA_PROJECT_ID_MAX_LENGTH}
-              helpText="Link this review to a Kantata (Mavenlink) project"
-              required
-              className={
-                kantataValidationStatus === 'validating' ? 'border-yellow-500' : 
-                kantataValidationStatus === 'invalid' ? 'border-red-500' : 
-                kantataValidationStatus === 'valid' ? 'border-green-500' : ''
-              }
-            />
 
-            <TextInput
-              id="orgId"
-              name="orgId"
-              label="OrgID"
-              placeholder="Enter the organization ID"
-              value={form.values.orgId}
-              onChange={form.handleChange('orgId')}
-              onBlur={form.handleBlur('orgId')}
-              error={form.errors.orgId}
-              touched={form.touched.orgId}
-              maxLength={FIELD_LIMITS.ORG_ID_MAX_LENGTH}
-            />
+            <div className="grid grid-cols-3 gap-4">
+              <TextInput
+                id="kantataProjectId"
+                name="kantataProjectId"
+                label="Kantata Project ID"
+                placeholder="Enter associated Kantata (Mavenlink) project ID"
+                value={form.values.kantataProjectId || ''}
+                onChange={form.handleChange('kantataProjectId')}
+                onBlur={form.handleBlur('kantataProjectId')}
+                error={form.errors.kantataProjectId}
+                touched={form.touched.kantataProjectId}
+                maxLength={FIELD_LIMITS.KANTATA_PROJECT_ID_MAX_LENGTH}
+                helpText="Link this review to a Kantata (Mavenlink) project"
+                required
+                className={
+                  kantataValidationStatus === 'validating' ? 'border-yellow-500' : 
+                  kantataValidationStatus === 'invalid' ? 'border-red-500' : 
+                  kantataValidationStatus === 'valid' ? 'border-green-500' : ''
+                }
+              />
+
+              <TextInput
+                id="orgId"
+                name="orgId"
+                label="OrgID"
+                placeholder="Enter the organization ID"
+                value={form.values.orgId}
+                onChange={form.handleChange('orgId')}
+                onBlur={form.handleBlur('orgId')}
+                error={form.errors.orgId}
+                touched={form.touched.orgId}
+                maxLength={FIELD_LIMITS.ORG_ID_MAX_LENGTH}
+                helpText="The customer's organization identifier"
+                required
+              />
+
+              <div className="pt-6">
+                <Checkbox
+                  id="remoteAccess"
+                  label="Remote Access Granted"
+                  checked={form.values.remoteAccess}
+                  onChange={form.handleChange('remoteAccess')}
+                  helpText="Check if remote access has been granted"
+                />
+              </div>
+            </div>
     
             <SelectInput
               id="segment"
@@ -399,18 +466,12 @@ const NewReview: NextPage = () => {
               error={form.errors.segment}
               touched={form.touched.segment}
               options={[
-                { value: 'Enterprise', label: 'Enterprise' },
-                { value: 'MidMarket', label: 'MidMarket' }
+                { value: '', label: 'Please Select' },
+                { value: 'MidMarket', label: 'MidMarket' },
+                { value: 'Enterprise', label: 'Enterprise' }
               ]}
               required
-            />
-    
-            <Checkbox
-              id="remoteAccess"
-              label="Remote Access Granted"
-              checked={form.values.remoteAccess}
-              onChange={form.handleChange('remoteAccess')}
-              helpText="Check if remote access has been granted"
+              helpText="Select the customer segment"
             />
     
             <TextInput
@@ -425,7 +486,7 @@ const NewReview: NextPage = () => {
               touched={form.touched.graphName}
               maxLength={FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH}
               required
-              helpText={`Maximum ${FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH} characters`}
+              helpText="A descriptive name to help identify the specific graph in the customer's organization"
             />
     
             <TextArea
