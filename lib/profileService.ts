@@ -2,7 +2,7 @@
 import { supabase } from './supabase';
 import { User, SupabaseClient } from '@supabase/supabase-js';
 import { Profile, Role } from '../types/supabase';
-import { POINTS_PER_REVIEW, POINTS_PER_COMMENT, BADGE_THRESHOLDS } from '../constants';
+import { POINTS_PER_REVIEW, POINTS_PER_COMMENT, POINTS_PER_REVIEW_APPROVAL, POINTS_PER_TASK_COMPLETION, BADGE_THRESHOLDS } from '../constants';
 
 /**
  * A centralized service for handling user profile management
@@ -131,17 +131,38 @@ export class ProfileService {
           .from('comments')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id);
+        const { count: approvedReviewCount } = await client
+          .from('reviews')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'Approved');
+        const { count: completedTaskCount } = await client
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('assigned_to', user.id)
+          .eq('status', 'completed');
 
         console.log('Points calculation for user:', user.id, {
           reviewCount,
           commentCount,
+          approvedReviewCount,
+          completedTaskCount,
           POINTS_PER_REVIEW,
-          POINTS_PER_COMMENT
+          POINTS_PER_COMMENT,
+          POINTS_PER_REVIEW_APPROVAL,
+          POINTS_PER_TASK_COMPLETION
         });
 
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
-        const points = reviewsCountValue * POINTS_PER_REVIEW + commentsCountValue * POINTS_PER_COMMENT;
+        const approvedReviewsCountValue = approvedReviewCount || 0;
+        const completedTasksCountValue = completedTaskCount || 0;
+        
+        const points = (reviewsCountValue * POINTS_PER_REVIEW) + 
+                      (commentsCountValue * POINTS_PER_COMMENT) +
+                      (approvedReviewsCountValue * POINTS_PER_REVIEW_APPROVAL) +
+                      (completedTasksCountValue * POINTS_PER_TASK_COMPLETION);
+
         const badges = BADGE_THRESHOLDS
           .filter(({ threshold }) => points >= threshold)
           .map(({ badge }) => badge);
@@ -149,6 +170,8 @@ export class ProfileService {
         console.log('Calculated points:', {
           reviewsCountValue,
           commentsCountValue,
+          approvedReviewsCountValue,
+          completedTasksCountValue,
           points,
           badges
         });
@@ -238,17 +261,38 @@ export class ProfileService {
           .from('comments')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id);
+        const { count: approvedReviewCount } = await client
+          .from('reviews')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('status', 'Approved');
+        const { count: completedTaskCount } = await client
+          .from('tasks')
+          .select('id', { count: 'exact', head: true })
+          .eq('assigned_to', user.id)
+          .eq('status', 'completed');
 
         console.log('Points calculation for user:', user.id, {
           reviewCount,
           commentCount,
+          approvedReviewCount,
+          completedTaskCount,
           POINTS_PER_REVIEW,
-          POINTS_PER_COMMENT
+          POINTS_PER_COMMENT,
+          POINTS_PER_REVIEW_APPROVAL,
+          POINTS_PER_TASK_COMPLETION
         });
 
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
-        const points = reviewsCountValue * POINTS_PER_REVIEW + commentsCountValue * POINTS_PER_COMMENT;
+        const approvedReviewsCountValue = approvedReviewCount || 0;
+        const completedTasksCountValue = completedTaskCount || 0;
+        
+        const points = (reviewsCountValue * POINTS_PER_REVIEW) + 
+                      (commentsCountValue * POINTS_PER_COMMENT) +
+                      (approvedReviewsCountValue * POINTS_PER_REVIEW_APPROVAL) +
+                      (completedTasksCountValue * POINTS_PER_TASK_COMPLETION);
+
         const badges = BADGE_THRESHOLDS
           .filter(({ threshold }) => points >= threshold)
           .map(({ badge }) => badge);
@@ -256,6 +300,8 @@ export class ProfileService {
         console.log('Calculated points:', {
           reviewsCountValue,
           commentsCountValue,
+          approvedReviewsCountValue,
+          completedTasksCountValue,
           points,
           badges
         });

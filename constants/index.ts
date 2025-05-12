@@ -84,7 +84,9 @@ export const STORAGE_BUCKETS = {
 
 // Points and badges configuration
 export const POINTS_PER_REVIEW = 10;
-export const POINTS_PER_COMMENT = 2;
+export const POINTS_PER_REVIEW_APPROVAL = 20;
+export const POINTS_PER_COMMENT = 5;
+export const POINTS_PER_TASK_COMPLETION = 5;
 
 export const BADGE_THRESHOLDS: Array<{ threshold: number; badge: string }> = [
   { threshold: 100, badge: 'Expert Reviewer' },
