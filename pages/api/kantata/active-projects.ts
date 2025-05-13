@@ -118,6 +118,7 @@ async function handler(
         reviewStatus: review?.status,
         lastUpdated: workspace.updated_at,
         createdAt: workspace.created_at,
+        startDate: workspace.start_date,
         projectLead: projectLead ? {
           id: projectLeadId,
           name: projectLead.full_name,

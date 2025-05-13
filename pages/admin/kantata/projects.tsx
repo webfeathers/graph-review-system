@@ -22,6 +22,7 @@ interface KantataProject {
   reviewStatus?: string;
   lastUpdated: string;
   createdAt: string;
+  startDate?: string;
   projectLead?: {
     name: string;
     headline: string;
@@ -38,10 +39,7 @@ const KantataProjectsPage: NextPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [hasReviewFilter, setHasReviewFilter] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  
-  // Sorting state
-  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortField, setSortField] = useState<string>('startDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
   // Auth redirect
@@ -122,6 +120,21 @@ const KantataProjectsPage: NextPage = () => {
             : bValue.localeCompare(aValue);
         }
         
+        if (aValue instanceof Date && bValue instanceof Date) {
+          return sortDirection === 'asc'
+            ? aValue.getTime() - bValue.getTime()
+            : bValue.getTime() - aValue.getTime();
+        }
+
+        // Handle date strings
+        if (sortField === 'startDate' || sortField === 'createdAt' || sortField === 'lastUpdated') {
+          const aDate = new Date(aValue as string).getTime();
+          const bDate = new Date(bValue as string).getTime();
+          return sortDirection === 'asc'
+            ? aDate - bDate
+            : bDate - aDate;
+        }
+        
         return 0;
       });
   };
@@ -148,6 +161,24 @@ const KantataProjectsPage: NextPage = () => {
         return 'bg-purple-100 text-purple-800 border border-purple-200';
       default:
         return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    }
+  };
+
+  // Get review status color class
+  const getReviewStatusColor = (status: string) => {
+    switch (status) {
+      case 'Draft':
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
+      case 'Submitted':
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
+      case 'In Review':
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+      case 'Needs Work':
+        return 'bg-red-100 text-red-800 border border-red-200';
+      case 'Approved':
+        return 'bg-green-100 text-green-800 border border-green-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
   };
   
@@ -190,21 +221,6 @@ const KantataProjectsPage: NextPage = () => {
         <div className="mb-6 bg-white p-4 rounded-lg shadow">
           <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
             <h2 className="text-lg font-semibold">Filters</h2>
-            {/* View Mode Toggle */}
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setViewMode('card')}
-                className={`px-3 py-1 rounded ${viewMode === 'card' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-              >
-                Card View
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-3 py-1 rounded ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-              >
-                List View
-              </button>
-            </div>
           </div>
           
           <div className="flex flex-wrap gap-4">
@@ -269,6 +285,7 @@ const KantataProjectsPage: NextPage = () => {
                     className="block w-40 pl-3 pr-8 py-1.5 text-sm border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md bg-white"
                   >
                     <option value="title">Title</option>
+                    <option value="startDate">Start Date</option>
                     <option value="createdAt">Created Date</option>
                     <option value="lastUpdated">Last Updated</option>
                   </select>
@@ -292,184 +309,91 @@ const KantataProjectsPage: NextPage = () => {
             </div>
           </div>
 
-          {viewMode === 'list' ? (
-            <div className="overflow-x-auto">
-              <div className="inline-block min-w-full align-middle">
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 w-1/3">Project</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Status</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Graph Review</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Last Updated</th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Created</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {filteredProjects.map((project) => (
-                      <tr key={project.id} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6 max-w-[300px]">
-                          <div className="flex items-center">
-                            <div className="truncate">
-                              <div className="font-medium text-gray-900 truncate">
-                                <a
-                                  href={`https://leandata.mavenlink.com/workspaces/${project.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="hover:text-blue-600"
-                                  title={project.title}
-                                >
-                                  {project.title}
-                                </a>
-                              </div>
-                              <div className="text-gray-500">ID: {project.id}</div>
+          <div className="overflow-x-auto">
+            <div className="inline-block min-w-full align-middle">
+              <table className="min-w-full divide-y divide-gray-300">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 w-1/3">Project</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Status</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Graph Review</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Last Updated</th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Created</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {filteredProjects.map((project) => (
+                    <tr key={project.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6 max-w-[300px]">
+                        <div className="flex items-center">
+                          <div className="truncate">
+                            <div className="font-medium text-gray-900 truncate">
+                              {project.title}
                             </div>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.kantataStatus)}`}>
-                            {project.kantataStatus.message}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          {project.hasReview ? (
-                            <div>
-                              <a
-                                href={`/reviews/${project.reviewId}`}
+                            <div className="text-gray-500">
+                              Kantata Project: <a
+                                href={`https://leandata.mavenlink.com/workspaces/${project.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="text-blue-600 hover:text-blue-900"
                               >
-                                View Review
+                                {project.id}
                               </a>
-                              <div className="text-gray-500">
-                                Status: {project.reviewStatus}
-                              </div>
                             </div>
-                          ) : (
-                            <div>
-                              <a
-                                href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}${project.projectLead?.id ? `&projectLeadId=${project.projectLead.id}` : ''}`}
-                                className="text-blue-600 hover:text-blue-900"
-                              >
-                                Create Review
-                              </a>
-                              <div className="text-gray-500">
-                                No review yet
-                              </div>
-                            </div>
-                          )}
-                          <div className="mt-2">
-                            <a
-                              href={`/admin/kantata/project/${project.id}`}
-                              className="text-blue-600 hover:text-blue-900"
-                            >
-                              View Details
-                            </a>
                           </div>
-                          {project.projectLead && (
-                            <div className="mt-2 text-sm text-gray-500">
-                              Lead: {project.projectLead.name}
-                            </div>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Date(project.lastUpdated).toLocaleDateString()}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {new Date(project.createdAt).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-              {filteredProjects.map((project) => {
-                return (
-                  <div key={project.id} className="bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                    <div className="p-4">
-                      <div className="flex justify-between items-start">
-                        <h3 className="text-lg font-medium text-gray-900">
-                          <a
-                            href={`https://leandata.mavenlink.com/workspaces/${project.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:text-blue-600"
-                          >
-                            {project.title}
-                          </a>
-                        </h3>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.kantataStatus)}`}>
                           {project.kantataStatus.message}
                         </span>
-                      </div>
-                      
-                      <div className="mt-2 text-sm text-gray-500">
-                        ID: {project.id}
-                      </div>
-                      
-                      <div className="mt-4 space-y-2">
-                        <div className="flex items-center text-sm text-gray-500">
-                          <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          Created: {new Date(project.createdAt).toLocaleDateString()}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <svg className="flex-shrink-0 mr-1.5 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Updated: {new Date(project.lastUpdated).toLocaleDateString()}
-                        </div>
-                      </div>
-                      
-                      <div className="mt-4 pt-4 border-t">
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm">
                         {project.hasReview ? (
                           <div>
                             <a
                               href={`/reviews/${project.reviewId}`}
-                              className="text-sm text-blue-600 hover:text-blue-900"
+                              className="text-blue-600 hover:text-blue-900"
                             >
-                              View Graph Review
+                              View Review
                             </a>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Status: {project.reviewStatus}
+                            <div className="mt-1">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getReviewStatusColor(project.reviewStatus || '')}`}>
+                                {project.reviewStatus}
+                              </span>
                             </div>
                           </div>
                         ) : (
                           <div>
                             <a
                               href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}${project.projectLead?.id ? `&projectLeadId=${project.projectLead.id}` : ''}`}
-                              className="text-sm text-blue-600 hover:text-blue-900"
+                              className="text-blue-600 hover:text-blue-900"
                             >
-                              Create Graph Review
+                              Create Review
                             </a>
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-gray-500 mt-1">
                               No review yet
                             </div>
                           </div>
                         )}
-                        <div className="mt-2">
-                          <a
-                            href={`/admin/kantata/project/${project.id}`}
-                            className="text-sm text-blue-600 hover:text-blue-900"
-                          >
-                            View Details
-                          </a>
-                        </div>
                         {project.projectLead && (
                           <div className="mt-2 text-sm text-gray-500">
-                            Lead: {project.projectLead.name}
+                            {project.projectLead.name === 'Mavenlink Integration' ? 'Not Assigned' : `Lead: ${project.projectLead.name}`}
                           </div>
                         )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {new Date(project.lastUpdated).toLocaleDateString()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                        {new Date(project.createdAt).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </AdminLayout>
