@@ -508,6 +508,15 @@ const ReviewPage: NextPage = () => {
                           </>
                         )}
                       </div>
+                      <Link 
+                        href="/help#review-process" 
+                        className="text-gray-400 hover:text-gray-600 ml-2"
+                        title="Learn more about review stages"
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </Link>
                     </div>
                   ) : (
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
