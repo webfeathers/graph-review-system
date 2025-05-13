@@ -50,6 +50,7 @@ const NewReview: NextPage = () => {
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [formKey, setFormKey] = useState(0);
 
   // --- START: Kantata Validation State ---
   const [isValidatingKantata, setIsValidatingKantata] = useState(false);
@@ -96,7 +97,146 @@ const NewReview: NextPage = () => {
     )
   }), []);
 
-  // --- Define Handlers BEFORE useForm ---
+  // --- Initialize useForm BEFORE handlers are defined ---
+  const form = useForm<ReviewFormValues>({
+    initialValues,
+    validationSchema,
+    validateOnChange: true,
+    validateOnBlur: true,
+    onSubmit: async (values) => {
+      // Check submission/validation status first
+      if (isSubmitting || isValidatingKantata) return;
+
+      // Validate form
+      const errors = validateForm(values, validationSchema);
+      if (Object.keys(errors).length > 0) {
+        form.setErrors(errors);
+        setGeneralError('Please fill in all required fields');
+        // Scroll to top immediately when validation fails
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      setIsSubmitting(true);
+      setGeneralError(null);
+      setKantataValidationError(null);
+
+      console.log('Form submission values:', values);
+
+      // <<< Check if supabaseClient is available before proceeding >>>
+      if (!supabaseClient) {
+        console.error("Supabase client not available during submit.");
+        setGeneralError("Authentication client error. Please try refreshing.");
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Trigger Kantata Validation on Submit
+      if (values.kantataProjectId) {
+        const validationResult = await handleKantataValidation(values.kantataProjectId);
+        if (!validationResult.isValid) {
+          setGeneralError(validationResult.message);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          setIsSubmitting(false); // Stop submission
+          return;
+        }
+      }
+
+      // Proceed with review creation logic...
+      try {
+        const { data: projectLead, error: projectLeadError } = await supabase
+          .from('profiles')
+          .select('id') // Only need ID
+          .eq('id', values.projectLeadId || user!.id) // Use user ID if lead not set
+          .single();
+
+        if (projectLeadError || !projectLead) {
+          throw new Error('Invalid Project Lead selected or not found');
+        }
+        
+        const reviewData = {
+          ...values,
+          userId: user!.id, // Use user from useAuth context directly
+          status: (values.status || 'Draft') as 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
+          projectLeadId: projectLead.id, 
+          segment: values.segment as 'Enterprise' | 'MidMarket'
+        };
+
+        // <<< Pass the supabaseClient from context to createReview >>>
+        const newReview = await createReview(reviewData, supabaseClient);
+        if (!newReview?.id) {
+          throw new Error('Failed to create review - no ID returned');
+        }
+        
+        // Use window.location.href for full page transition
+        window.location.href = `/reviews/${newReview.id}?success=true&message=${encodeURIComponent('Review created successfully')}`;
+
+      } catch (error: any) {
+        console.error('Error creating review:', error);
+        setGeneralError(error.message || 'Failed to create review');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+  });
+
+  // Handle form validation
+  const validate = useCallback(() => {
+    const values = {
+      title: form.values.title,
+      description: form.values.description,
+      accountName: form.values.accountName,
+      orgId: form.values.orgId,
+      segment: form.values.segment,
+      graphName: form.values.graphName,
+      useCase: form.values.useCase,
+      customerFolder: form.values.customerFolder,
+      handoffLink: form.values.handoffLink,
+      kantataProjectId: form.values.kantataProjectId,
+      projectLeadId: form.values.projectLeadId
+    };
+    
+    const errors = validateForm(values, validationSchema);
+    form.setErrors(errors);
+    
+    // Set general error if there are validation errors
+    if (Object.keys(errors).length > 0) {
+      setGeneralError('Please fill in all required fields');
+    } else {
+      setGeneralError(null);
+    }
+    
+    return Object.keys(errors).length === 0;
+  }, [form.values, form.setErrors, validationSchema]);
+
+  // Add effect to validate on value changes
+  useEffect(() => {
+    // Only validate if the field has been touched
+    if (Object.keys(form.touched).length > 0) {
+      validate();
+    }
+  }, [form.values, form.touched, validate]);
+
+  // Add effect to scroll to top when any error changes
+  useEffect(() => {
+    // Only scroll on submit or when errors are explicitly shown
+    if (isSubmitting && (generalError || kantataValidationError || Object.keys(form.errors).length > 0)) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [generalError, kantataValidationError, form.errors, isSubmitting]);
+
+  // Add effect to scroll to the first field with an error
+  useEffect(() => {
+    // Only scroll on submit or when errors are explicitly shown
+    if (isSubmitting && Object.keys(form.errors).length > 0) {
+      const firstErrorField = document.querySelector('[data-error="true"]');
+      if (firstErrorField) {
+        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [form.errors, isSubmitting]);
 
   // Kantata Validation Function
   const handleKantataValidation = useCallback(async (kantataProjectId: string | undefined): Promise<{isValid: boolean; message: string}> => {
@@ -150,167 +290,6 @@ const NewReview: NextPage = () => {
     }
   }, []); // No other dependencies needed
 
-  // Submit Handler (receives values from useForm)
-  const handleSubmit = useCallback(async (values: ReviewFormValues) => {
-    // Check submission/validation status first
-    if (isSubmitting || isValidatingKantata) return;
-
-    // Validate required fields
-    const requiredFields = ['title', 'projectLeadId', 'kantataProjectId'];
-    const missingFields = requiredFields.filter(field => !values[field as keyof ReviewFormValues]);
-    
-    if (missingFields.length > 0) {
-      setGeneralError(`Please fill in all required fields: ${missingFields.join(', ')}`);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setGeneralError(null);
-    setKantataValidationError(null);
-
-    console.log('Form submission values:', values);
-
-    // <<< Check if supabaseClient is available before proceeding >>>
-    if (!supabaseClient) {
-      console.error("Supabase client not available during submit.");
-      setGeneralError("Authentication client error. Please try refreshing.");
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Trigger Kantata Validation on Submit
-    if (values.kantataProjectId) {
-      const validationResult = await handleKantataValidation(values.kantataProjectId);
-      if (!validationResult.isValid) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setIsSubmitting(false); // Stop submission
-        return;
-      }
-    }
-
-    // Proceed with review creation logic...
-    try {
-      const { data: projectLead, error: projectLeadError } = await supabase
-        .from('profiles')
-        .select('id') // Only need ID
-        .eq('id', values.projectLeadId || user!.id) // Use user ID if lead not set
-        .single();
-
-      if (projectLeadError || !projectLead) {
-        throw new Error('Invalid Project Lead selected or not found');
-      }
-      
-      const reviewData = {
-        ...values,
-        userId: user!.id, // Use user from useAuth context directly
-        status: (values.status || 'Draft') as 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
-        projectLeadId: projectLead.id, 
-        segment: values.segment as 'Enterprise' | 'MidMarket'
-      };
-
-      // <<< Pass the supabaseClient from context to createReview >>>
-      const newReview = await createReview(reviewData, supabaseClient);
-      if (!newReview?.id) {
-        throw new Error('Failed to create review - no ID returned');
-      }
-      
-      // Use window.location.href for full page transition
-      window.location.href = `/reviews/${newReview.id}?success=true&message=${encodeURIComponent('Review created successfully')}`;
-
-    } catch (error: any) {
-      console.error('Error creating review:', error);
-      setGeneralError(error.message || 'Failed to create review');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  // <<< Add supabaseClient to dependency array >>>
-  }, [isSubmitting, isValidatingKantata, router, handleKantataValidation, supabaseClient, user]); 
-
-  // --- Initialize useForm AFTER handlers are defined ---
-  const form = useForm<ReviewFormValues>({
-    initialValues,
-    validationSchema: {}, // Remove validation schema from useForm
-    validateOnChange: true,
-    validateOnBlur: true,
-    onSubmit: handleSubmit,
-  });
-
-  // Handle form validation
-  const validate = useCallback(() => {
-    const values = {
-      title: form.values.title,
-      description: form.values.description,
-      accountName: form.values.accountName,
-      orgId: form.values.orgId,
-      segment: form.values.segment,
-      graphName: form.values.graphName,
-      useCase: form.values.useCase,
-      customerFolder: form.values.customerFolder,
-      handoffLink: form.values.handoffLink,
-      kantataProjectId: form.values.kantataProjectId,
-      projectLeadId: form.values.projectLeadId
-    };
-    
-    // Only validate required fields
-    const schema = {
-      title: reviewValidationSchema.title,
-      description: createValidator(),
-      accountName: createValidator(),
-      orgId: createValidator(),
-      segment: createValidator(required('Please select a customer segment')),
-      graphName: createValidator(),
-      projectLeadId: reviewValidationSchema.projectLeadId,
-      kantataProjectId: reviewValidationSchema.kantataProjectId
-    };
-    
-    const errors = validateForm(values, schema);
-    form.setErrors(errors);
-    return Object.keys(errors).length === 0;
-  }, [form.values, form.setErrors]);
-
-  // Add effect to validate on value changes
-  useEffect(() => {
-    if (Object.keys(form.touched).length > 0) {
-      validate();
-    }
-  }, [form.values, form.touched, validate]);
-
-  // Add effect to scroll to top when generalError changes
-  useEffect(() => {
-    if (generalError) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [generalError]);
-
-  // Add effect to scroll to top when kantataValidationError changes
-  useEffect(() => {
-    if (kantataValidationError) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [kantataValidationError]);
-
-  // Validate Kantata on Blur
-  useEffect(() => {
-    const kantataInput = document.querySelector('input[name="kantataProjectId"]');
-    if (!kantataInput) return;
-
-    const handleBlur = () => {
-      // Only validate if the field has been touched
-      if (form.touched.kantataProjectId) {
-          handleKantataValidation(form.values.kantataProjectId);
-      }
-    };
-
-    kantataInput.addEventListener('blur', handleBlur);
-    return () => {
-      kantataInput.removeEventListener('blur', handleBlur);
-    };
-  // Dependencies: form values/touched state and the stable validation function
-  }, [form.touched.kantataProjectId, form.values.kantataProjectId, handleKantataValidation]);
-
   // Handle URL parameters
   useEffect(() => {
     if (!router.isReady) return;
@@ -321,10 +300,8 @@ const NewReview: NextPage = () => {
     // Also set Kantata ID from query param if present
     if (kantataProjectId && typeof kantataProjectId === 'string') {
       form.setFieldValue('kantataProjectId', kantataProjectId);
-      // Optionally trigger validation if populated from query
-      // handleKantataValidation(kantataProjectId); 
     }
-  }, [router.isReady, router.query, form.setFieldValue]); // Add router.query and form.setFieldValue
+  }, [router.isReady, router.query, form.setFieldValue]);
 
   if (authLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
@@ -359,7 +336,17 @@ const NewReview: NextPage = () => {
             </div>
           )}
 
-          <Form onSubmit={form.handleSubmit}>
+          <Form 
+            key={formKey} 
+            onSubmit={(e) => {
+              e.preventDefault();
+              // Force scroll to top on submit attempt
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              // Force a re-render
+              setFormKey(prev => prev + 1);
+              form.handleSubmit(e);
+            }}
+          >
             <div className="mb-4">
               <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
                 Project Lead
@@ -553,6 +540,10 @@ const NewReview: NextPage = () => {
                 submittingLabel="Submitting..."
                 disabled={buttonShouldBeDisabled}
                 className="mt-6"
+                onClick={() => {
+                  // Force scroll to top when submit button is clicked
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
               />
             </div>
           </Form>
