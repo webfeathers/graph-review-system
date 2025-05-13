@@ -96,8 +96,7 @@ export const TextInput: React.FC<TextInputProps> = ({
       <input
         id={id}
         className={inputClasses}
-        aria-invalid={showError ? 'true' : 'false'}
-        aria-describedby={showError ? `${id}-error` : undefined}
+        data-error={error && touched ? 'true' : 'false'}
         {...props}
       />
     </FormField>
@@ -150,8 +149,7 @@ export const TextArea: React.FC<TextAreaProps> = ({
       <textarea
         id={id}
         className={textareaClasses}
-        aria-invalid={showError ? 'true' : 'false'}
-        aria-describedby={showError ? `${id}-error` : undefined}
+        data-error={error && touched ? 'true' : 'false'}
         {...props}
       />
     </FormField>
@@ -206,8 +204,7 @@ export const SelectInput: React.FC<SelectInputProps> = ({
       <select
         id={id}
         className={selectClasses}
-        aria-invalid={showError ? 'true' : 'false'}
-        aria-describedby={showError ? `${id}-error` : undefined}
+        data-error={error && touched ? 'true' : 'false'}
         {...props}
       >
         {options.map((option) => (
@@ -251,8 +248,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({
           id={id}
           type="checkbox"
           className={`h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 ${className}`}
-          aria-invalid={showError ? 'true' : 'false'}
-          aria-describedby={showError ? `${id}-error` : undefined}
+          data-error={error && touched ? 'true' : 'false'}
           {...props}
         />
       </div>
@@ -322,8 +318,7 @@ export const FileInput: React.FC<FileInputProps> = ({
           id={id}
           type="file"
           className={inputClasses}
-          aria-invalid={showError ? 'true' : 'false'}
-          aria-describedby={showError ? `${id}-error` : undefined}
+          data-error={error && touched ? 'true' : 'false'}
           {...props}
         />
         

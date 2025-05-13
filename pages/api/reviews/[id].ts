@@ -206,7 +206,21 @@ const reviewHandler: AuthenticatedHandler = async (
           });
         }
 
-        const { title, status, projectLeadId } = req.body;
+        const { 
+          title, 
+          description,
+          accountName,
+          orgId,
+          segment,
+          remoteAccess,
+          graphName,
+          useCase,
+          customerFolder,
+          handoffLink,
+          kantataProjectId,
+          projectLeadId,
+          status 
+        } = req.body;
 
         // Validate required fields
         if (!title) {
@@ -219,6 +233,16 @@ const reviewHandler: AuthenticatedHandler = async (
         // Prepare update data
         const putUpdateData: any = {
           title,
+          description,
+          account_name: accountName,
+          org_id: orgId,
+          segment,
+          remote_access: remoteAccess,
+          graph_name: graphName,
+          use_case: useCase,
+          customer_folder: customerFolder,
+          handoff_link: handoffLink,
+          kantata_project_id: kantataProjectId,
           updated_at: new Date().toISOString()
         };
 
@@ -243,10 +267,7 @@ const reviewHandler: AuthenticatedHandler = async (
           // Perform the update using admin client
           const { error: updateError } = await supabaseAdmin
             .from('reviews')
-            .update({
-              ...putUpdateData,
-              updated_at: new Date().toISOString()
-            })
+            .update(putUpdateData)
             .eq('id', id);
 
           if (updateError) {

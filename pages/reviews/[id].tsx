@@ -334,31 +334,68 @@ const ReviewPage: NextPage = () => {
                 {/* Left Column - Project Details */}
                 <div>
                   <h2 className="text-lg font-medium text-gray-900 mb-4">Project Details</h2>
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <span className="w-40 text-sm font-medium text-gray-700">Kantata Project ID:</span>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+                      <div className="text-gray-900">{review.accountName || 'Not Added'}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                      <div className="text-gray-900">{review.title}</div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <a 
-                          href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}?tab=project-workspace`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 flex items-center"
-                        >
-                          <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                          {review.kantataProjectId}
-                        </a>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Kantata Project ID</label>
+                        <div>
+                          <a 
+                            href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}?tab=project-workspace`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center"
+                          >
+                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            {review.kantataProjectId}
+                          </a>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">OrgID</label>
+                        <div className="text-gray-900">{review.orgId || 'Not Added'}</div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Remote Access</label>
+                        <div className="text-gray-900">{review.remoteAccess ? 'Yes' : 'No'}</div>
                       </div>
                     </div>
 
-                    <div className="flex items-center">
-                      <span className="w-40 text-sm font-medium text-gray-700">OrgID:</span>
-                      <span className="text-gray-900">{review.orgId || 'Not Added'}</span>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Segment</label>
+                      <div className="text-gray-900">{review.segment || 'Not Added'}</div>
                     </div>
 
-                    <div className="flex items-center">
-                      <span className="w-40 text-sm font-medium text-gray-700">Customer Folder:</span>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Graph Name</label>
+                      <div className="text-gray-900">{review.graphName || 'Not Added'}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                      <div className="prose max-w-none text-gray-900">{review.description || 'Not Added'}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Use Case</label>
+                      <div className="prose max-w-none text-gray-900">{review.useCase || 'Not Added'}</div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Customer Folder</label>
                       <div>
                         {review.customerFolder ? (
                           <a 
@@ -378,8 +415,8 @@ const ReviewPage: NextPage = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center mt-3">
-                      <span className="w-40 text-sm font-medium text-gray-700">Sales to PS Handoff:</span>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sales to PS Handoff</label>
                       <div>
                         {review.handoffLink ? (
                           <a 
@@ -398,11 +435,6 @@ const ReviewPage: NextPage = () => {
                         )}
                       </div>
                     </div>
-
-                    <div className="flex items-center mt-3">
-                      <span className="w-40 text-sm font-medium text-gray-700">Remote Access:</span>
-                      <span className="text-gray-900">{review.remoteAccess ? 'Yes' : 'No'}</span>
-                    </div>
                   </div>
                 </div>
 
@@ -414,17 +446,19 @@ const ReviewPage: NextPage = () => {
                         <span className="text-sm text-gray-500">Updating...</span>
                       )}
                       <div className="flex space-x-2 h-8">
-                        <button
-                          onClick={() => handleStatusChange('Draft')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'Draft' 
-                              ? 'bg-gray-100 text-gray-700' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          Draft
-                        </button>
+                        {(currentStatus === 'Draft' || isAdmin()) && (
+                          <button
+                            onClick={() => handleStatusChange('Draft')}
+                            disabled={isUpdating}
+                            className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                              currentStatus === 'Draft' 
+                                ? 'bg-gray-100 text-gray-700' 
+                                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                            }`}
+                          >
+                            Draft
+                          </button>
+                        )}
                         <button
                           onClick={() => handleStatusChange('Submitted')}
                           disabled={isUpdating}
@@ -436,39 +470,43 @@ const ReviewPage: NextPage = () => {
                         >
                           Submitted
                         </button>
-                        <button
-                          onClick={() => handleStatusChange('In Review')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'In Review' 
-                              ? 'bg-blue-600 text-white' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          In Review
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange('Needs Work')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'Needs Work' 
-                              ? 'bg-orange-500 text-white' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          Needs Work
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange('Approved')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'Approved' 
-                              ? 'bg-green-600 text-white' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          Approved
-                        </button>
+                        {isAdmin() && (
+                          <>
+                            <button
+                              onClick={() => handleStatusChange('In Review')}
+                              disabled={isUpdating}
+                              className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                                currentStatus === 'In Review' 
+                                  ? 'bg-blue-600 text-white' 
+                                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                              }`}
+                            >
+                              In Review
+                            </button>
+                            <button
+                              onClick={() => handleStatusChange('Needs Work')}
+                              disabled={isUpdating}
+                              className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                                currentStatus === 'Needs Work' 
+                                  ? 'bg-orange-500 text-white' 
+                                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                              }`}
+                            >
+                              Needs Work
+                            </button>
+                            <button
+                              onClick={() => handleStatusChange('Approved')}
+                              disabled={isUpdating}
+                              className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                                currentStatus === 'Approved' 
+                                  ? 'bg-green-600 text-white' 
+                                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                              }`}
+                            >
+                              Approved
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ) : (

@@ -140,12 +140,72 @@ const HelpPage: NextPage = () => {
           <h2 className="text-2xl font-semibold mb-4">Review Process</h2>
           <div className="space-y-4">
             <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-2">Review Statuses</h3>
-              <div className="space-y-2 text-gray-600">
-                <p><span className="font-medium">Submitted:</span> Initial state when a review is created</p>
-                <p><span className="font-medium">In Review:</span> Review is being evaluated</p>
-                <p><span className="font-medium">Needs Work:</span> Changes or additional information required</p>
-                <p><span className="font-medium">Approved:</span> Review has been approved</p>
+              <h3 className="text-lg font-medium mb-2">Review Stages</h3>
+              <div className="space-y-4 text-gray-600">
+                <div>
+                  <p className="font-medium">Draft</p>
+                  <p className="ml-4">Initial state when creating a new review. In this stage:</p>
+                  <ul className="list-disc list-inside ml-8 mt-2">
+                    <li>You can save your work without submitting</li>
+                    <li>No fields are required</li>
+                    <li>Only you can see and edit the review</li>
+                    <li>You can change the status to Submitted when ready, but only if all required fields are completed</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="font-medium">Submitted</p>
+                  <p className="ml-4">When you're ready to submit for review. Before changing status from Draft to Submitted, you must complete:</p>
+                  <ul className="list-disc list-inside ml-8 mt-2">
+                    <li>Title (required)</li>
+                    <li>Description (required)</li>
+                    <li>Graph Name (required)</li>
+                    <li>Use Case (required)</li>
+                    <li>Customer Folder (required)</li>
+                    <li>Handoff Link (required)</li>
+                    <li>Kantata Project ID (required)</li>
+                  </ul>
+                  <p className="ml-4 mt-2">Optional fields (can be left empty):</p>
+                  <ul className="list-disc list-inside ml-8">
+                    <li>Account Name</li>
+                    <li>Org ID</li>
+                  </ul>
+                  <p className="ml-4 mt-2 text-sm text-gray-500">
+                    Note: If any required fields are missing, you'll see validation errors and won't be able to change the status to Submitted.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="font-medium">In Review</p>
+                  <p className="ml-4">Review is being evaluated by the team. In this stage:</p>
+                  <ul className="list-disc list-inside ml-8 mt-2">
+                    <li>Reviewers can add comments and feedback</li>
+                    <li>Reviewers can create tasks that need to be completed</li>
+                    <li>You can still make changes based on feedback</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="font-medium">Needs Work</p>
+                  <p className="ml-4">Changes or additional information required. In this stage:</p>
+                  <ul className="list-disc list-inside ml-8 mt-2">
+                    <li>Reviewers have identified issues that need to be addressed</li>
+                    <li>You must complete any assigned tasks</li>
+                    <li>You can make the requested changes</li>
+                    <li>Once changes are made, you can resubmit for review</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <p className="font-medium">Approved</p>
+                  <p className="ml-4">Review has been approved. In this stage:</p>
+                  <ul className="list-disc list-inside ml-8 mt-2">
+                    <li>All required fields are complete</li>
+                    <li>All tasks have been completed</li>
+                    <li>Reviewers have approved the changes</li>
+                    <li>The review is considered complete</li>
+                  </ul>
+                </div>
               </div>
             </div>
 
