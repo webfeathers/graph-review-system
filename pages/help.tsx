@@ -182,6 +182,7 @@ const HelpPage: NextPage = () => {
                     <li>Reviewers can add comments and feedback</li>
                     <li>Reviewers can create tasks that need to be completed</li>
                     <li>You can still make changes based on feedback</li>
+                    <li>The review will be marked as "Needs Work" if changes are required</li>
                   </ul>
                 </div>
 
@@ -192,7 +193,8 @@ const HelpPage: NextPage = () => {
                     <li>Reviewers have identified issues that need to be addressed</li>
                     <li>You must complete any assigned tasks</li>
                     <li>You can make the requested changes</li>
-                    <li>Once changes are made, you can resubmit for review</li>
+                    <li>Once changes are made, you can resubmit for review by changing the status back to "Submitted"</li>
+                    <li>The review will return to "In Review" for further evaluation</li>
                   </ul>
                 </div>
 
@@ -204,9 +206,35 @@ const HelpPage: NextPage = () => {
                     <li>All tasks have been completed</li>
                     <li>Reviewers have approved the changes</li>
                     <li>The review is considered complete</li>
+                    <li>You will receive points for the approved review</li>
                   </ul>
                 </div>
               </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-lg font-medium mb-2">Submitting a Review</h3>
+              <p className="text-gray-600 mb-4">
+                To submit a review for approval:
+              </p>
+              <ol className="list-decimal list-inside space-y-2 text-gray-600">
+                <li>Complete all required fields in the review form</li>
+                <li>Click the "Submit Review" button</li>
+                <li>If there are any validation errors:
+                  <ul className="list-disc list-inside ml-6 mt-2">
+                    <li>The page will scroll to show the error message at the top</li>
+                    <li>Required fields with errors will be highlighted</li>
+                    <li>Fix the errors and try submitting again</li>
+                  </ul>
+                </li>
+                <li>Once submitted successfully:
+                  <ul className="list-disc list-inside ml-6 mt-2">
+                    <li>The review status will change to "Submitted"</li>
+                    <li>Reviewers will be notified</li>
+                    <li>The review will appear in the "In Review" section</li>
+                  </ul>
+                </li>
+              </ol>
             </div>
 
             <div className="bg-white p-4 rounded-lg shadow">
