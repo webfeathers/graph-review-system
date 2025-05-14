@@ -48,7 +48,7 @@ const KantataProjectsPage: NextPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [hasReviewFilter, setHasReviewFilter] = useState<string>('all');
   const [sortField, setSortField] = useState<string>('startDate');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Auth redirect
   useEffect(() => {
