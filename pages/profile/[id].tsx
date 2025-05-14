@@ -101,7 +101,7 @@ const ProfilePage: NextPage = () => {
             .from('comment_votes')
             .select('comment_id')
             .eq('user_id', id)
-            .eq('is_helpful', true),
+            .eq('vote_type', 'up'),
           supabase
             .from('comments')
             .select('review_id')

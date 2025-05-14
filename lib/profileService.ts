@@ -153,7 +153,7 @@ export class ProfileService {
             .from('comment_votes')
             .select('comment_id')
             .eq('user_id', user.id)
-            .eq('is_helpful', true),
+            .eq('vote_type', 'up'),
           client
             .from('comments')
             .select('review_id')
@@ -339,7 +339,7 @@ export class ProfileService {
             .from('comment_votes')
             .select('comment_id')
             .eq('user_id', user.id)
-            .eq('is_helpful', true),
+            .eq('vote_type', 'up'),
           client
             .from('comments')
             .select('review_id')
