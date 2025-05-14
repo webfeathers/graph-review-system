@@ -90,7 +90,6 @@ export class ProfileService {
 
       // If profile exists and has all required fields, return it
       if (!checkError && existingProfile) {
-        console.log('Profile exists for user:', user.id);
         const baseProfile = {
           id: existingProfile.id,
           name: existingProfile.name || (additionalData.email ? additionalData.email.split('@')[0] : 'User'),
@@ -102,7 +101,6 @@ export class ProfileService {
 
         // If profile exists but is missing required fields, update it
         if (!existingProfile.name || !existingProfile.role) {
-          console.log('Updating incomplete profile for user:', user.id);
           const { data: updatedProfile, error: updateError } = await client
             .from('profiles')
             .update({
@@ -116,42 +114,38 @@ export class ProfileService {
             .single();
 
           if (updateError) {
-            console.error('Failed to update incomplete profile:', updateError);
+            throw new Error(`Failed to update incomplete profile: ${updateError.message}`);
           } else if (updatedProfile) {
             baseProfile.role = updatedProfile.role as Role || 'Member';
           }
         }
 
         // Enrich with counts, points, and badges
-        const { count: reviewCount } = await client
-          .from('reviews')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-        const { count: commentCount } = await client
-          .from('comments')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-        const { count: approvedReviewCount } = await client
-          .from('reviews')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('status', 'Approved');
-        const { count: completedTaskCount } = await client
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .eq('assigned_to', user.id)
-          .eq('status', 'completed');
-
-        console.log('Points calculation for user:', user.id, {
-          reviewCount,
-          commentCount,
-          approvedReviewCount,
-          completedTaskCount,
-          POINTS_PER_REVIEW,
-          POINTS_PER_COMMENT,
-          POINTS_PER_REVIEW_APPROVAL,
-          POINTS_PER_TASK_COMPLETION
-        });
+        const [
+          { count: reviewCount },
+          { count: commentCount },
+          { count: approvedReviewCount },
+          { count: completedTaskCount }
+        ] = await Promise.all([
+          client
+            .from('reviews')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+          client
+            .from('comments')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+          client
+            .from('reviews')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('status', 'Approved'),
+          client
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
+            .eq('assigned_to', user.id)
+            .eq('status', 'completed')
+        ]);
 
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
@@ -166,15 +160,6 @@ export class ProfileService {
         const badges = BADGE_THRESHOLDS
           .filter(({ threshold }) => points >= threshold)
           .map(({ badge }) => badge);
-
-        console.log('Calculated points:', {
-          reviewsCountValue,
-          commentsCountValue,
-          approvedReviewsCountValue,
-          completedTasksCountValue,
-          points,
-          badges
-        });
 
         const profile: Profile = {
           ...baseProfile,
@@ -253,35 +238,31 @@ export class ProfileService {
         };
 
         // Enrich with counts, points, and badges
-        const { count: reviewCount } = await client
-          .from('reviews')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-        const { count: commentCount } = await client
-          .from('comments')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id);
-        const { count: approvedReviewCount } = await client
-          .from('reviews')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('status', 'Approved');
-        const { count: completedTaskCount } = await client
-          .from('tasks')
-          .select('id', { count: 'exact', head: true })
-          .eq('assigned_to', user.id)
-          .eq('status', 'completed');
-
-        console.log('Points calculation for user:', user.id, {
-          reviewCount,
-          commentCount,
-          approvedReviewCount,
-          completedTaskCount,
-          POINTS_PER_REVIEW,
-          POINTS_PER_COMMENT,
-          POINTS_PER_REVIEW_APPROVAL,
-          POINTS_PER_TASK_COMPLETION
-        });
+        const [
+          { count: reviewCount },
+          { count: commentCount },
+          { count: approvedReviewCount },
+          { count: completedTaskCount }
+        ] = await Promise.all([
+          client
+            .from('reviews')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+          client
+            .from('comments')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id),
+          client
+            .from('reviews')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('status', 'Approved'),
+          client
+            .from('tasks')
+            .select('id', { count: 'exact', head: true })
+            .eq('assigned_to', user.id)
+            .eq('status', 'completed')
+        ]);
 
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
@@ -296,15 +277,6 @@ export class ProfileService {
         const badges = BADGE_THRESHOLDS
           .filter(({ threshold }) => points >= threshold)
           .map(({ badge }) => badge);
-
-        console.log('Calculated points:', {
-          reviewsCountValue,
-          commentsCountValue,
-          approvedReviewsCountValue,
-          completedTasksCountValue,
-          points,
-          badges
-        });
 
         const profile: Profile = {
           ...baseProfile,

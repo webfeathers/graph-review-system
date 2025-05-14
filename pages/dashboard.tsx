@@ -64,16 +64,13 @@ const Dashboard: NextPage = () => {
 
         // Get the user's reviews
         const reviewsData = await getReviews(user.id);
-        console.log('All reviews:', reviewsData);
         
         // Filter reviews based on status and archived state
         const filteredReviews = reviewsData.filter(review => {
-          console.log('Review:', review.title, 'Status:', review.status, 'Show Archived:', showArchived);
           if (review.status === 'Approved') return false;
           if (!showArchived && review.status === 'Archived') return false;
           return true;
         });
-        console.log('Filtered reviews:', filteredReviews);
         
         // For each review, fetch comment count
         const reviewsWithCounts = await Promise.all(
@@ -93,7 +90,7 @@ const Dashboard: NextPage = () => {
         
         setReviews(reviewsWithCounts);
       } catch (error) {
-        console.error('Error fetching initial data:', error);
+        // Error is handled by the UI state
       } finally {
         setLoading(false);
       }
@@ -131,7 +128,7 @@ const Dashboard: NextPage = () => {
         if (activitiesError) throw activitiesError;
         setActivities(recentActivities || []);
       } catch (error) {
-        console.error('Error fetching activities:', error);
+        // Error is handled by the UI state
       } finally {
         setLoadingActivities(false);
       }

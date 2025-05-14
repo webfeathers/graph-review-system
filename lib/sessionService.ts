@@ -45,13 +45,10 @@ export class SessionService {
     
     this.initializationPromise = (async () => {
       try {
-        console.log('Initializing SessionService...');
-        
         // Get initial session first
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting initial session:', error);
           this.currentSession = null;
           this.notifyListeners('SIGNED_OUT', null, null);
           this.isInitialized = true;
@@ -62,16 +59,13 @@ export class SessionService {
         
         // Set up auth state change listener after getting initial session
         supabase.auth.onAuthStateChange((event, session) => {
-          console.log('Auth state change event:', event);
           this.handleAuthStateChange(event, session);
         });
         
         if (data.session) {
-          console.log('Initial session found');
           this.setupRefreshTimer(data.session);
           this.notifyListeners('SIGNED_IN', data.session, data.session.user);
         } else {
-          console.log('No initial session found');
           this.notifyListeners('SIGNED_OUT', null, null);
         }
         
@@ -81,9 +75,7 @@ export class SessionService {
         }
         
         this.isInitialized = true;
-        console.log('SessionService initialized successfully');
       } catch (error) {
-        console.error('Error initializing SessionService:', error);
         this.notifyListeners('SIGNED_OUT', null, null);
         this.isInitialized = true;
       }
@@ -140,7 +132,6 @@ export class SessionService {
    */
   static getSession(): Session | null {
     if (!this.isInitialized) {
-      console.warn('SessionService not initialized');
       return null;
     }
     return this.currentSession;
@@ -153,7 +144,6 @@ export class SessionService {
    */
   static getUser(): User | null {
     if (!this.isInitialized) {
-      console.warn('SessionService not initialized');
       return null;
     }
     return this.currentSession?.user || null;
@@ -166,7 +156,6 @@ export class SessionService {
    */
   static isAuthenticated(): boolean {
     if (!this.isInitialized) {
-      console.warn('SessionService not initialized');
       return false;
     }
     return !!this.currentSession;
@@ -194,14 +183,11 @@ export class SessionService {
         finalRedirectUrl = `${window.location.origin}/dashboard`;
       }
 
-      console.log('Using redirect URL for OAuth:', finalRedirectUrl);
-      
       return await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: finalRedirectUrl }
       });
     } catch (error) {
-      console.error('Error signing in with Google:', error);
       return { data: null, error };
     }
   }
@@ -234,7 +220,6 @@ export class SessionService {
       
       return { error };
     } catch (error) {
-      console.error('Error signing out:', error);
       return { error };
     }
   }
@@ -246,22 +231,16 @@ export class SessionService {
    */
   static async refreshSession(): Promise<Session | null> {
     if (this.isRefreshing) {
-      console.log('Token refresh already in progress, skipping');
       return this.currentSession;
     }
     
     this.isRefreshing = true;
     
     try {
-      console.log('Manually refreshing token...');
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
-        console.error('Error refreshing token:', error);
-        
-        // If refresh fails due to expired session, sign out
         if (error.message.includes('expired')) {
-          console.log('Session expired, signing out');
           this.currentSession = null;
           this.notifyListeners('SESSION_EXPIRED', null, null);
           await this.signOut();
@@ -271,7 +250,6 @@ export class SessionService {
       }
       
       if (data.session) {
-        console.log('Token refreshed successfully');
         this.currentSession = data.session;
         this.setupRefreshTimer(data.session);
         this.notifyListeners('TOKEN_REFRESHED', data.session, data.session.user);
@@ -280,7 +258,6 @@ export class SessionService {
       
       return null;
     } catch (error) {
-      console.error('Unexpected error refreshing token:', error);
       return null;
     } finally {
       this.isRefreshing = false;
@@ -308,7 +285,6 @@ export class SessionService {
         eventType = 'USER_UPDATED';
         break;
       default:
-        console.log('Unhandled auth event:', event);
         return;
     }
     
@@ -351,12 +327,9 @@ export class SessionService {
     
     // Don't set refresh timer if already expired or about to expire
     if (expiresIn <= 0) {
-      console.log('Session already expired or about to expire, refreshing now');
       this.refreshSession();
       return;
     }
-    
-    console.log(`Setting up token refresh in ${Math.round(expiresIn / 1000)} seconds`);
     
     this.refreshTimerId = setTimeout(() => {
       this.refreshSession();
@@ -368,13 +341,10 @@ export class SessionService {
    */
   private static handleStorageEvent = async (event: StorageEvent): Promise<void> => {
     if (event.key === 'auth_state_changed') {
-      console.log('Auth state changed in another tab, syncing session');
-      
       // Get the latest session
       const { data, error } = await supabase.auth.getSession();
       
       if (error) {
-        console.error('Error syncing session across tabs:', error);
         return;
       }
       

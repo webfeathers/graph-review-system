@@ -44,20 +44,23 @@ export const getReviews = async (userId?: string) => {
   const { data, error } = await query;
   if (error) throw error;
 
-  console.log('Raw review data:', data);
-
-  // Transform the data to ensure proper date handling
+  // Transform the data to match the frontend interface
   const transformedData = data.map(review => {
-    const transformedReview = dbToFrontendReview(review as DbReview);
-    console.log('Transformed review:', transformedReview);
-    return {
-      ...transformedReview,
-      user: dbToFrontendProfile(Array.isArray(review.user) ? review.user[0] : review.user as DbProfile),
-      projectLead: review.projectLead ? dbToFrontendProfile(Array.isArray(review.projectLead) ? review.projectLead[0] : review.projectLead as DbProfile) : undefined
-    } as ReviewWithProfile;
+    const transformedReview = {
+      id: review.id,
+      title: review.title,
+      description: review.description,
+      status: review.status,
+      userId: review.user_id,
+      projectLeadId: review.project_lead_id,
+      createdAt: review.created_at,
+      updatedAt: review.updated_at,
+      user: review.user?.[0] || null,
+      projectLead: review.projectLead?.[0] || null
+    };
+    return transformedReview;
   });
 
-  console.log('Final transformed data:', transformedData);
   return transformedData;
 };
 

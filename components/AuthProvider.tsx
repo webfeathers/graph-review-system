@@ -111,8 +111,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         if (isUnmounted || initialized) return;
         
-        console.log("Initializing auth with SessionService...");
-        
         // Initialize the session service
         await SessionService.initialize();
         
@@ -137,7 +135,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setUserRole('Member');
               }
             } catch (error) {
-              console.error('Error loading user profile:', error);
               if (!isUnmounted) {
                 setUserRole('Member');
               }
@@ -151,7 +148,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           sessionListener = SessionService.addEventListener(handleSessionEvent);
         }
       } catch (err) {
-        console.error('Error during auth initialization:', err);
         if (!isUnmounted) {
           setSession(null);
           setUser(null);
