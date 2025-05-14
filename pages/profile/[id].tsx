@@ -13,10 +13,44 @@ const ProfilePage: NextPage = () => {
   const { id } = router.query;
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
   const [activities, setActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedProfile = useRef(false);
+
+  // Get avatar URL from user metadata
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      if (profile?.email) {
+        try {
+          // Get user metadata from Supabase auth
+          const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            throw userError;
+          }
+
+          // Get the avatar URL from user metadata
+          const googleAvatar = authUser?.user_metadata?.picture;
+          
+          if (googleAvatar) {
+            // Use a proxy endpoint to handle the image
+            const proxyUrl = `/api/proxy-avatar?url=${encodeURIComponent(googleAvatar)}`;
+            setAvatarUrl(proxyUrl);
+          }
+        } catch (error) {
+          console.error('Error fetching avatar:', error);
+        }
+      }
+    };
+
+    fetchAvatar();
+  }, [profile]);
+
+  useEffect(() => {
+    console.log('Avatar URL state changed:', avatarUrl);
+  }, [avatarUrl]);
 
   useEffect(() => {
     if (!router.isReady || authLoading || !user || !id || hasLoadedProfile.current) return;
@@ -49,13 +83,15 @@ const ProfilePage: NextPage = () => {
           .map(({ badge }) => badge);
 
         // Update profile with calculated values
-        setProfile({
+        const updatedProfile = {
           ...fetchedProfile,
           reviewCount: reviewsCountValue,
           commentCount: commentsCountValue,
           points,
           badges
-        });
+        };
+        console.log('Setting profile:', updatedProfile);
+        setProfile(updatedProfile);
 
         // Fetch activities for this user
         const { data: userActivities, error: activitiesError } = await supabase
@@ -107,11 +143,12 @@ const ProfilePage: NextPage = () => {
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
       <div className="flex items-center space-x-4 mb-6">
-        {profile.avatarUrl ? (
+        {avatarUrl ? (
           <img 
-            src={profile.avatarUrl} 
+            src={avatarUrl} 
             alt={`${profile.name}'s avatar`}
             className="w-16 h-16 rounded-full object-cover"
+            onError={() => setAvatarUrl('')}
           />
         ) : (
           <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
