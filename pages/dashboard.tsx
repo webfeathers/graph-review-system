@@ -18,7 +18,7 @@ import { getReviews } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
 // Types
-import { ReviewWithProfile } from '../types/supabase';
+import { ReviewWithProfile, dbToFrontendProfile } from '../types/supabase';
 
 // Interface for review with comment count
 interface ReviewWithCommentCount extends ReviewWithProfile {
@@ -83,6 +83,8 @@ const Dashboard: NextPage = () => {
               
             return {
               ...review,
+              user: dbToFrontendProfile(review.user),
+              projectLead: review.projectLead ? dbToFrontendProfile(review.projectLead) : undefined,
               commentCount: count || 0
             };
           })
