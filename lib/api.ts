@@ -24,7 +24,14 @@ export const getReviews = async (userId?: string) => {
   let query = supabase
     .from('reviews')
     .select(`
-      *,
+      id,
+      title,
+      description,
+      status,
+      user_id,
+      project_lead_id,
+      created_at,
+      updated_at,
       user:profiles!fk_reviews_user(id, name, email, created_at, role),
       projectLead:profiles!fk_project_lead(id, name, email, created_at, role)
     `)
@@ -37,20 +44,21 @@ export const getReviews = async (userId?: string) => {
   const { data, error } = await query;
   if (error) throw error;
 
+  console.log('Raw review data:', data);
+
   // Transform the data to ensure proper date handling
-  return data.map(review => ({
-    ...review,
-    createdAt: review.created_at || new Date().toISOString(),
-    updatedAt: review.updated_at || new Date().toISOString(),
-    user: {
-      ...review.user,
-      createdAt: review.user.created_at || new Date().toISOString()
-    },
-    projectLead: review.projectLead ? {
-      ...review.projectLead,
-      createdAt: review.projectLead.created_at || new Date().toISOString()
-    } : undefined
-  })) as ReviewWithProfile[];
+  const transformedData = data.map(review => {
+    const transformedReview = dbToFrontendReview(review as DbReview);
+    console.log('Transformed review:', transformedReview);
+    return {
+      ...transformedReview,
+      user: dbToFrontendProfile(review.user as DbProfile),
+      projectLead: review.projectLead ? dbToFrontendProfile(review.projectLead as DbProfile) : undefined
+    } as ReviewWithProfile;
+  });
+
+  console.log('Final transformed data:', transformedData);
+  return transformedData;
 };
 
 export const getReviewById = async (id: string): Promise<ReviewWithProfile> => {

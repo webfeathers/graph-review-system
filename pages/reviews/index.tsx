@@ -20,6 +20,7 @@ import { ReviewWithProfile } from '../../types/supabase';
 // Interface for review with comment count
 interface ReviewWithCommentCount extends ReviewWithProfile {
   commentCount: number;
+  archived: boolean;
 }
 
 const ReviewsPage: NextPage = () => {
@@ -72,7 +73,8 @@ const ReviewsPage: NextPage = () => {
           // Continue with zero comment counts
           setReviews(reviewsData.map(review => ({
             ...review,
-            commentCount: 0
+            commentCount: 0,
+            archived: false
           })));
           setLoading(false);
           return;
@@ -88,7 +90,8 @@ const ReviewsPage: NextPage = () => {
         // Add comment counts to reviews
         const reviewsWithCounts = reviewsData.map(review => ({
           ...review,
-          commentCount: countMap[review.id] || 0
+          commentCount: countMap[review.id] || 0,
+          archived: false
         }));
         
         setReviews(reviewsWithCounts);
@@ -130,6 +133,8 @@ const ReviewsPage: NextPage = () => {
         return 'bg-yellow-200';
       case 'Approved':
         return 'bg-[#d1f0e1]';
+      case 'Archived':
+        return 'bg-gray-300';
       default:
         return 'bg-gray-200';
     }
@@ -219,7 +224,6 @@ const ReviewsPage: NextPage = () => {
               <option value="In Review">In Review</option>
               <option value="Needs Work">Needs Work</option>
               <option value="Approved">Approved</option>
-              {showArchived && <option value="Archived">Archived</option>}
             </select>
           </div>
           {/* Show Archived Toggle */}

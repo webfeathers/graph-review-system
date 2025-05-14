@@ -415,9 +415,15 @@ export async function createComment(
  * @param id The review ID
  * @param status The new status
  * @param userId The ID of the user making the update
+ * @param archived Optional boolean to set the archived status
  * @returns The updated review
  */
-export async function updateReviewStatus(id: string, status: Review['status'], userId: string) {
+export async function updateReviewStatus(
+  id: string, 
+  status: Review['status'], 
+  userId: string,
+  archived?: boolean
+) {
   // First check if the status is 'Approved' and the user is an admin
   if (status === 'Approved') {
     // Get the user's role
@@ -432,13 +438,21 @@ export async function updateReviewStatus(id: string, status: Review['status'], u
     }
   }
 
+  // Prepare update data
+  const updateData: any = {
+    status,
+    updated_at: new Date().toISOString()
+  };
+
+  // Add archived status if provided
+  if (typeof archived === 'boolean') {
+    updateData.archived = archived;
+  }
+
   // OPTIMIZED: Update the review status and return the updated data in one operation
   const { data, error } = await supabase
     .from('reviews')
-    .update({ 
-      status,
-      updated_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq('id', id)
     .select()
     .single();

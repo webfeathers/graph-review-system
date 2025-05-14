@@ -34,6 +34,8 @@ const Dashboard: NextPage = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [filter, setFilter] = useState('All');
 
   // Initial data load
   useEffect(() => {
@@ -62,13 +64,20 @@ const Dashboard: NextPage = () => {
 
         // Get the user's reviews
         const reviewsData = await getReviews(user.id);
+        console.log('All reviews:', reviewsData);
         
-        // Filter out reviews with 'Approved' status
-        const activeReviews = reviewsData.filter(review => review.status !== 'Approved');
+        // Filter reviews based on status and archived state
+        const filteredReviews = reviewsData.filter(review => {
+          console.log('Review:', review.title, 'Status:', review.status, 'Show Archived:', showArchived);
+          if (review.status === 'Approved') return false;
+          if (!showArchived && review.status === 'Archived') return false;
+          return true;
+        });
+        console.log('Filtered reviews:', filteredReviews);
         
         // For each review, fetch comment count
         const reviewsWithCounts = await Promise.all(
-          activeReviews.map(async (review) => {
+          filteredReviews.map(async (review) => {
             // Query to count comments for this review
             const { count, error } = await supabase
               .from('comments')
@@ -91,7 +100,7 @@ const Dashboard: NextPage = () => {
     };
 
     fetchInitialData();
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, showArchived, filter]);
 
   // Separate effect for activities
   useEffect(() => {
@@ -186,6 +195,41 @@ const Dashboard: NextPage = () => {
         </div>
       </div>
 
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center space-x-4">
+          {/* Status Filter */}
+          <div>
+            <label htmlFor="statusFilter" className="mr-2 text-sm font-medium">Filter:</label>
+            <select
+              id="statusFilter"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="border px-2 py-1 rounded"
+            >
+              <option value="All">All</option>
+              <option value="Submitted">Submitted</option>
+              <option value="In Review">In Review</option>
+              <option value="Needs Work">Needs Work</option>
+              <option value="Approved">Approved</option>
+              {showArchived && <option value="Archived">Archived</option>}
+            </select>
+          </div>
+          {/* Show Archived Toggle */}
+          <div className="flex items-center">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <span className="ml-3 text-sm font-medium text-gray-700">Show Archived</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity Section */}
         <div>
@@ -220,12 +264,14 @@ const Dashboard: NextPage = () => {
         <div>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-semibold">Your Active Graph Reviews</h2>
-            <Link
-              href="/reviews/new"
-              className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-            >
-              New Review
-            </Link>
+            <div className="flex items-center space-x-4">
+              <Link
+                href="/reviews/new"
+                className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+              >
+                New Review
+              </Link>
+            </div>
           </div>
           {reviews.length === 0 ? (
             <p className="text-gray-500">No active reviews</p>
