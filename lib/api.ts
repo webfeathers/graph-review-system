@@ -52,8 +52,8 @@ export const getReviews = async (userId?: string) => {
     console.log('Transformed review:', transformedReview);
     return {
       ...transformedReview,
-      user: dbToFrontendProfile(review.user as DbProfile),
-      projectLead: review.projectLead ? dbToFrontendProfile(review.projectLead as DbProfile) : undefined
+      user: dbToFrontendProfile(Array.isArray(review.user) ? review.user[0] : review.user as DbProfile),
+      projectLead: review.projectLead ? dbToFrontendProfile(Array.isArray(review.projectLead) ? review.projectLead[0] : review.projectLead as DbProfile) : undefined
     } as ReviewWithProfile;
   });
 
