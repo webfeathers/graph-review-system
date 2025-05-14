@@ -42,9 +42,52 @@ interface Activity {
   };
 }
 
+interface UserForMentions {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface ActivityFeedProps {
   activities: Activity[];
+  allUsers?: UserForMentions[];
 }
+
+// Helper to parse and render full-name mentions as links, preserving newlines
+const renderContentWithMentions = (text: string, allUsers: UserForMentions[] | undefined) => {
+  if (!allUsers || !allUsers.length) return <span>{text}</span>;
+  // Build a regex that matches any full name from allUsers
+  const namesPattern = allUsers.map(u => u.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
+  const regex = new RegExp(`@(${namesPattern})`, 'g');
+  const parts = text.split(regex);
+  return parts.flatMap((part, idx) => {
+    // Odd index means a matched name from the capture group
+    if (idx % 2 === 1) {
+      const name = part;
+      const userObj = allUsers.find(u => u.name === name);
+      return [
+        <Link
+          key={idx}
+          href={`/profile/${userObj?.id}`}
+          className="text-blue-600 font-semibold"
+          onClick={e => {
+            e.preventDefault();
+            if (userObj?.id) {
+              window.location.href = `/profile/${userObj.id}`;
+            }
+          }}
+        >
+          @{name}
+        </Link>
+      ];
+    }
+    // For non-mention parts, split by newlines and interleave <br />
+    const lines = part.split('\n');
+    return lines.flatMap((line, i) =>
+      i === 0 ? [line] : [<br key={`br-${idx}-${i}`} />, line]
+    );
+  });
+};
 
 /**
  * A component that displays a feed of recent activities in the system.
@@ -68,7 +111,7 @@ interface ActivityFeedProps {
  * ]} />
  * ```
  */
-const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
+const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, allUsers }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString(undefined, {
       year: 'numeric',
@@ -149,7 +192,7 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
             </Link>
             {activity.metadata?.content && (
               <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                {activity.metadata.content}
+                {renderContentWithMentions(activity.metadata.content, allUsers)}
               </div>
             )}
           </>
