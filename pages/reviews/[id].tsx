@@ -164,7 +164,7 @@ const ReviewPage: NextPage = () => {
       const responseData = await response.json();
 
       if (!response.ok || !responseData.success) {
-        const errorMessage = responseData.message || 'Failed to update status';
+        const errorMessage = responseData.error || responseData.message || 'Failed to update status';
         toast.error(errorMessage, {
           duration: 5000,
           style: {
