@@ -63,7 +63,6 @@ const ProfilePage: NextPage = () => {
           .select(`
             id,
             type,
-            description,
             link,
             review_id,
             project_id,
