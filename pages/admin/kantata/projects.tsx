@@ -23,6 +23,14 @@ interface KantataProject {
   lastUpdated: string;
   createdAt: string;
   startDate?: string;
+  description?: string;
+  status?: string;
+  participants?: any[];
+  creator?: {
+    id: string;
+    name: string;
+    email: string;
+  };
   projectLead?: {
     name: string;
     headline: string;
@@ -309,22 +317,24 @@ const KantataProjectsPage: NextPage = () => {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
             <div className="inline-block min-w-full align-middle">
               <table className="min-w-full divide-y divide-gray-300">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 w-1/3">Project</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Status</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Graph Review</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Last Updated</th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 w-1/6">Created</th>
+                    <th scope="col" className="py-2.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6 w-1/5">Project Details</th>
+                    <th scope="col" className="px-3 py-2.5 text-left text-sm font-semibold text-gray-900 w-1/6">Kantata Status</th>
+                    <th scope="col" className="px-3 py-2.5 text-left text-sm font-semibold text-gray-900 w-1/6">Graph Review</th>
+                    <th scope="col" className="px-3 py-2.5 text-left text-sm font-semibold text-gray-900 w-1/6">Project Start</th>
+                    <th scope="col" className="px-3 py-2.5 text-left text-sm font-semibold text-gray-900 w-1/6">Created Date</th>
+                    <th scope="col" className="px-3 py-2.5 text-left text-sm font-semibold text-gray-900 w-1/6">Last Updated</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {filteredProjects.map((project) => (
                     <tr key={project.id} className="hover:bg-gray-50">
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm sm:pl-6 max-w-[300px]">
+                      <td className="whitespace-nowrap py-2 pl-4 pr-3 text-sm sm:pl-6 max-w-[300px]">
                         <div className="flex items-center">
                           <div className="truncate">
                             <div className="font-medium text-gray-900 truncate">
@@ -340,15 +350,20 @@ const KantataProjectsPage: NextPage = () => {
                                 {project.id}
                               </a>
                             </div>
+                            {project.description && (
+                              <div className="text-gray-500 mt-1 line-clamp-2">
+                                {project.description}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                      <td className="whitespace-nowrap px-3 py-2 text-sm">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.kantataStatus)}`}>
                           {project.kantataStatus.message}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
+                      <td className="whitespace-nowrap px-3 py-2 text-sm">
                         {project.hasReview ? (
                           <div>
                             <a
@@ -371,28 +386,123 @@ const KantataProjectsPage: NextPage = () => {
                             >
                               Create Review
                             </a>
-                            <div className="text-gray-500 mt-1">
-                              No review yet
-                            </div>
                           </div>
                         )}
                         {project.projectLead && (
                           <div className="mt-2 text-sm text-gray-500">
-                            {project.projectLead.name === 'Mavenlink Integration' ? 'Not Assigned' : `Lead: ${project.projectLead.name}`}
+                            {project.projectLead.name === 'Mavenlink Integration' ? 'Not Assigned' : project.projectLead.name}
                           </div>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                        {new Date(project.lastUpdated).toLocaleDateString()}
+                      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">
+                        {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'Not set'}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">
                         {new Date(project.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-sm text-gray-500">
+                        {new Date(project.lastUpdated).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-gray-200">
+            {filteredProjects.map((project) => (
+              <div key={project.id} className="p-4 hover:bg-gray-50">
+                <div className="space-y-3">
+                  {/* Project Details */}
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {project.title}
+                    </div>
+                    <div className="text-gray-500">
+                      Kantata Project: <a
+                        href={`https://leandata.mavenlink.com/workspaces/${project.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        {project.id}
+                      </a>
+                    </div>
+                    {project.description && (
+                      <div className="text-gray-500 mt-1 line-clamp-2">
+                        {project.description}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <div className="text-sm font-medium text-gray-500">Kantata Status</div>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.kantataStatus)}`}>
+                      {project.kantataStatus.message}
+                    </span>
+                  </div>
+
+                  {/* Graph Review */}
+                  <div>
+                    <div className="text-sm font-medium text-gray-500">Graph Review</div>
+                    {project.hasReview ? (
+                      <div>
+                        <a
+                          href={`/reviews/${project.reviewId}`}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          View Review
+                        </a>
+                        <div className="mt-1">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getReviewStatusColor(project.reviewStatus || '')}`}>
+                            {project.reviewStatus}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <a
+                          href={`/reviews/new?kantataProjectId=${project.id}&title=${encodeURIComponent(project.title)}${project.projectLead?.id ? `&projectLeadId=${project.projectLead.id}` : ''}`}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Create Review
+                        </a>
+                      </div>
+                    )}
+                    {project.projectLead && (
+                      <div className="mt-2 text-sm text-gray-500">
+                        {project.projectLead.name === 'Mavenlink Integration' ? 'Not Assigned' : project.projectLead.name}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">Project Start</div>
+                      <div className="text-sm text-gray-900">
+                        {project.startDate ? new Date(project.startDate).toLocaleDateString() : 'Not set'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">Created Date</div>
+                      <div className="text-sm text-gray-900">
+                        {new Date(project.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-500">Last Updated</div>
+                      <div className="text-sm text-gray-900">
+                        {new Date(project.lastUpdated).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

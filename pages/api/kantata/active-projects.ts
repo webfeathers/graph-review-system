@@ -70,7 +70,7 @@ async function handler(
                !title.includes('prem support') &&
                !title.includes('premium support') &&
                !title.includes('premium services') &&
-               !title.includes('csm investment');
+               !title.includes('csm');
       })
     );
 
@@ -124,6 +124,14 @@ async function handler(
           name: projectLead.full_name,
           email: projectLead.email_address,
           headline: projectLead.headline
+        } : null,
+        description: workspace.description,
+        status: workspace.status?.message,
+        participants: workspace.participants || [],
+        creator: workspace.creator ? {
+          id: workspace.creator.id,
+          name: workspace.creator.full_name,
+          email: workspace.creator.email_address
         } : null
       };
     }));
