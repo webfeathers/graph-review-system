@@ -18,7 +18,7 @@ import { getReviews } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
 // Types
-import { ReviewWithProfile, dbToFrontendProfile } from '../types/supabase';
+import { ReviewWithProfile, dbToFrontendProfile, dbToFrontendReview } from '../types/supabase';
 
 // Interface for review with comment count
 interface ReviewWithCommentCount extends ReviewWithProfile {
@@ -67,30 +67,79 @@ const Dashboard: NextPage = () => {
         
         // Filter reviews based on status and archived state
         const filteredReviews = reviewsData.filter(review => {
-          if (review.status === 'Approved') return false;
+          // Only filter out archived reviews unless showArchived is true
           if (!showArchived && review.status === 'Archived') return false;
           return true;
         });
         
         // For each review, fetch comment count
-        const reviewsWithCounts = await Promise.all(
-          filteredReviews.map(async (review) => {
-            // Query to count comments for this review
-            const { count, error } = await supabase
-              .from('comments')
-              .select('id', { count: 'exact', head: true })
-              .eq('review_id', review.id);
-              
-            return {
-              ...review,
-              user: dbToFrontendProfile(review.user),
-              projectLead: review.projectLead ? dbToFrontendProfile(review.projectLead) : undefined,
-              commentCount: count || 0
-            };
-          })
-        );
-        
-        setReviews(reviewsWithCounts);
+        try {
+          const reviewsWithCounts = await Promise.all(
+            filteredReviews.map(async (review) => {
+              try {
+                const { count, error } = await supabase
+                  .from('comments')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('review_id', review.id);
+                
+                if (error) return null;
+                
+                const { data: userData } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', review.userId)
+                  .single();
+
+                const { data: projectLeadData } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', review.projectLeadId)
+                  .single();
+                
+                const transformedReview: ReviewWithCommentCount = {
+                  id: review.id,
+                  title: review.title,
+                  description: review.description,
+                  status: review.status,
+                  userId: review.userId,
+                  projectLeadId: review.projectLeadId,
+                  createdAt: review.createdAt,
+                  updatedAt: review.updatedAt,
+                  user: userData ? {
+                    id: userData.id,
+                    name: userData.name,
+                    email: userData.email,
+                    createdAt: userData.created_at,
+                    role: userData.role
+                  } : {
+                    id: review.userId,
+                    name: 'Unknown User',
+                    email: '',
+                    createdAt: new Date().toISOString(),
+                    role: 'Member'
+                  },
+                  projectLead: projectLeadData ? {
+                    id: projectLeadData.id,
+                    name: projectLeadData.name,
+                    email: projectLeadData.email,
+                    createdAt: projectLeadData.created_at,
+                    role: projectLeadData.role
+                  } : undefined,
+                  commentCount: count || 0
+                };
+                
+                return transformedReview;
+              } catch (error) {
+                return null;
+              }
+            })
+          );
+          
+          const validReviews = reviewsWithCounts.filter((review): review is ReviewWithCommentCount => review !== null);
+          setReviews(validReviews);
+        } catch (error) {
+          setReviews([]);
+        }
       } catch (error) {
         // Error is handled by the UI state
       } finally {
@@ -194,41 +243,6 @@ const Dashboard: NextPage = () => {
         </div>
       </div>
 
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center space-x-4">
-          {/* Status Filter */}
-          <div>
-            <label htmlFor="statusFilter" className="mr-2 text-sm font-medium">Filter:</label>
-            <select
-              id="statusFilter"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="border px-2 py-1 rounded"
-            >
-              <option value="All">All</option>
-              <option value="Submitted">Submitted</option>
-              <option value="In Review">In Review</option>
-              <option value="Needs Work">Needs Work</option>
-              <option value="Approved">Approved</option>
-              {showArchived && <option value="Archived">Archived</option>}
-            </select>
-          </div>
-          {/* Show Archived Toggle */}
-          <div className="flex items-center">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              <span className="ml-3 text-sm font-medium text-gray-700">Show Archived</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity Section */}
         <div>
@@ -270,6 +284,38 @@ const Dashboard: NextPage = () => {
               >
                 New Review
               </Link>
+            </div>
+          </div>
+          <div className="flex items-center space-x-4 mb-4">
+            {/* Status Filter */}
+            <div>
+              <label htmlFor="statusFilter" className="mr-2 text-sm font-medium">Filter:</label>
+              <select
+                id="statusFilter"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="border px-2 py-1 rounded"
+              >
+                <option value="All">All</option>
+                <option value="Submitted">Submitted</option>
+                <option value="In Review">In Review</option>
+                <option value="Needs Work">Needs Work</option>
+                <option value="Approved">Approved</option>
+                {showArchived && <option value="Archived">Archived</option>}
+              </select>
+            </div>
+            {/* Show Archived Toggle */}
+            <div className="flex items-center">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                <span className="ml-3 text-sm font-medium text-gray-700">Show Archived</span>
+              </label>
             </div>
           </div>
           {reviews.length === 0 ? (

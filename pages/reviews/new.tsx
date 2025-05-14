@@ -65,7 +65,7 @@ const NewReview: NextPage = () => {
     accountName: '',
     orgId: '',
     kantataProjectId: router.query.kantataProjectId as string || '',
-    segment: 'Enterprise',
+    segment: '',
     remoteAccess: false,
     graphName: '',
     useCase: '',
@@ -101,8 +101,8 @@ const NewReview: NextPage = () => {
   const form = useForm<ReviewFormValues>({
     initialValues,
     validationSchema,
-    validateOnChange: true,
-    validateOnBlur: true,
+    validateOnChange: false,
+    validateOnBlur: false,
     onSubmit: async (values) => {
       // Check submission/validation status first
       if (isSubmitting || isValidatingKantata) return;
@@ -210,14 +210,6 @@ const NewReview: NextPage = () => {
     
     return Object.keys(errors).length === 0;
   }, [form.values, form.setErrors, validationSchema]);
-
-  // Add effect to validate on value changes
-  useEffect(() => {
-    // Only validate if the field has been touched
-    if (Object.keys(form.touched).length > 0) {
-      validate();
-    }
-  }, [form.values, form.touched, validate]);
 
   // Add effect to scroll to top when any error changes
   useEffect(() => {
