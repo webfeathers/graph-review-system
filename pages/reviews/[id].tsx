@@ -38,6 +38,7 @@ const ReviewPage: NextPage = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
   
   // Project Lead related state
   const [newLeadId, setNewLeadId] = useState<string>('');
@@ -53,6 +54,11 @@ const ReviewPage: NextPage = () => {
 
       if (!user) {
         router.push(`/login?returnTo=/reviews/${id}`);
+        return;
+      }
+
+      // Only fetch if we haven't initialized or if we're explicitly refreshing
+      if (hasInitialized && review) {
         return;
       }
 
@@ -135,6 +141,8 @@ const ReviewPage: NextPage = () => {
         if (reviewData.comments) {
           setComments(reviewData.comments);
         }
+
+        setHasInitialized(true);
       } catch (err) {
         console.error('Error fetching review:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch review');
@@ -144,7 +152,7 @@ const ReviewPage: NextPage = () => {
     };
 
     fetchReview();
-  }, [id, user, authLoading, router]);
+  }, [id, user, authLoading, router, hasInitialized, review]);
 
   const handleStatusChange = async (newStatus: ReviewWithProfile['status']) => {
     if (!user || !review) return;
