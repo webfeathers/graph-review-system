@@ -8,6 +8,7 @@ const ProfilePage: NextPage = () => {
   const { profile, user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -15,6 +16,29 @@ const ProfilePage: NextPage = () => {
       router.push('/login');
     }
   }, [authLoading, user, router]);
+
+  // Fetch avatar URL when profile is loaded
+  useEffect(() => {
+    const fetchAvatar = async () => {
+      if (profile?.email) {
+        try {
+          const response = await fetch('/api/avatar', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: profile.email }),
+          });
+          const data = await response.json();
+          setAvatarUrl(data.avatarUrl);
+        } catch (error) {
+          console.error('Error fetching avatar:', error);
+        }
+      }
+    };
+
+    fetchAvatar();
+  }, [profile]);
 
   const handleRefresh = async () => {
     if (!user) return;
@@ -49,13 +73,26 @@ const ProfilePage: NextPage = () => {
           </button>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <p><strong>Name:</strong> {profile.name}</p>
-          <p><strong>Email:</strong> {profile.email}</p>
-          <p><strong>Role:</strong> {profile.role}</p>
-          <p><strong>Joined:</strong> {new Date(profile.createdAt).toLocaleDateString()}</p>
-          <p><strong>Reviews:</strong> {profile.reviewCount ?? 0}</p>
-          <p><strong>Comments:</strong> {profile.commentCount ?? 0}</p>
-          <p><strong>Points:</strong> {profile.points ?? 0}</p>
+          <div className="flex items-center space-x-4 mb-6">
+            {avatarUrl && (
+              <img
+                src={avatarUrl}
+                alt={`${profile.name}'s avatar`}
+                className="w-20 h-20 rounded-full"
+              />
+            )}
+            <div>
+              <h2 className="text-2xl font-semibold">{profile.name}</h2>
+              <p className="text-gray-600">{profile.email}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p><strong>Role:</strong> {profile.role}</p>
+            <p><strong>Joined:</strong> {new Date(profile.createdAt).toLocaleDateString()}</p>
+            <p><strong>Reviews:</strong> {profile.reviewCount ?? 0}</p>
+            <p><strong>Comments:</strong> {profile.commentCount ?? 0}</p>
+            <p><strong>Points:</strong> {profile.points ?? 0}</p>
+          </div>
           {profile.badges && profile.badges.length > 0 && (
             <div className="mt-4">
               <h2 className="text-xl font-semibold">Badges</h2>
