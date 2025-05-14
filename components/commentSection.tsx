@@ -135,24 +135,22 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     const lastAtIndex = textBeforeCaret.lastIndexOf('@');
     
     if (lastAtIndex !== -1) {
-      // Check if there's a space or newline between @ and caret
+      // Get the text between @ and caret
       const textBetween = textBeforeCaret.slice(lastAtIndex + 1);
-      if (!textBetween.includes(' ') && !textBetween.includes('\n')) {
-        const prefix = textBetween.toLowerCase();
-        const filteredSuggestions = allUsers.filter(u => 
-          u.name.toLowerCase().startsWith(prefix) || 
-          u.email.toLowerCase().startsWith(prefix)
-        );
+      
+      // Filter suggestions based on the text after @
+      const prefix = textBetween.toLowerCase();
+      const filteredSuggestions = allUsers.filter(u => 
+        u.name.toLowerCase().startsWith(prefix) || 
+        u.email.toLowerCase().startsWith(prefix)
+      );
+      
+      if (filteredSuggestions.length > 0) {
         setSuggestions(filteredSuggestions);
         
         // Calculate position for the autocomplete dropdown
         const textarea = e.target;
         const rect = textarea.getBoundingClientRect();
-        
-        // Get the position of the @ symbol
-        const textBeforeAt = textBeforeCaret.slice(0, lastAtIndex);
-        const lines = textBeforeAt.split('\n');
-        const lastLine = lines[lines.length - 1];
         
         // Create a temporary span to measure text
         const span = document.createElement('span');
@@ -166,37 +164,75 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         span.style.border = window.getComputedStyle(textarea).border;
         document.body.appendChild(span);
         
+        // Get the text up to the @ symbol
+        const textBeforeAt = textBeforeCaret.slice(0, lastAtIndex);
+        const lines = textBeforeAt.split('\n');
+        const lastLine = lines[lines.length - 1];
+        
         // Calculate vertical position
         span.textContent = textBeforeAt;
         const beforeAtHeight = span.offsetHeight;
-        
-        // Calculate horizontal position
-        span.textContent = lastLine;
-        const lastLineWidth = span.offsetWidth;
         
         document.body.removeChild(span);
         
         // Calculate the position
         const scrollTop = textarea.scrollTop;
-        const scrollLeft = textarea.scrollLeft;
         
-        // Position the dropdown
+        // Position the dropdown at the cursor position
         const top = rect.top + beforeAtHeight - scrollTop;
         
-        // Center the dropdown horizontally within the textarea
+        // Center the dropdown relative to the textarea
         const dropdownWidth = 300; // max-width from MentionAutocomplete
-        const textareaCenter = rect.left + (rect.width / 2);
-        const left = textareaCenter - (dropdownWidth / 2);
+        const left = rect.left + (rect.width - dropdownWidth) / 2;
         
-        // Ensure the dropdown stays within the viewport
-        const viewportWidth = window.innerWidth;
-        const adjustedLeft = Math.max(20, Math.min(left, viewportWidth - dropdownWidth - 20)); // 20px padding
+        // Adjust position if it would go off screen
+        const windowWidth = window.innerWidth;
+        const rightEdge = left + dropdownWidth;
+        
+        // If dropdown would go off the right edge, align it to the right edge of the textarea
+        const adjustedLeft = rightEdge > windowWidth ? 
+          Math.max(rect.left, windowWidth - dropdownWidth - 20) : // 20px padding from right edge
+          left;
         
         setMentionPosition({ top, left: adjustedLeft });
         setShowSuggestions(true);
         return;
       }
     }
+    
+    setShowSuggestions(false);
+  };
+
+  // Handle selecting a user from the mention suggestions
+  const handleSelectUser = (user: { id: string; name: string; email: string }) => {
+    const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
+    if (!textarea) return;
+    
+    const val = textarea.value;
+    const caret = textarea.selectionStart || 0;
+    const textBeforeCaret = val.slice(0, caret);
+    const lastAtIndex = textBeforeCaret.lastIndexOf('@');
+    
+    if (lastAtIndex === -1) return;
+    
+    // Get the text between @ and caret
+    const textBetween = textBeforeCaret.slice(lastAtIndex + 1);
+    
+    // Create the new content by replacing the @mention with the selected user
+    const newContent = 
+      val.slice(0, lastAtIndex) + // Text before @
+      `@${user.name} ` + // Selected user's name with @ and space
+      val.slice(caret); // Text after the caret
+    
+    // Update the form value
+    form.setFieldValue('content', newContent);
+    
+    // Set cursor position after the inserted mention
+    const newCaretPos = lastAtIndex + user.name.length + 2; // +2 for @ and space
+    setTimeout(() => {
+      textarea.setSelectionRange(newCaretPos, newCaretPos);
+      textarea.focus();
+    }, 0);
     
     setShowSuggestions(false);
   };
@@ -385,12 +421,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           {showSuggestions && suggestions.length > 0 && (
             <MentionAutocomplete
               suggestions={suggestions}
-              onSelect={(user) => {
-                const current = form.values.content;
-                const newContent = current.replace(/@(\w*)$/, `@${user.name} `);
-                form.setFieldValue('content', newContent);
-                setShowSuggestions(false);
-              }}
+              onSelect={handleSelectUser}
               onClose={() => setShowSuggestions(false)}
               position={mentionPosition}
             />
