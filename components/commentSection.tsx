@@ -269,11 +269,13 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        }
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete comment');
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to delete comment');
       }
 
       // Remove comment from local state
@@ -281,7 +283,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       toast.success('Comment deleted successfully');
     } catch (error) {
       console.error('Error deleting comment:', error);
-      toast.error('Failed to delete comment');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete comment');
     }
   };
 
