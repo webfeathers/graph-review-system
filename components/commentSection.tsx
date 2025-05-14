@@ -260,6 +260,31 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     }
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch(`/api/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete comment');
+      }
+
+      // Remove comment from local state
+      setComments(prevComments => prevComments.filter(c => c.id !== commentId));
+      toast.success('Comment deleted successfully');
+    } catch (error) {
+      console.error('Error deleting comment:', error);
+      toast.error('Failed to delete comment');
+    }
+  };
+
   // Show loading state while auth is initializing
   if (authLoading) {
     return <div className="animate-pulse">Loading comments...</div>;
@@ -275,7 +300,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   }
 
   return (
-    <div className="mt-8">
+    <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">Comments</h2>
       
       {error && (
@@ -287,7 +312,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       )}
 
       {/* Comment Form */}
-      <div className="bg-white p-6">
+      <div className="bg-gray-50 p-4 rounded-lg mb-6">
         <Form onSubmit={form.handleSubmit}>
           <TextArea
             id="content"
@@ -329,51 +354,70 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         </Form>
       </div>
 
-      <div className="mt-8 space-y-4">
+      <div className="space-y-4">
         {comments.length === 0 ? (
           <p className="text-gray-500 text-center">No comments yet. Be the first to comment!</p>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className="bg-white p-4 rounded-lg shadow">
+            <div key={comment.id} className="bg-white shadow rounded-lg p-4">
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium">{comment.user.name}</span>
-                    <span className="text-gray-500 text-sm">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                      <span className="text-gray-500 font-medium">
+                        {comment.user.name.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{comment.user.name}</p>
+                    <p className="text-sm text-gray-500">
                       {new Date(comment.createdAt).toLocaleString(undefined, {
                         year: 'numeric',
-                        month: 'short',
+                        month: 'numeric',
                         day: 'numeric',
                         hour: 'numeric',
-                        minute: 'numeric'
+                        minute: 'numeric',
+                        second: 'numeric'
                       })}
-                    </span>
+                    </p>
                   </div>
-                  <p className="mt-2 text-gray-700 whitespace-pre-wrap">
-                    {renderContentWithMentions(comment.content)}
-                  </p>
                 </div>
-                <div className="flex items-center space-x-2 ml-4">
-                  <button
-                    onClick={() => handleVote(comment.id, 'up')}
-                    className={`p-1 rounded-full ${
-                      comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-400 hover:text-blue-600'
-                    }`}
-                    title="Upvote"
+                {comment.userId === user?.id && (
+                  <button 
+                    className="text-gray-400 hover:text-red-600 transition-colors duration-200"
+                    title="Delete comment"
+                    onClick={() => handleDeleteComment(comment.id)}
                   >
-                    <HandThumbUpIcon className="h-5 w-5" />
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
-                  <span className="text-sm text-gray-500">{comment.voteCount || 0}</span>
-                  <button
-                    onClick={() => handleVote(comment.id, 'down')}
-                    className={`p-1 rounded-full ${
-                      comment.userVote === 'down' ? 'text-red-600' : 'text-gray-400 hover:text-red-600'
-                    }`}
-                    title="Downvote"
-                  >
-                    <HandThumbDownIcon className="h-5 w-5" />
-                  </button>
-                </div>
+                )}
+              </div>
+              <div className="mt-2 text-sm text-gray-700">
+                {renderContentWithMentions(comment.content)}
+              </div>
+              <div className="mt-2 flex items-center space-x-2">
+                <button
+                  onClick={() => handleVote(comment.id, 'up')}
+                  className={`p-1 rounded-full ${
+                    comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-400 hover:text-blue-600'
+                  }`}
+                  title="Upvote"
+                >
+                  <HandThumbUpIcon className="h-5 w-5" />
+                </button>
+                <span className="text-sm text-gray-500">{comment.voteCount || 0}</span>
+                <button
+                  onClick={() => handleVote(comment.id, 'down')}
+                  className={`p-1 rounded-full ${
+                    comment.userVote === 'down' ? 'text-red-600' : 'text-gray-400 hover:text-red-600'
+                  }`}
+                  title="Downvote"
+                >
+                  <HandThumbDownIcon className="h-5 w-5" />
+                </button>
               </div>
             </div>
           ))
