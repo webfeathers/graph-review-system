@@ -16,6 +16,14 @@
 - Fixed avatar loading issues with Google profile pictures
 - Improved error handling in API endpoints
 
+## [0.1.1] - 2024-04-21
+
+### Fixed
+- Fixed @mention dropdown positioning in comments
+  - Improved positioning calculation to handle text wrapping
+  - Centered dropdown within textarea
+  - Added viewport boundary checking
+
 ## [0.1.0] - 2024-04-21
 
 ### Added
