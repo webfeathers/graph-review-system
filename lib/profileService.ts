@@ -125,7 +125,11 @@ export class ProfileService {
           { count: reviewCount },
           { count: commentCount },
           { count: approvedReviewCount },
-          { count: completedTaskCount }
+          { count: completedTaskCount },
+          { data: helpfulVotes },
+          { data: firstComments },
+          { data: uniqueReviews },
+          { data: userCreatedAt }
         ] = await Promise.all([
           client
             .from('reviews')
@@ -144,22 +148,87 @@ export class ProfileService {
             .from('tasks')
             .select('id', { count: 'exact', head: true })
             .eq('assigned_to', user.id)
-            .eq('status', 'completed')
+            .eq('status', 'completed'),
+          client
+            .from('comment_votes')
+            .select('comment_id')
+            .eq('user_id', user.id)
+            .eq('is_helpful', true),
+          client
+            .from('comments')
+            .select('review_id')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true }),
+          client
+            .from('reviews')
+            .select('id')
+            .eq('user_id', user.id),
+          client
+            .from('profiles')
+            .select('created_at')
+            .eq('id', user.id)
+            .single()
         ]);
 
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
         const approvedReviewsCountValue = approvedReviewCount || 0;
         const completedTasksCountValue = completedTaskCount || 0;
+        const helpfulVotesCount = helpfulVotes?.length || 0;
+        const firstCommentsCount = firstComments?.length || 0;
+        const uniqueReviewsCount = uniqueReviews?.length || 0;
+        const monthsActive = userCreatedAt ? 
+          Math.floor((Date.now() - new Date(userCreatedAt.created_at).getTime()) / (30 * 24 * 60 * 60 * 1000)) : 0;
         
         const points = (reviewsCountValue * POINTS_PER_REVIEW) + 
                       (commentsCountValue * POINTS_PER_COMMENT) +
                       (approvedReviewsCountValue * POINTS_PER_REVIEW_APPROVAL) +
                       (completedTasksCountValue * POINTS_PER_TASK_COMPLETION);
 
+        // Calculate badges based on different metrics
         const badges = BADGE_THRESHOLDS
-          .filter(({ threshold }) => points >= threshold)
-          .map(({ badge }) => badge);
+          .filter(({ type, threshold, category }) => {
+            switch (category) {
+              case 'points':
+                return points >= threshold;
+              case 'reviews':
+                switch (type) {
+                  case 'Review Master':
+                    return reviewsCountValue >= threshold;
+                  case 'Quality Reviewer':
+                    return approvedReviewsCountValue >= threshold;
+                  case 'Helpful Reviewer':
+                    return helpfulVotesCount >= threshold;
+                  default:
+                    return false;
+                }
+              case 'comments':
+                switch (type) {
+                  case 'Engaged Commenter':
+                    return commentsCountValue >= threshold;
+                  case 'Insightful Commenter':
+                    return helpfulVotesCount >= threshold;
+                  default:
+                    return false;
+                }
+              case 'special':
+                switch (type) {
+                  case 'Early Adopter':
+                    return monthsActive >= 1; // Joined in first month
+                  case 'Team Player':
+                    return uniqueReviewsCount >= threshold;
+                  case 'Consistent Contributor':
+                    return monthsActive >= threshold;
+                  case 'Ice Breaker':
+                    return firstCommentsCount >= threshold;
+                  default:
+                    return false;
+                }
+              default:
+                return false;
+            }
+          })
+          .map(({ type }) => type);
 
         const profile: Profile = {
           ...baseProfile,
@@ -242,7 +311,11 @@ export class ProfileService {
           { count: reviewCount },
           { count: commentCount },
           { count: approvedReviewCount },
-          { count: completedTaskCount }
+          { count: completedTaskCount },
+          { data: helpfulVotes },
+          { data: firstComments },
+          { data: uniqueReviews },
+          { data: userCreatedAt }
         ] = await Promise.all([
           client
             .from('reviews')
@@ -261,22 +334,87 @@ export class ProfileService {
             .from('tasks')
             .select('id', { count: 'exact', head: true })
             .eq('assigned_to', user.id)
-            .eq('status', 'completed')
+            .eq('status', 'completed'),
+          client
+            .from('comment_votes')
+            .select('comment_id')
+            .eq('user_id', user.id)
+            .eq('is_helpful', true),
+          client
+            .from('comments')
+            .select('review_id')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true }),
+          client
+            .from('reviews')
+            .select('id')
+            .eq('user_id', user.id),
+          client
+            .from('profiles')
+            .select('created_at')
+            .eq('id', user.id)
+            .single()
         ]);
 
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
         const approvedReviewsCountValue = approvedReviewCount || 0;
         const completedTasksCountValue = completedTaskCount || 0;
+        const helpfulVotesCount = helpfulVotes?.length || 0;
+        const firstCommentsCount = firstComments?.length || 0;
+        const uniqueReviewsCount = uniqueReviews?.length || 0;
+        const monthsActive = userCreatedAt ? 
+          Math.floor((Date.now() - new Date(userCreatedAt.created_at).getTime()) / (30 * 24 * 60 * 60 * 1000)) : 0;
         
         const points = (reviewsCountValue * POINTS_PER_REVIEW) + 
                       (commentsCountValue * POINTS_PER_COMMENT) +
                       (approvedReviewsCountValue * POINTS_PER_REVIEW_APPROVAL) +
                       (completedTasksCountValue * POINTS_PER_TASK_COMPLETION);
 
+        // Calculate badges based on different metrics
         const badges = BADGE_THRESHOLDS
-          .filter(({ threshold }) => points >= threshold)
-          .map(({ badge }) => badge);
+          .filter(({ type, threshold, category }) => {
+            switch (category) {
+              case 'points':
+                return points >= threshold;
+              case 'reviews':
+                switch (type) {
+                  case 'Review Master':
+                    return reviewsCountValue >= threshold;
+                  case 'Quality Reviewer':
+                    return approvedReviewsCountValue >= threshold;
+                  case 'Helpful Reviewer':
+                    return helpfulVotesCount >= threshold;
+                  default:
+                    return false;
+                }
+              case 'comments':
+                switch (type) {
+                  case 'Engaged Commenter':
+                    return commentsCountValue >= threshold;
+                  case 'Insightful Commenter':
+                    return helpfulVotesCount >= threshold;
+                  default:
+                    return false;
+                }
+              case 'special':
+                switch (type) {
+                  case 'Early Adopter':
+                    return monthsActive >= 1; // Joined in first month
+                  case 'Team Player':
+                    return uniqueReviewsCount >= threshold;
+                  case 'Consistent Contributor':
+                    return monthsActive >= threshold;
+                  case 'Ice Breaker':
+                    return firstCommentsCount >= threshold;
+                  default:
+                    return false;
+                }
+              default:
+                return false;
+            }
+          })
+          .map(({ type }) => type);
 
         const profile: Profile = {
           ...baseProfile,

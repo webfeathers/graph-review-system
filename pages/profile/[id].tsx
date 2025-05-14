@@ -7,6 +7,10 @@ import type { Profile } from '../../types/supabase';
 import { ProfileService } from '../../lib/profileService';
 import { supabase } from '../../lib/supabase';
 import { POINTS_PER_REVIEW, POINTS_PER_COMMENT, BADGE_THRESHOLDS } from '../../constants';
+import BadgeDisplay from '../../components/BadgeDisplay';
+import { BadgeType } from '../../constants';
+import Link from 'next/link';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 
 const ProfilePage: NextPage = () => {
   const router = useRouter();
@@ -79,9 +83,92 @@ const ProfilePage: NextPage = () => {
         const reviewsCountValue = reviewCount || 0;
         const commentsCountValue = commentCount || 0;
         const points = reviewsCountValue * POINTS_PER_REVIEW + commentsCountValue * POINTS_PER_COMMENT;
+
+        // Get additional metrics for badges
+        const [
+          { count: approvedReviewCount },
+          { data: helpfulVotes },
+          { data: firstComments },
+          { data: uniqueReviews },
+          { data: userCreatedAt }
+        ] = await Promise.all([
+          supabase
+            .from('reviews')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', id)
+            .eq('status', 'Approved'),
+          supabase
+            .from('comment_votes')
+            .select('comment_id')
+            .eq('user_id', id)
+            .eq('is_helpful', true),
+          supabase
+            .from('comments')
+            .select('review_id')
+            .eq('user_id', id)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('reviews')
+            .select('id')
+            .eq('user_id', id),
+          supabase
+            .from('profiles')
+            .select('created_at')
+            .eq('id', id)
+            .single()
+        ]);
+
+        const approvedReviewsCountValue = approvedReviewCount || 0;
+        const helpfulVotesCount = helpfulVotes?.length || 0;
+        const firstCommentsCount = firstComments?.length || 0;
+        const uniqueReviewsCount = uniqueReviews?.length || 0;
+        const monthsActive = userCreatedAt ? 
+          Math.floor((Date.now() - new Date(userCreatedAt.created_at).getTime()) / (30 * 24 * 60 * 60 * 1000)) : 0;
+
+        // Calculate badges based on different metrics
         const badges = BADGE_THRESHOLDS
-          .filter(({ threshold }) => points >= threshold)
-          .map(({ badge }) => badge);
+          .filter(({ type, threshold, category }) => {
+            switch (category) {
+              case 'points':
+                return points >= threshold;
+              case 'reviews':
+                switch (type) {
+                  case 'Review Master':
+                    return reviewsCountValue >= threshold;
+                  case 'Quality Reviewer':
+                    return approvedReviewsCountValue >= threshold;
+                  case 'Helpful Reviewer':
+                    return helpfulVotesCount >= threshold;
+                  default:
+                    return false;
+                }
+              case 'comments':
+                switch (type) {
+                  case 'Engaged Commenter':
+                    return commentsCountValue >= threshold;
+                  case 'Insightful Commenter':
+                    return helpfulVotesCount >= threshold;
+                  default:
+                    return false;
+                }
+              case 'special':
+                switch (type) {
+                  case 'Early Adopter':
+                    return monthsActive >= 1; // Joined in first month
+                  case 'Team Player':
+                    return uniqueReviewsCount >= threshold;
+                  case 'Consistent Contributor':
+                    return monthsActive >= threshold;
+                  case 'Ice Breaker':
+                    return firstCommentsCount >= threshold;
+                  default:
+                    return false;
+                }
+              default:
+                return false;
+            }
+          })
+          .map(({ type }) => type);
 
         // Update profile with calculated values
         const updatedProfile = {
@@ -179,11 +266,16 @@ const ProfilePage: NextPage = () => {
             <p><strong>Comments:</strong> {profile.commentCount ?? 0}</p>
             <p><strong>Points:</strong> {profile.points ?? 0}</p>
             {profile.badges && profile.badges.length > 0 && (
-              <div className="mt-4">
-                <h2 className="text-xl font-semibold">Badges</h2>
+              <div className="mt-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold">Badges</h2>
+                  <Link href="/help#badges" className="text-gray-400 hover:text-gray-600">
+                    <InformationCircleIcon className="w-5 h-5" />
+                  </Link>
+                </div>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {profile.badges.map(badge => (
-                    <span key={badge} className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded">{badge}</span>
+                  {profile.badges.map((badge: BadgeType) => (
+                    <BadgeDisplay key={badge} badge={badge} size="md" />
                   ))}
                 </div>
               </div>

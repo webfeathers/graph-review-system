@@ -1,3 +1,5 @@
+import { BadgeType } from '../constants';
+
 export type Role = 'Admin' | 'Member';
 
 // Database types (using snake_case)
@@ -65,11 +67,11 @@ export interface Profile {
   email: string;
   createdAt: string;
   role: Role;
+  avatarUrl?: string | null;
   reviewCount?: number;
   commentCount?: number;
   points?: number;
-  badges?: string[];
-  avatarUrl?: string;
+  badges?: BadgeType[];
 }
 
 export interface Review {

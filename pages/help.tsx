@@ -1,20 +1,61 @@
 import type { NextPage } from 'next';
 import { withRoleProtection } from '../components/withRoleProtection';
 import Link from 'next/link';
+import { BadgeType, POINTS_PER_REVIEW, POINTS_PER_COMMENT, POINTS_PER_REVIEW_APPROVAL, POINTS_PER_TASK_COMPLETION } from '../constants';
+import BadgeDisplay from '../components/BadgeDisplay';
 
 const HelpPage: NextPage = () => {
   return (
     <div className="max-w-4xl mx-auto">
       <h1 className="text-3xl font-bold mb-8">Help & Documentation</h1>
 
+      {/* Table of Contents */}
+      <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <h2 className="text-xl font-semibold mb-4">Quick Navigation</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h3 className="font-medium text-gray-900 mb-2">Getting Started</h3>
+            <ul className="space-y-1">
+              <li><a href="#overview" className="text-blue-600 hover:text-blue-800">Overview</a></li>
+              <li><a href="#getting-started" className="text-blue-600 hover:text-blue-800">Getting Started</a></li>
+              <li><a href="#points-system" className="text-blue-600 hover:text-blue-800">Points & Badges</a></li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-medium text-gray-900 mb-2">Features</h3>
+            <ul className="space-y-1">
+              <li><a href="#creating-reviews" className="text-blue-600 hover:text-blue-800">Creating Reviews</a></li>
+              <li><a href="#review-process" className="text-blue-600 hover:text-blue-800">Review Process</a></li>
+              <li><a href="#kantata-integration" className="text-blue-600 hover:text-blue-800">Kantata Integration</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-12">
         {/* Overview Section */}
         <section id="overview" className="scroll-mt-20">
           <h2 className="text-2xl font-semibold mb-4">Overview</h2>
-          <p className="text-gray-600 mb-4">
-            The Graph Review System is designed to streamline the process of reviewing and managing graph-based projects. 
-            It replaces the previous Google Forms and presentation-based workflow with a more efficient, integrated solution.
-          </p>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <p className="text-gray-600 mb-4">
+              The Graph Review System is designed to streamline the process of reviewing and managing graph-based projects. 
+              It replaces the previous Google Forms and presentation-based workflow with a more efficient, integrated solution.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-medium text-blue-900 mb-2">Create Reviews</h3>
+                <p className="text-blue-800 text-sm">Submit graph reviews with all necessary details and documentation</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="font-medium text-green-900 mb-2">Track Progress</h3>
+                <p className="text-green-800 text-sm">Monitor review status and track required changes</p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="font-medium text-purple-900 mb-2">Earn Rewards</h3>
+                <p className="text-purple-800 text-sm">Gain points and badges for your contributions</p>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Getting Started Section */}
@@ -72,15 +113,99 @@ const HelpPage: NextPage = () => {
 
             <div className="bg-white p-4 rounded-lg shadow">
               <h3 className="text-lg font-medium mb-2">Points and Badges</h3>
-              <p className="text-gray-600 mb-4">
-                As you accumulate points, you'll earn badges that recognize your contributions:
+              <p className="mb-4">
+                As you contribute to the review system, you'll earn points and badges that recognize your achievements:
               </p>
-              <ul className="list-disc list-inside space-y-2 text-gray-600">
-                <li>Review Creator: Earned by creating your first review (10 points)</li>
-                <li>Active Contributor: Awarded for regular participation (50 points)</li>
-                <li>Review Expert: Achieved through consistent high-quality contributions (100 points)</li>
-                <li>Team Player: Earned by providing valuable feedback to others (25 comments)</li>
-              </ul>
+
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Points System</h4>
+                  <ul className="list-disc pl-5 space-y-1 text-gray-600">
+                    <li>{POINTS_PER_REVIEW} points per review submitted</li>
+                    <li>{POINTS_PER_COMMENT} points per comment made</li>
+                    <li>{POINTS_PER_REVIEW_APPROVAL} points per review approved</li>
+                    <li>{POINTS_PER_TASK_COMPLETION} points per task completed</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Badges</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <h5 className="font-medium text-gray-800 mb-2">Points-Based Badges</h5>
+                      <ul className="space-y-2">
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.EXPERT_REVIEWER} size="sm" />
+                          <span className="ml-2 text-gray-600">Earn 100+ points through your contributions</span>
+                        </li>
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.ACTIVE_REVIEWER} size="sm" />
+                          <span className="ml-2 text-gray-600">Earn 50+ points through your contributions</span>
+                        </li>
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.CONTRIBUTOR} size="sm" />
+                          <span className="ml-2 text-gray-600">Earn 10+ points through your contributions</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h5 className="font-medium text-gray-800 mb-2">Review-Based Badges</h5>
+                      <ul className="space-y-2">
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.REVIEW_MASTER} size="sm" />
+                          <span className="ml-2 text-gray-600">Complete 20+ reviews</span>
+                        </li>
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.QUALITY_REVIEWER} size="sm" />
+                          <span className="ml-2 text-gray-600">Have 5+ reviews approved</span>
+                        </li>
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.HELPFUL_REVIEWER} size="sm" />
+                          <span className="ml-2 text-gray-600">Receive 10+ helpful votes on your comments</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h5 className="font-medium text-gray-800 mb-2">Comment-Based Badges</h5>
+                      <ul className="space-y-2">
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.ENGAGED_COMMENTER} size="sm" />
+                          <span className="ml-2 text-gray-600">Make 20+ comments</span>
+                        </li>
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.INSIGHTFUL_COMMENTER} size="sm" />
+                          <span className="ml-2 text-gray-600">Have 5+ comments marked as helpful</span>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h5 className="font-medium text-gray-800 mb-2">Special Achievement Badges</h5>
+                      <ul className="space-y-2">
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.EARLY_ADOPTER} size="sm" />
+                          <span className="ml-2 text-gray-600">Join the system in its first month</span>
+                        </li>
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.TEAM_PLAYER} size="sm" />
+                          <span className="ml-2 text-gray-600">Participate in 5+ different reviews</span>
+                        </li>
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.CONSISTENT_CONTRIBUTOR} size="sm" />
+                          <span className="ml-2 text-gray-600">Maintain activity for 3+ months</span>
+                        </li>
+                        <li className="flex items-start">
+                          <BadgeDisplay badge={BadgeType.ICE_BREAKER} size="sm" />
+                          <span className="ml-2 text-gray-600">Be the first to comment on a review</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <p className="mt-4 text-gray-600">
                 Your points and badges are displayed on your dashboard, showcasing your contributions to the team.
               </p>
@@ -295,57 +420,76 @@ const HelpPage: NextPage = () => {
           </div>
         </section>
 
-        {/* Need Help? */}
-        <section id="need-help" className="scroll-mt-20">
-          <h2 className="text-2xl font-semibold mb-4">Need Help?</h2>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-gray-600">
-              If you need additional assistance or have questions about the system, please contact your system administrator.
-            </p>
-          </div>
-        </section>
-
-        {/* Badges Section */}
-        <section id="badges" className="scroll-mt-20">
-          <h2 className="text-2xl font-semibold mb-4">Badges</h2>
-          <div className="space-y-4">
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-2">Review Creator</h3>
-              <p className="text-gray-600">
-                Review Creator: Earned by creating your first review
-              </p>
-            </div>
-
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-2">Active Contributor</h3>
-              <p className="text-gray-600">
-                Active Contributor: Awarded for regular participation
-              </p>
-            </div>
-
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-2">Review Expert</h3>
-              <p className="text-gray-600">
-                Review Expert: Achieved through consistent high-quality contributions
-              </p>
-            </div>
-
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-2">Team Player</h3>
-              <p className="text-gray-600">
-                Team Player: Earned by providing valuable feedback to others
-              </p>
-            </div>
-          </div>
-        </section>
-
         {/* FAQ Section */}
         <section id="faq" className="scroll-mt-20">
           <h2 className="text-2xl font-semibold mb-4">Frequently Asked Questions</h2>
-          <div className="bg-white p-4 rounded-lg shadow">
-            <p className="text-gray-600">
-              If you have any other questions or need further assistance, please feel free to contact us.
-            </p>
+          <div className="space-y-4">
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-medium mb-4">Common Questions</h3>
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">How do I submit a review?</h4>
+                  <p className="text-gray-600">
+                    Click the "New Review" button on the Reviews page, fill in all required fields, and click "Submit Review". 
+                    Make sure to include all necessary documentation and links.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">What happens after I submit a review?</h4>
+                  <p className="text-gray-600">
+                    Your review will be assigned to reviewers who will evaluate it. They may add comments, request changes, 
+                    or approve it. You'll be notified of any updates or required actions.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">How do I earn points and badges?</h4>
+                  <p className="text-gray-600">
+                    Points are earned through various activities like creating reviews, making comments, and completing tasks. 
+                    Badges are awarded for reaching specific milestones. See the Points & Badges section for details.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Can I edit a review after submission?</h4>
+                  <p className="text-gray-600">
+                    Yes, you can edit your review while it's in "Submitted" or "Needs Work" status. Once approved, 
+                    you'll need to create a new review for any changes.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">How do I track my review's progress?</h4>
+                  <p className="text-gray-600">
+                    You can monitor your review's status on your dashboard. The status will update as reviewers provide feedback 
+                    or request changes. You'll also receive notifications for any updates.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Need Help? */}
+        <section id="need-help" className="scroll-mt-20">
+          <h2 className="text-2xl font-semibold mb-4">Need Help?</h2>
+          <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0">
+                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-gray-600 mb-4">
+                  If you need additional assistance or have questions about the system, please contact your system administrator.
+                </p>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-blue-900 mb-2">Contact Information</h3>
+                  <p className="text-blue-800 text-sm">
+                    Email: support@example.com<br />
+                    Hours: Monday - Friday, 9:00 AM - 5:00 PM EST
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </div>
