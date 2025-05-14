@@ -128,7 +128,6 @@ const ProfilePage: NextPage = () => {
         {/* Profile Info */}
         <div className="md:col-span-1">
           <div className="bg-white p-6 rounded-lg shadow">
-            <p><strong>Name:</strong> {profile.name}</p>
             <p><strong>Role:</strong> {profile.role}</p>
             <p><strong>Joined:</strong> {new Date(profile.createdAt).toLocaleDateString()}</p>
             <p><strong>Reviews:</strong> {profile.reviewCount ?? 0}</p>
