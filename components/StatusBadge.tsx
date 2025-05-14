@@ -1,12 +1,13 @@
 // components/StatusBadge.tsx
 import React from 'react';
+import { Review } from '../types/supabase';
 
 /**
  * Props for the StatusBadge component
  */
 interface StatusBadgeProps {
   /** The status to display in the badge */
-  status: 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
+  status: Review['status'];
 }
 
 /**
@@ -25,6 +26,7 @@ interface StatusBadgeProps {
  * - In Review: Blue background with white text
  * - Needs Work: Orange background with white text
  * - Approved: Green background with white text
+ * - Archived: Gray background with dark gray text
  * 
  * @example
  * // Basic usage
@@ -45,25 +47,27 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
    * Returns the appropriate color classes based on the status
    * @returns {string} Tailwind CSS classes for the status color
    */
-  const getStatusColor = () => {
+  const getStatusColor = (status: Review['status']) => {
     switch (status) {
       case 'Draft':
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-100 text-gray-800';
       case 'Submitted':
-        return 'bg-purple-600 text-white';
+        return 'bg-purple-100 text-purple-800';
       case 'In Review':
-        return 'bg-blue-600 text-white';
+        return 'bg-blue-100 text-blue-800';
       case 'Needs Work':
-        return 'bg-orange-500 text-white';
+        return 'bg-orange-100 text-orange-800';
       case 'Approved':
-        return 'bg-green-600 text-white';
+        return 'bg-green-100 text-green-800';
+      case 'Archived':
+        return 'bg-gray-200 text-gray-800';
       default:
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   return (
-    <span className={`inline-flex items-center justify-center min-w-[80px] px-3 py-1 text-sm font-medium rounded-full ${getStatusColor()}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
       {status}
     </span>
   );
