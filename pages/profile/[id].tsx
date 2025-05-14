@@ -64,10 +64,11 @@ const ProfilePage: NextPage = () => {
             id,
             type,
             review_id,
-            project_id,
+            task_id,
+            comment_id,
             created_at,
             metadata,
-            user:profiles!activities_user_id_fkey(*),
+            user:profiles!activities_user_id_fkey(id, name, role, email, points, created_at),
             review:reviews!activities_review_id_fkey(id, title)
           `)
           .eq('user_id', id)
