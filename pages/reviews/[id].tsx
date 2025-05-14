@@ -460,22 +460,22 @@ const ReviewPage: NextPage = () => {
             <div className="mb-4">
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-2">Project Details</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <h2 className="text-lg font-medium text-gray-900 mb-2">Description</h2>
+                  <div className="prose max-w-none text-gray-900 text-sm mb-6">{review.description || 'Not Added'}</div>
+
+                  <h2 className="text-lg font-medium text-gray-900 mb-2">Use Case</h2>
+                  <div className="prose max-w-none text-gray-900 text-sm mb-6">{review.useCase || 'Not Added'}</div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Account Name</label>
-                        <div className="text-gray-900">{review.accountName || 'Not Added'}</div>
+                      <div className="flex items-center">
+                        <label className="w-1/3 text-sm font-medium text-gray-700">Account Name</label>
+                        <div className="w-2/3 text-gray-900">{review.accountName || 'Not Added'}</div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Title</label>
-                        <div className="text-gray-900">{review.title}</div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Kantata Project ID</label>
-                        <div>
+                      <div className="flex items-center">
+                        <label className="w-1/3 text-sm font-medium text-gray-700">Kantata Project ID</label>
+                        <div className="w-2/3">
                           <a 
                             href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}?tab=project-workspace`}
                             target="_blank"
@@ -489,44 +489,32 @@ const ReviewPage: NextPage = () => {
                           </a>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">OrgID</label>
-                        <div className="text-gray-900">{review.orgId || 'Not Added'}</div>
+                      <div className="flex items-center">
+                        <label className="w-1/3 text-sm font-medium text-gray-700">OrgID</label>
+                        <div className="w-2/3 text-gray-900">{review.orgId || 'Not Added'}</div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Remote Access</label>
-                        <div className="text-gray-900">{review.remoteAccess ? 'Yes' : 'No'}</div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Segment</label>
-                        <div className="text-gray-900">{review.segment || 'Not Added'}</div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Graph Name</label>
-                        <div className="text-gray-900">{review.graphName || 'Not Added'}</div>
+                      <div className="flex items-center">
+                        <label className="w-1/3 text-sm font-medium text-gray-700">Remote Access</label>
+                        <div className="w-2/3 text-gray-900">{review.remoteAccess ? 'Yes' : 'No'}</div>
                       </div>
                     </div>
 
                     <div className="space-y-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Description</label>
-                        <div className="prose max-w-none text-gray-900 text-sm">{review.description || 'Not Added'}</div>
+                      <div className="flex items-center">
+                        <label className="w-1/3 text-sm font-medium text-gray-700">Segment</label>
+                        <div className="w-2/3 text-gray-900">{review.segment || 'Not Added'}</div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Use Case</label>
-                        <div className="prose max-w-none text-gray-900 text-sm">{review.useCase || 'Not Added'}</div>
+                      <div className="flex items-center">
+                        <label className="w-1/3 text-sm font-medium text-gray-700">Graph Name</label>
+                        <div className="w-2/3 text-gray-900">{review.graphName || 'Not Added'}</div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Customer Folder</label>
-                        <div>
+                      <div className="flex items-center">
+                        <label className="w-1/3 text-sm font-medium text-gray-700">Customer Folder</label>
+                        <div className="w-2/3">
                           {review.customerFolder ? (
                             <a 
                               href={review.customerFolder}
@@ -545,9 +533,9 @@ const ReviewPage: NextPage = () => {
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Sales to PS Handoff</label>
-                        <div>
+                      <div className="flex items-center">
+                        <label className="w-1/3 text-sm font-medium text-gray-700">Sales to PS Handoff</label>
+                        <div className="w-2/3">
                           {review.handoffLink ? (
                             <a 
                               href={review.handoffLink}
@@ -570,20 +558,13 @@ const ReviewPage: NextPage = () => {
                 </div>
               </div>
             </div>
-
-            <div className="mt-4 px-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-2">Review Notes</h2>
-              <div className="prose max-w-none">
-                {review.description}
-              </div>
-            </div>
           </div>
 
           {/* Bottom Section - Tasks and Comments */}
           <div className="mt-8 border-t border-gray-200 pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Comments Section */}
-              <div className="rounded-lg p-6">
+              <div className="bg-white rounded-lg shadow-sm">
                 <CommentSection
                   comments={review.comments || []}
                   reviewId={review.id}
@@ -594,7 +575,7 @@ const ReviewPage: NextPage = () => {
               </div>
 
               {/* Tasks Section */}
-              <div className="rounded-lg p-6">
+              <div className="bg-white rounded-lg shadow-sm">
                 <TaskList 
                   reviewId={review.id} 
                   reviewTitle={review.title} 
