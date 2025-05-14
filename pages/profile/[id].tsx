@@ -63,12 +63,12 @@ const ProfilePage: NextPage = () => {
           .select(`
             id,
             type,
-            action,
             description,
             link,
             review_id,
             project_id,
             created_at,
+            metadata,
             user:profiles!activities_user_id_fkey(*),
             review:reviews!activities_review_id_fkey(id, title)
           `)
