@@ -32,7 +32,7 @@ const Dashboard: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [activities, setActivities] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [filter, setFilter] = useState('All');
@@ -56,7 +56,7 @@ const Dashboard: NextPage = () => {
         // Get all users for the filter
         const { data: usersData, error: usersError } = await supabase
           .from('profiles')
-          .select('id, name')
+          .select('id, name, email')
           .order('name');
 
         if (usersError) throw usersError;
@@ -255,7 +255,7 @@ const Dashboard: NextPage = () => {
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto"></div>
             </div>
           ) : (
-            <ActivityFeed activities={activities} />
+            <ActivityFeed activities={activities} allUsers={users} />
           )}
         </div>
 

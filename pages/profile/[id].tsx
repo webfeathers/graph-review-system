@@ -18,6 +18,7 @@ const ProfilePage: NextPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasLoadedProfile = useRef(false);
+  const [allUsers, setAllUsers] = useState<{id: string; name: string; email: string}[]>([]);
 
   // Get avatar URL from user metadata
   useEffect(() => {
@@ -125,6 +126,14 @@ const ProfilePage: NextPage = () => {
     loadProfile();
   }, [router.isReady, authLoading, user, id]);
 
+  useEffect(() => {
+    const loadUsers = async () => {
+      const { data } = await supabase.from('profiles').select('id, name, email');
+      setAllUsers(data || []);
+    };
+    loadUsers();
+  }, []);
+
   // Handle authentication redirect
   useEffect(() => {
     if (!authLoading && !user) {
@@ -186,7 +195,7 @@ const ProfilePage: NextPage = () => {
         <div className="md:col-span-2">
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-            <ActivityFeed activities={activities} />
+            <ActivityFeed activities={activities} allUsers={allUsers} />
           </div>
         </div>
       </div>
