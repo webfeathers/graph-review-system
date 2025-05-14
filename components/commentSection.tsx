@@ -212,19 +212,19 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     }
   }, [initialComments, user, session]);
 
-  // Helper to parse and render full-name mentions as links
+  // Helper to parse and render full-name mentions as links, preserving newlines
   const renderContentWithMentions = (text: string) => {
     if (!allUsers.length) return <span>{text}</span>;
     // Build a regex that matches any full name from allUsers
     const namesPattern = allUsers.map(u => u.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
     const regex = new RegExp(`@(${namesPattern})`, 'g');
     const parts = text.split(regex);
-    return parts.map((part, idx) => {
+    return parts.flatMap((part, idx) => {
       // Odd index means a matched name from the capture group
       if (idx % 2 === 1) {
         const name = part;
         const userObj = allUsers.find(u => u.name === name);
-        return (
+        return [
           <Link
             key={idx}
             href={`/profile/${userObj?.id}`}
@@ -238,9 +238,13 @@ const CommentSection: React.FC<CommentSectionProps> = ({
           >
             @{name}
           </Link>
-        );
+        ];
       }
-      return <span key={idx}>{part}</span>;
+      // For non-mention parts, split by newlines and interleave <br />
+      const lines = part.split('\n');
+      return lines.flatMap((line, i) =>
+        i === 0 ? [line] : [<br key={`br-${idx}-${i}`} />, line]
+      );
     });
   };
 
