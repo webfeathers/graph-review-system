@@ -80,7 +80,6 @@ const ProfilePage: NextPage = () => {
 
         hasLoadedProfile.current = true;
       } catch (err) {
-        console.error('Error loading profile:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch profile');
       } finally {
         setLoading(false);
