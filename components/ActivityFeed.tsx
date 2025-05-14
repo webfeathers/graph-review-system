@@ -198,12 +198,12 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
                 {getActivityIcon(activity.type)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900">
+                <div className="text-sm text-gray-900">
                   <Link href={`/profile/${activity.user.id}`} className="font-medium text-blue-600 hover:underline">
                     {activity.user.name}
                   </Link>{' '}
                   {renderActivityContent(activity)}
-                </p>
+                </div>
                 <p className="text-xs text-gray-500 mt-1">
                   {formatDate(activity.created_at)}
                 </p>
