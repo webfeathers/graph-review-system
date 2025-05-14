@@ -24,6 +24,11 @@ const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Reset selected index when suggestions change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [suggestions]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
@@ -37,7 +42,9 @@ const MentionAutocomplete: React.FC<MentionAutocompleteProps> = ({
           break;
         case 'Enter':
           e.preventDefault();
-          onSelect(suggestions[selectedIndex]);
+          if (suggestions[selectedIndex]) {
+            onSelect(suggestions[selectedIndex]);
+          }
           break;
         case 'Escape':
           e.preventDefault();
