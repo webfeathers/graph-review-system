@@ -8,6 +8,7 @@ import Link from 'next/link';
 import GraphReviewCard from '../../components/GraphReviewCard';
 import { LoadingState } from '../../components/LoadingState';
 import { withRoleProtection } from '../../components/withRoleProtection';
+import StatusBadge from '../../components/StatusBadge';
 
 // Hooks and Utils
 import { useAuth } from '../../components/AuthProvider';
@@ -29,8 +30,6 @@ const ReviewsPage: NextPage = () => {
   const [reviews, setReviews] = useState<ReviewWithCommentCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('All');
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
-  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -107,12 +106,8 @@ const ReviewsPage: NextPage = () => {
 
   const filteredReviews = reviews
     .filter(review => {
-      // First filter by status
+      // Filter by status
       if (filter !== 'All' && review.status !== filter) {
-        return false;
-      }
-      // Then handle archived status
-      if (!showArchived && review.status === 'Archived') {
         return false;
       }
       return true;
@@ -121,24 +116,6 @@ const ReviewsPage: NextPage = () => {
   if (authLoading || loading) {
     return <LoadingState />;
   }
-
-  // Get status color for the list view indicator
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Submitted':
-        return 'bg-gray-200';
-      case 'In Review':
-        return 'bg-blue-200';
-      case 'Needs Work':
-        return 'bg-yellow-200';
-      case 'Approved':
-        return 'bg-[#d1f0e1]';
-      case 'Archived':
-        return 'bg-gray-300';
-      default:
-        return 'bg-gray-200';
-    }
-  };
 
   // Add navigation handler
   const handleViewDiscussion = async (reviewId: string) => {
@@ -154,16 +131,11 @@ const ReviewsPage: NextPage = () => {
 
   // List view component for a single review
   const ReviewListItem = ({ review, commentCount }: { review: ReviewWithProfile, commentCount: number }) => (
-    <div className="py-4 px-2 flex">
-      {/* Status indicator on the left side */}
-      <div className="mr-4 flex flex-col items-center">
-        <div className={`w-2 h-full rounded-full ${getStatusColor(review.status)}`}></div>
-      </div>
-      
-      {/* Review content */}
-      <div className="flex-grow flex flex-col md:flex-row md:items-center">
-        <div className="flex-grow mb-2 md:mb-0">
-          <div className="flex items-start justify-between">
+    <div className="py-4 px-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+      <div className="flex items-start justify-between">
+        <div className="flex-grow">
+          <div className="flex items-center space-x-3 mb-2">
+            <StatusBadge status={review.status} />
             <button 
               onClick={() => handleViewDiscussion(review.id)} 
               className="text-lg font-semibold text-blue-600 hover:underline text-left"
@@ -171,23 +143,58 @@ const ReviewsPage: NextPage = () => {
               {review.title}
             </button>
           </div>
-          <div className="text-sm text-gray-500 mt-1">
-            By {review.user.name} on {new Date(review.createdAt).toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
+          
+          <div className="text-sm text-gray-600 mb-2">
+            {review.description.length > 150 
+              ? `${review.description.substring(0, 150)}...` 
+              : review.description}
           </div>
-          <div className="flex items-center text-sm text-gray-500 mt-1">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-            <span>{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
+          
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <Link href={`/profile/${review.user.id}`} className="hover:text-blue-600">
+                {review.user.name}
+              </Link>
+            </div>
+            
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {new Date(review.createdAt).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </div>
+            
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              <span>{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
+            </div>
+            
+            {review.projectLead && (
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>Lead: </span>
+                <Link href={`/profile/${review.projectLead.id}`} className="ml-1 hover:text-blue-600">
+                  {review.projectLead.name}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
+        
         <button 
           onClick={() => handleViewDiscussion(review.id)}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm self-start md:self-center"
+          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm whitespace-nowrap"
         >
           View Discussion
         </button>
@@ -207,77 +214,103 @@ const ReviewsPage: NextPage = () => {
         </Link>
       </div>
 
-      {/* Filter and View Mode Controls */}
+      {/* Filter Controls */}
       <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center space-x-4">
-          {/* Status Filter */}
-          <div>
-            <label htmlFor="statusFilter" className="mr-2 text-sm font-medium">Filter:</label>
-            <select
-              id="statusFilter"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              className="border px-2 py-1 rounded"
+        <div className="flex items-center space-x-2">
+          <span className="text-sm font-medium mr-2">Filter:</span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilter('All')}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                filter === 'All' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
             >
-              <option value="All">All</option>
-              <option value="Submitted">Submitted</option>
-              <option value="In Review">In Review</option>
-              <option value="Needs Work">Needs Work</option>
-              <option value="Approved">Approved</option>
-            </select>
+              All
+            </button>
+            <button
+              onClick={() => setFilter('Draft')}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                filter === 'Draft' 
+                  ? 'bg-gray-600 text-white' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Draft
+            </button>
+            <button
+              onClick={() => setFilter('Submitted')}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                filter === 'Submitted' 
+                  ? 'bg-gray-600 text-white' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Submitted
+            </button>
+            <button
+              onClick={() => setFilter('In Review')}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                filter === 'In Review' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              In Review
+            </button>
+            <button
+              onClick={() => setFilter('Needs Work')}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                filter === 'Needs Work' 
+                  ? 'bg-orange-500 text-white' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Needs Work
+            </button>
+            <button
+              onClick={() => setFilter('Approved')}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                filter === 'Approved' 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Approved
+            </button>
+            <button
+              onClick={() => setFilter('Archived')}
+              className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 ${
+                filter === 'Archived' 
+                  ? 'bg-gray-600 text-white' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Archived
+            </button>
           </div>
-          {/* Show Archived Toggle */}
-          <div className="flex items-center">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              <span className="ml-3 text-sm font-medium text-gray-700">Show Archived</span>
-            </label>
-          </div>
-        </div>
-        {/* View Mode Toggle */}
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setViewMode('card')}
-            className={`px-3 py-1 rounded ${viewMode === 'card' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-          >Card View</button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-3 py-1 rounded ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-700'}`}
-          >List View</button>
         </div>
       </div>
 
       {loading ? (
         <LoadingState />
       ) : (
-        // Render based on viewMode and use filteredReviews
-        viewMode === 'card' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredReviews.map((review) => (
-              <GraphReviewCard
-                key={review.id}
-                review={review}
-                commentCount={review.commentCount}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredReviews.map((review) => (
+        <div className="bg-white rounded-lg shadow">
+          {filteredReviews.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No reviews found
+            </div>
+          ) : (
+            filteredReviews.map((review) => (
               <ReviewListItem
                 key={review.id}
                 review={review}
                 commentCount={review.commentCount}
               />
-            ))}
-          </div>
-        )
+            ))
+          )}
+        </div>
       )}
     </div>
   );
