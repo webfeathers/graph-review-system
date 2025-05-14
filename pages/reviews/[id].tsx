@@ -285,7 +285,7 @@ const ReviewPage: NextPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="flex-grow container mx-auto px-4 py-0">
       {error && (
         <ErrorDisplay 
           error={error} 
@@ -301,6 +301,111 @@ const ReviewPage: NextPage = () => {
         </div>
       ) : review ? (
         <div className="bg-white shadow rounded-lg overflow-hidden">
+          {/* Status Section */}
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div className="flex items-center space-x-4">
+              {(isAuthor || isAdmin()) ? (
+                <div className="flex items-center space-x-2">
+                  {isUpdating && (
+                    <span className="text-sm text-gray-500">Updating...</span>
+                  )}
+                  <div className="flex space-x-2 h-8">
+                    {(currentStatus === 'Draft' || isAdmin()) && (
+                      <button
+                        onClick={() => handleStatusChange('Draft')}
+                        disabled={isUpdating}
+                        className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          currentStatus === 'Draft' 
+                            ? 'bg-gray-100 text-gray-700' 
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        Draft
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleStatusChange('Submitted')}
+                      disabled={isUpdating}
+                      className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                        currentStatus === 'Submitted' 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                      }`}
+                    >
+                      Submitted
+                    </button>
+                    {isAdmin() && (
+                      <>
+                        <button
+                          onClick={() => handleStatusChange('In Review')}
+                          disabled={isUpdating}
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'In Review' 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          In Review
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange('Needs Work')}
+                          disabled={isUpdating}
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'Needs Work' 
+                              ? 'bg-orange-500 text-white' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Needs Work
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange('Approved')}
+                          disabled={isUpdating}
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'Approved' 
+                              ? 'bg-green-600 text-white' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Approved
+                        </button>
+                        <button
+                          onClick={() => handleStatusChange('Archived')}
+                          disabled={isUpdating}
+                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                            currentStatus === 'Archived' 
+                              ? 'bg-gray-600 text-white' 
+                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          Archived
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <Link 
+                    href="/help#review-process" 
+                    className="text-gray-400 hover:text-gray-600 ml-2"
+                    title="Learn more about review stages"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </Link>
+                </div>
+              ) : (
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  review.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                  review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
+                  review.status === 'In Review' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {review.status}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Header */}
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-start">
@@ -326,28 +431,50 @@ const ReviewPage: NextPage = () => {
             </div>
           </div>
 
+          {/* Project Lead Section */}
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">Project Lead:</span>
+              {isAdmin() ? (
+                <div className="flex items-center space-x-2">
+                  <ProjectLeadSelector
+                    value={review.projectLeadId || ''}
+                    onChange={handleProjectLeadChange}
+                    disabled={updatingLead}
+                  />
+                  {isChangingLead && (
+                    <span className="text-sm text-gray-500">Updating...</span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-sm text-gray-900">
+                  {review.projectLead?.email || 'Not assigned'}
+                </span>
+              )}
+            </div>
+          </div>
+
           {/* Main Content */}
           <div className="px-6 py-4">
             {/* Project Details Section */}
-            <div className="mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left Column - Project Details */}
+            <div className="mb-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-4">Project Details</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
-                      <div className="text-gray-900">{review.accountName || 'Not Added'}</div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                      <div className="text-gray-900">{review.title}</div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
+                  <h2 className="text-lg font-medium text-gray-900 mb-2">Project Details</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Kantata Project ID</label>
+                        <label className="block text-sm font-medium text-gray-700">Account Name</label>
+                        <div className="text-gray-900">{review.accountName || 'Not Added'}</div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Title</label>
+                        <div className="text-gray-900">{review.title}</div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Kantata Project ID</label>
                         <div>
                           <a 
                             href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}?tab=project-workspace`}
@@ -362,200 +489,93 @@ const ReviewPage: NextPage = () => {
                           </a>
                         </div>
                       </div>
+                    </div>
 
+                    <div className="space-y-2">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">OrgID</label>
+                        <label className="block text-sm font-medium text-gray-700">OrgID</label>
                         <div className="text-gray-900">{review.orgId || 'Not Added'}</div>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Remote Access</label>
+                        <label className="block text-sm font-medium text-gray-700">Remote Access</label>
                         <div className="text-gray-900">{review.remoteAccess ? 'Yes' : 'No'}</div>
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Segment</label>
-                      <div className="text-gray-900">{review.segment || 'Not Added'}</div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Graph Name</label>
-                      <div className="text-gray-900">{review.graphName || 'Not Added'}</div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <div className="prose max-w-none text-gray-900">{review.description || 'Not Added'}</div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Use Case</label>
-                      <div className="prose max-w-none text-gray-900">{review.useCase || 'Not Added'}</div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Customer Folder</label>
                       <div>
-                        {review.customerFolder ? (
-                          <a 
-                            href={review.customerFolder}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center"
-                          >
-                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            Open Customer Folder
-                          </a>
-                        ) : (
-                          <span className="text-gray-500">Not Added</span>
-                        )}
+                        <label className="block text-sm font-medium text-gray-700">Segment</label>
+                        <div className="text-gray-900">{review.segment || 'Not Added'}</div>
                       </div>
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Sales to PS Handoff</label>
                       <div>
-                        {review.handoffLink ? (
-                          <a 
-                            href={review.handoffLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center"
-                          >
-                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            Open Handoff Form
-                          </a>
-                        ) : (
-                          <span className="text-gray-500">Not Added</span>
-                        )}
+                        <label className="block text-sm font-medium text-gray-700">Graph Name</label>
+                        <div className="text-gray-900">{review.graphName || 'Not Added'}</div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* Right Column - Status and Project Lead */}
-                <div className="flex flex-col items-end space-y-3">
-                  {(isAuthor || isAdmin()) ? (
-                    <div className="flex items-center space-x-2">
-                      {isUpdating && (
-                        <span className="text-sm text-gray-500">Updating...</span>
-                      )}
-                      <div className="flex space-x-2 h-8">
-                        {(currentStatus === 'Draft' || isAdmin()) && (
-                          <button
-                            onClick={() => handleStatusChange('Draft')}
-                            disabled={isUpdating}
-                            className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                              currentStatus === 'Draft' 
-                                ? 'bg-gray-100 text-gray-700' 
-                                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                            }`}
-                          >
-                            Draft
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleStatusChange('Submitted')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'Submitted' 
-                              ? 'bg-purple-600 text-white' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          Submitted
-                        </button>
-                        {isAdmin() && (
-                          <>
-                            <button
-                              onClick={() => handleStatusChange('In Review')}
-                              disabled={isUpdating}
-                              className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                                currentStatus === 'In Review' 
-                                  ? 'bg-blue-600 text-white' 
-                                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                              }`}
-                            >
-                              In Review
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange('Needs Work')}
-                              disabled={isUpdating}
-                              className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                                currentStatus === 'Needs Work' 
-                                  ? 'bg-orange-500 text-white' 
-                                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                              }`}
-                            >
-                              Needs Work
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange('Approved')}
-                              disabled={isUpdating}
-                              className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                                currentStatus === 'Approved' 
-                                  ? 'bg-green-600 text-white' 
-                                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                              }`}
-                            >
-                              Approved
-                            </button>
-                          </>
-                        )}
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                        <div className="prose max-w-none text-gray-900 text-sm">{review.description || 'Not Added'}</div>
                       </div>
-                      <Link 
-                        href="/help#review-process" 
-                        className="text-gray-400 hover:text-gray-600 ml-2"
-                        title="Learn more about review stages"
-                      >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </Link>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Use Case</label>
+                        <div className="prose max-w-none text-gray-900 text-sm">{review.useCase || 'Not Added'}</div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Customer Folder</label>
+                        <div>
+                          {review.customerFolder ? (
+                            <a 
+                              href={review.customerFolder}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 flex items-center"
+                            >
+                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                              Open Customer Folder
+                            </a>
+                          ) : (
+                            <span className="text-gray-500">Not Added</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Sales to PS Handoff</label>
+                        <div>
+                          {review.handoffLink ? (
+                            <a 
+                              href={review.handoffLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 flex items-center"
+                            >
+                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                              Open Handoff Form
+                            </a>
+                          ) : (
+                            <span className="text-gray-500">Not Added</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      review.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                      review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
-                      review.status === 'In Review' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {review.status}
-                    </span>
-                  )}
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-500">Project Lead:</span>
-                    {isAdmin() ? (
-                      <div className="flex items-center space-x-2">
-                        <ProjectLeadSelector
-                          value={review.projectLeadId || ''}
-                          onChange={handleProjectLeadChange}
-                          disabled={updatingLead}
-                        />
-                        {isChangingLead && (
-                          <span className="text-sm text-gray-500">Updating...</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-900">
-                        {review.projectLead?.email || 'Not assigned'}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="mt-6 px-6">
-            <h2 className="text-lg font-medium text-gray-900 mb-2">Review Notes</h2>
-            <div className="prose max-w-none">
-              {review.description}
+            <div className="mt-4 px-6">
+              <h2 className="text-lg font-medium text-gray-900 mb-2">Review Notes</h2>
+              <div className="prose max-w-none">
+                {review.description}
+              </div>
             </div>
           </div>
 

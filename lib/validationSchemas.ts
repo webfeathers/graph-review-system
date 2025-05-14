@@ -44,7 +44,7 @@ export const reviewValidationSchema: ValidationSchema = {
   ),
   status: createValidator(
     required('Status is required'),
-    pattern(/^(Draft|Submitted|In Review|Needs Work|Approved)$/, 'Invalid status')
+    pattern(/^(Draft|Submitted|In Review|Needs Work|Approved|Archived)$/, 'Invalid status')
   ),
   customerFolder: createValidator(
     url('Please enter a valid URL for the customer folder')

@@ -14,7 +14,7 @@ export interface DbReview {
   id: string;
   title: string;
   description: string;
-  status: 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
+  status: 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved' | 'Archived';
   user_id: string;
   created_at: string;
   updated_at: string;
@@ -76,7 +76,7 @@ export interface Review {
   id: string;
   title: string;
   description: string;
-  status: 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved';
+  status: 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved' | 'Archived';
   userId: string;
   createdAt: string;
   updatedAt: string;

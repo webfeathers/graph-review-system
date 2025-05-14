@@ -84,7 +84,7 @@ async function handler(
     }
 
     // Validate that the status is one of the allowed values
-    const validStatuses = ['Draft', 'Submitted', 'In Review', 'Needs Work', 'Approved'] as const;
+    const validStatuses = ['Draft', 'Submitted', 'In Review', 'Needs Work', 'Approved', 'Archived'] as const;
     if (!validStatuses.includes(newStatus as any)) {
       console.error('Invalid status value:', newStatus);
       return res.status(400).json({
@@ -109,7 +109,7 @@ async function handler(
     }
 
     // If changing from Draft, validate required fields
-    if (currentReview.status === 'Draft' && newStatus !== 'Draft') {
+    if (currentReview.status === 'Draft' && newStatus !== 'Draft' && newStatus !== 'Archived') {
       const missingFields = [];
       if (!currentReview.description) missingFields.push('Description');
       if (!currentReview.graph_name) missingFields.push('Graph Name');
@@ -124,16 +124,16 @@ async function handler(
       }
     }
 
-    // Only admins can approve reviews
-    if (newStatus === 'Approved' && !isAdmin) {
-      console.error('Non-admin attempting to approve review:', {
+    // Only admins can approve or archive reviews
+    if ((newStatus === 'Approved' || newStatus === 'Archived') && !isAdmin) {
+      console.error('Non-admin attempting to change review status:', {
         userId,
         userRole,
         newStatus
       });
       return res.status(403).json({
         success: false,
-        message: 'Only administrators can approve reviews'
+        message: 'Only administrators can approve or archive reviews'
       });
     }
 
