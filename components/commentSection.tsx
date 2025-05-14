@@ -129,29 +129,76 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     form.handleChange('content')(e);
     const val = e.target.value;
     const caret = e.target.selectionStart || 0;
-    const match = /@(\w*)$/.exec(val.slice(0, caret));
     
-    if (match) {
-      const prefix = match[1].toLowerCase();
-      const filteredSuggestions = allUsers.filter(u => 
-        u.name.toLowerCase().startsWith(prefix) || 
-        u.email.toLowerCase().startsWith(prefix)
-      );
-      setSuggestions(filteredSuggestions);
-      
-      // Calculate position for the autocomplete dropdown
-      const textarea = e.target;
-      const rect = textarea.getBoundingClientRect();
-      const lineHeight = parseInt(getComputedStyle(textarea).lineHeight);
-      const lines = val.slice(0, caret).split('\n').length;
-      const top = rect.top + (lines * lineHeight);
-      const left = rect.left + (caret * 8); // Approximate character width
-      
-      setMentionPosition({ top, left });
-      setShowSuggestions(true);
-    } else {
-      setShowSuggestions(false);
+    // Look for @ symbol before the caret position
+    const textBeforeCaret = val.slice(0, caret);
+    const lastAtIndex = textBeforeCaret.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1) {
+      // Check if there's a space or newline between @ and caret
+      const textBetween = textBeforeCaret.slice(lastAtIndex + 1);
+      if (!textBetween.includes(' ') && !textBetween.includes('\n')) {
+        const prefix = textBetween.toLowerCase();
+        const filteredSuggestions = allUsers.filter(u => 
+          u.name.toLowerCase().startsWith(prefix) || 
+          u.email.toLowerCase().startsWith(prefix)
+        );
+        setSuggestions(filteredSuggestions);
+        
+        // Calculate position for the autocomplete dropdown
+        const textarea = e.target;
+        const rect = textarea.getBoundingClientRect();
+        
+        // Get the position of the @ symbol
+        const textBeforeAt = textBeforeCaret.slice(0, lastAtIndex);
+        const lines = textBeforeAt.split('\n');
+        const lastLine = lines[lines.length - 1];
+        
+        // Create a temporary span to measure text
+        const span = document.createElement('span');
+        span.style.visibility = 'hidden';
+        span.style.position = 'absolute';
+        span.style.whiteSpace = 'pre-wrap';
+        span.style.wordWrap = 'break-word';
+        span.style.width = `${textarea.clientWidth}px`;
+        span.style.font = window.getComputedStyle(textarea).font;
+        span.style.padding = window.getComputedStyle(textarea).padding;
+        span.style.border = window.getComputedStyle(textarea).border;
+        document.body.appendChild(span);
+        
+        // Calculate vertical position
+        span.textContent = textBeforeAt;
+        const beforeAtHeight = span.offsetHeight;
+        
+        // Calculate horizontal position
+        span.textContent = lastLine;
+        const lastLineWidth = span.offsetWidth;
+        
+        document.body.removeChild(span);
+        
+        // Calculate the position
+        const scrollTop = textarea.scrollTop;
+        const scrollLeft = textarea.scrollLeft;
+        
+        // Position the dropdown
+        const top = rect.top + beforeAtHeight - scrollTop;
+        
+        // Center the dropdown horizontally within the textarea
+        const dropdownWidth = 300; // max-width from MentionAutocomplete
+        const textareaCenter = rect.left + (rect.width / 2);
+        const left = textareaCenter - (dropdownWidth / 2);
+        
+        // Ensure the dropdown stays within the viewport
+        const viewportWidth = window.innerWidth;
+        const adjustedLeft = Math.max(20, Math.min(left, viewportWidth - dropdownWidth - 20)); // 20px padding
+        
+        setMentionPosition({ top, left: adjustedLeft });
+        setShowSuggestions(true);
+        return;
+      }
     }
+    
+    setShowSuggestions(false);
   };
 
   // Update local state when props change, but only if we have a valid session

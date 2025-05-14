@@ -146,12 +146,20 @@ export const TextArea: React.FC<TextAreaProps> = ({
       helpText={helpText}
       className={containerClassName}
     >
-      <textarea
-        id={id}
-        className={textareaClasses}
-        data-error={error && touched ? 'true' : 'false'}
-        {...props}
-      />
+      <div className="relative">
+        <textarea
+          id={id}
+          className={textareaClasses}
+          data-error={error && touched ? 'true' : 'false'}
+          style={{
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            position: 'relative'
+          }}
+          {...props}
+        />
+      </div>
     </FormField>
   );
 };
