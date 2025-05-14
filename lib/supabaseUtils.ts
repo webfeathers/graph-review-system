@@ -402,6 +402,37 @@ export async function createComment(
       throw commentError;
     }
 
+    // Get the review title for the activity description
+    const { data: review, error: reviewError } = await client
+      .from('reviews')
+      .select('title')
+      .eq('id', commentData.reviewId)
+      .single();
+
+    if (reviewError) {
+      console.error('[createComment] Error fetching review:', reviewError);
+      // Don't throw error here, as the comment was created successfully
+    }
+
+    // Create activity record
+    const { error: activityError } = await client
+      .from('activities')
+      .insert({
+        type: 'comment_added',
+        review_id: commentData.reviewId,
+        user_id: commentData.userId,
+        metadata: {
+          review_title: review?.title || commentData.reviewId,
+          content: commentData.content
+        },
+        created_at: new Date().toISOString()
+      });
+
+    if (activityError) {
+      console.error('[createComment] Error creating activity:', activityError);
+      // Don't throw error here, as the comment was created successfully
+    }
+
     return dbToFrontendComment(comment);
   } catch (error) {
     console.error('[createComment] Error:', error);

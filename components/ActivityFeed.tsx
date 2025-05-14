@@ -7,22 +7,39 @@ import {
   CheckCircleIcon,
   PencilSquareIcon,
   DocumentPlusIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  FolderIcon,
+  UserIcon,
+  BellIcon
 } from '@heroicons/react/24/outline';
 
 interface Activity {
   id: string;
-  user_id: string;
   type: 'task_created' | 'task_updated' | 'task_completed' | 'comment_added' | 'review_created' | 'review_updated' | 'review_status_changed';
   review_id: string;
   task_id?: string;
   comment_id?: string;
-  metadata: any;
+  metadata: {
+    review_title?: string;
+    content?: string;
+    title?: string;
+    priority?: string;
+    old_status?: string;
+    new_status?: string;
+  };
   created_at: string;
-  user: Profile;
-  review?: { id: string; title: string };
-  task?: { id: string; title: string };
-  comment?: { id: string; content: string };
+  user: {
+    id: string;
+    name: string;
+    role: string;
+    email: string;
+    points: number;
+    created_at: string;
+  };
+  review?: {
+    id: string;
+    title: string;
+  };
 }
 
 interface ActivityFeedProps {
@@ -130,6 +147,11 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities }) => {
             <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
               {activity.review?.title || `#${activity.review_id}`}
             </Link>
+            {activity.metadata?.content && (
+              <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                {activity.metadata.content}
+              </div>
+            )}
           </>
         );
       case 'review_created':

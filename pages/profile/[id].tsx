@@ -61,7 +61,14 @@ const ProfilePage: NextPage = () => {
         const { data: userActivities, error: activitiesError } = await supabase
           .from('activities')
           .select(`
-            *,
+            id,
+            type,
+            action,
+            description,
+            link,
+            review_id,
+            project_id,
+            created_at,
             user:profiles!activities_user_id_fkey(*),
             review:reviews!activities_review_id_fkey(id, title)
           `)
