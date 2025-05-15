@@ -1,5 +1,5 @@
 // components/commentSection.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { Profile } from '../types';
 import { Comment, CommentWithProfile, VoteType } from '../types/supabase';
@@ -10,294 +10,478 @@ import { Form, TextArea, SubmitButton } from './form/FormComponents';
 import { useForm } from '../lib/useForm';
 import { commentValidationSchema } from '../lib/validationSchemas';
 import Link from 'next/link';
-import { addComment, voteOnComment, removeVote } from '../lib/api';
+import { addComment, voteOnComment, removeVote, getCommentsByReviewId } from '../lib/api';
 import { toast } from 'react-hot-toast';
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline';
 import MentionAutocomplete from './MentionAutocomplete';
 
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface CommentSectionProps {
-  comments: CommentWithProfile[];
   reviewId: string;
-  onCommentAdded?: (comment: CommentWithProfile) => void;
+  onCommentAdded?: () => void;
 }
 
 interface CommentFormValues {
   content: string;
 }
 
-const CommentSection: React.FC<CommentSectionProps> = ({ 
-  comments: initialComments, 
-  reviewId,
-  onCommentAdded 
-}) => {
-  const { user, loading: authLoading, session } = useAuth();
-  const [comments, setComments] = useState<CommentWithProfile[]>(initialComments);
-  const [newComment, setNewComment] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isVoting, setIsVoting] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  // Autocomplete state
-  const [allUsers, setAllUsers] = useState<{id: string; name: string; email: string}[]>([]);
-  const [suggestions, setSuggestions] = useState<{id: string; name: string; email: string}[]>([]);
+interface CommentItemProps {
+  comment: CommentWithProfile;
+  isReply?: boolean;
+  onReplyAdded: (parentId: string, reply: CommentWithProfile) => void;
+  onVote: (commentId: string, voteType: VoteType) => void;
+  onDelete: (commentId: string) => void;
+  reviewId: string;
+  user: any;
+}
+
+// Move mention handling to a custom hook
+function useMentionHandling(textareaRef: React.RefObject<HTMLTextAreaElement>, onContentChange: (newValue: string) => void) {
   const [showSuggestions, setShowSuggestions] = useState(false);
-  // Add state for mention position
+  const [suggestions, setSuggestions] = useState<User[]>([]);
   const [mentionPosition, setMentionPosition] = useState({ top: 0, left: 0 });
-
-  // Initialize form with proper types
-  const form = useForm<CommentFormValues>({
-    initialValues: {
-      content: ''
-    },
-    validationSchema: commentValidationSchema,
-    onSubmit: async (values, helpers) => {
-      if (!user || !session || isSubmitting || authLoading) return;
-
-      setIsSubmitting(true);
-      setError(null);
-
-      try {
-        const newComment = await addComment(reviewId, values.content.trim(), user.id);
-
-        // Notify mentioned users via server API by simple case-insensitive includes
-        const contentLower = values.content.toLowerCase();
-        const mentionedUsers = allUsers.filter(u =>
-          contentLower.includes(`@${u.name.toLowerCase()}`)
-        );
-        if (mentionedUsers.length > 0) {
-          console.log('[Mention] Posting to /api/notifications/mention with payload:', {
-            mentionedUsers,
-            commenterName: user.user_metadata?.name || user.email,
-            reviewId,
-            commentId: newComment.id,
-            commentContent: newComment.content
-          });
-          fetch('/api/notifications/mention', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              mentionedUsers: mentionedUsers.map(u => ({ email: u.email, name: u.name })),
-              commenterName: user.user_metadata?.name || user.email,
-              reviewId,
-              commentId: newComment.id,
-              commentContent: newComment.content
-            })
-          }).catch(err => console.error('Error sending mention notifications:', err));
-        }
-
-        // Create a complete CommentWithProfile object
-        const commentWithProfile: CommentWithProfile = {
-          ...newComment,
-          user: {
-            id: user.id,
-            name: user.user_metadata?.name || 'Unknown',
-            email: user.email || '',
-            role: user.user_metadata?.role || 'Member',
-            createdAt: user.created_at || new Date().toISOString()
-          }
-        };
-
-        // Update local state
-        setComments(prevComments => [commentWithProfile, ...prevComments]);
-        
-        // Notify parent component
-        if (onCommentAdded) {
-          onCommentAdded(commentWithProfile);
-        }
-
-        // Reset form
-        helpers.resetForm();
-      } catch (err) {
-        console.error('Error posting comment:', err);
-        setError(err instanceof Error ? err.message : 'Failed to post comment');
-      } finally {
-        setIsSubmitting(false);
-      }
-    }
-  });
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
   // Load user list for mention suggestions
   useEffect(() => {
     const loadUsers = async () => {
-      const { data } = await supabase.from('profiles').select('id, name, email');
-      setAllUsers(data || []);
+      try {
+        const { data, error } = await supabase.from('profiles').select('id, name, email');
+        if (error) throw error;
+        setAllUsers(data || []);
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
     };
     loadUsers();
   }, []);
 
-  // Handle input change to trigger mention suggestions
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex(prev => (prev + 1) % suggestions.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex(prev => (prev - 1 + suggestions.length) % suggestions.length);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          handleSelectUser(suggestions[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowSuggestions(false);
+        setSelectedIndex(-1);
+        break;
+    }
+  };
+
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    form.handleChange('content')(e);
     const val = e.target.value;
     const caret = e.target.selectionStart || 0;
     
-    // Look for @ symbol before the caret position
     const textBeforeCaret = val.slice(0, caret);
     const lastAtIndex = textBeforeCaret.lastIndexOf('@');
     
     if (lastAtIndex !== -1) {
-      // Get the text between @ and caret
       const textBetween = textBeforeCaret.slice(lastAtIndex + 1);
-      
-      // Filter suggestions based on the text after @
       const prefix = textBetween.toLowerCase();
       const filteredSuggestions = allUsers.filter(u => 
-        u.name.toLowerCase().startsWith(prefix) || 
-        u.email.toLowerCase().startsWith(prefix)
+        u.name.toLowerCase().includes(prefix) || 
+        u.email.toLowerCase().includes(prefix)
       );
       
       if (filteredSuggestions.length > 0) {
         setSuggestions(filteredSuggestions);
+        setSelectedIndex(0);
         
-        // Calculate position for the autocomplete dropdown
         const textarea = e.target;
         const rect = textarea.getBoundingClientRect();
         
-        // Create a temporary span to measure text
-        const span = document.createElement('span');
-        span.style.visibility = 'hidden';
-        span.style.position = 'absolute';
-        span.style.whiteSpace = 'pre-wrap';
-        span.style.wordWrap = 'break-word';
-        span.style.width = `${textarea.clientWidth}px`;
-        span.style.font = window.getComputedStyle(textarea).font;
-        span.style.padding = window.getComputedStyle(textarea).padding;
-        span.style.border = window.getComputedStyle(textarea).border;
-        document.body.appendChild(span);
-        
-        // Get the text up to the @ symbol
-        const textBeforeAt = textBeforeCaret.slice(0, lastAtIndex);
-        const lines = textBeforeAt.split('\n');
-        const lastLine = lines[lines.length - 1];
-        
-        // Calculate vertical position
-        span.textContent = textBeforeAt;
-        const beforeAtHeight = span.offsetHeight;
-        
-        document.body.removeChild(span);
+        // Get the coordinates of the cursor
+        const coordinates = getCaretCoordinates(textarea, lastAtIndex);
         
         // Calculate the position
-        const scrollTop = textarea.scrollTop;
+        const top = rect.top + coordinates.top - textarea.scrollTop;
+        const left = rect.left + coordinates.left;
         
-        // Position the dropdown at the cursor position
-        const top = rect.top + beforeAtHeight - scrollTop;
-        
-        // Center the dropdown relative to the textarea
-        const dropdownWidth = 300; // max-width from MentionAutocomplete
-        const left = rect.left + (rect.width - dropdownWidth) / 2;
-        
-        // Adjust position if it would go off screen
-        const windowWidth = window.innerWidth;
-        const rightEdge = left + dropdownWidth;
-        
-        // If dropdown would go off the right edge, align it to the right edge of the textarea
-        const adjustedLeft = rightEdge > windowWidth ? 
-          Math.max(rect.left, windowWidth - dropdownWidth - 20) : // 20px padding from right edge
-          left;
-        
-        setMentionPosition({ top, left: adjustedLeft });
+        setMentionPosition({ top, left });
         setShowSuggestions(true);
         return;
       }
     }
     
     setShowSuggestions(false);
+    setSelectedIndex(-1);
   };
 
-  // Handle selecting a user from the mention suggestions
-  const handleSelectUser = (user: { id: string; name: string; email: string }) => {
-    const textarea = document.querySelector('textarea[name="content"]') as HTMLTextAreaElement;
-    if (!textarea) return;
+  // Helper function to get caret coordinates
+  const getCaretCoordinates = (element: HTMLTextAreaElement, position: number) => {
+    const div = document.createElement('div');
+    const style = getComputedStyle(element);
     
+    // Copy textarea styles
+    div.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      visibility: hidden;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      width: ${element.offsetWidth}px;
+      height: auto;
+      font: ${style.font};
+      line-height: ${style.lineHeight};
+      padding: ${style.padding};
+      border: ${style.border};
+      box-sizing: ${style.boxSizing};
+    `;
+    
+    // Get text before caret
+    const text = element.value.substring(0, position);
+    div.textContent = text;
+    
+    // Add a span to mark the caret position
+    const span = document.createElement('span');
+    span.textContent = '|';
+    div.appendChild(span);
+    
+    // Add the div to the document
+    document.body.appendChild(div);
+    
+    // Get the coordinates
+    const coordinates = {
+      top: span.offsetTop,
+      left: span.offsetLeft
+    };
+    
+    // Clean up
+    document.body.removeChild(div);
+    
+    return coordinates;
+  };
+
+  const handleSelectUser = (user: User) => {
+    if (!textareaRef.current) return;
+    
+    const textarea = textareaRef.current;
     const val = textarea.value;
     const caret = textarea.selectionStart || 0;
+    
     const textBeforeCaret = val.slice(0, caret);
     const lastAtIndex = textBeforeCaret.lastIndexOf('@');
     
-    if (lastAtIndex === -1) return;
-    
-    // Get the text between @ and caret
-    const textBetween = textBeforeCaret.slice(lastAtIndex + 1);
-    
-    // Create the new content by replacing the @mention with the selected user
-    const newContent = 
-      val.slice(0, lastAtIndex) + // Text before @
-      `@${user.name} ` + // Selected user's name with @ and space
-      val.slice(caret); // Text after the caret
-    
-    // Update the form value
-    form.setFieldValue('content', newContent);
-    
-    // Set cursor position after the inserted mention
-    const newCaretPos = lastAtIndex + user.name.length + 2; // +2 for @ and space
-    setTimeout(() => {
-      textarea.setSelectionRange(newCaretPos, newCaretPos);
-      textarea.focus();
-    }, 0);
+    if (lastAtIndex !== -1) {
+      const textAfterCaret = val.slice(caret);
+      const newValue = val.slice(0, lastAtIndex) + `@${user.name} ` + textAfterCaret;
+      const newCaretPos = lastAtIndex + user.name.length + 2; // +2 for @ and space
+      
+      onContentChange(newValue);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.setSelectionRange(newCaretPos, newCaretPos);
+          textareaRef.current.focus();
+        }
+      }, 0);
+    }
     
     setShowSuggestions(false);
+    setSelectedIndex(-1);
   };
 
-  // Update local state when props change, but only if we have a valid session
-  useEffect(() => {
-    if (user && session) {
-      // Sort comments by createdAt in descending order (newest first)
-      const sortedComments = [...initialComments].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      setComments(sortedComments);
-    }
-  }, [initialComments, user, session]);
+  return {
+    showSuggestions,
+    suggestions,
+    mentionPosition,
+    selectedIndex,
+    handleKeyDown,
+    handleContentChange,
+    handleSelectUser
+  };
+}
 
-  // Helper to parse and render full-name mentions as links, preserving newlines
-  const renderContentWithMentions = (text: string) => {
-    if (!allUsers.length) return <span>{text}</span>;
-    // Build a regex that matches any full name from allUsers
-    const namesPattern = allUsers.map(u => u.name.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|');
-    const regex = new RegExp(`@(${namesPattern})`, 'g');
-    const parts = text.split(regex);
-    return parts.flatMap((part, idx) => {
-      // Odd index means a matched name from the capture group
-      if (idx % 2 === 1) {
-        const name = part;
-        const userObj = allUsers.find(u => u.name === name);
-        return [
-          <Link
-            key={idx}
-            href={`/profile/${userObj?.id}`}
-            className="text-blue-600 font-semibold"
-            onClick={(e) => {
-              e.preventDefault();
-              if (userObj?.id) {
-                window.location.href = `/profile/${userObj.id}`;
-              }
-            }}
-          >
-            @{name}
-          </Link>
-        ];
-      }
-      // For non-mention parts, split by newlines and interleave <br />
-      const lines = part.split('\n');
-      return lines.flatMap((line, i) =>
-        i === 0 ? [line] : [<br key={`br-${idx}-${i}`} />, line]
+function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete, reviewId, user }: CommentItemProps) {
+  const [isReplying, setIsReplying] = useState(false);
+  const [replyContent, setReplyContent] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  const {
+    showSuggestions,
+    suggestions,
+    mentionPosition,
+    selectedIndex,
+    handleKeyDown,
+    handleContentChange,
+    handleSelectUser
+  } = useMentionHandling(textareaRef, setReplyContent);
+
+  const handleSubmitReply = async () => {
+    if (!user) {
+      toast.error('Please sign in to comment');
+      return;
+    }
+
+    if (!replyContent.trim()) {
+      toast.error('Reply cannot be empty');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const reply = await addComment(reviewId, replyContent, user.id, comment.id);
+      
+      // Notify mentioned users
+      const contentLower = replyContent.toLowerCase();
+      const mentionedUsers = suggestions.filter(u =>
+        contentLower.includes(`@${u.name.toLowerCase()}`)
       );
-    });
+      if (mentionedUsers.length > 0) {
+        fetch('/api/notifications/mention', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mentionedUsers: mentionedUsers.map(u => ({ email: u.email, name: u.name })),
+            commenterName: user.user_metadata?.name || user.email,
+            reviewId,
+            commentId: reply.id,
+            commentContent: reply.content
+          })
+        }).catch(err => console.error('Error sending mention notifications:', err));
+      }
+
+      onReplyAdded(comment.id, reply);
+      setReplyContent('');
+      setIsReplying(false);
+      toast.success('Reply added successfully');
+    } catch (error) {
+      console.error('Error adding reply:', error);
+      toast.error('Failed to add reply');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className={`space-y-4 ${isReply ? 'ml-8 border-l-2 border-gray-200 pl-4' : ''}`}>
+      <div className="flex items-start space-x-4">
+        <div className="flex-shrink-0">
+          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+            <span className="text-gray-500 font-medium">
+              {comment.user.name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-900">{comment.user.name}</p>
+              <p className="text-sm text-gray-500">
+                {new Date(comment.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+            {!isReply && (
+              <button
+                onClick={() => setIsReplying(!isReplying)}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                {isReplying ? 'Cancel' : 'Reply'}
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
+            {comment.content}
+          </p>
+          <div className="mt-2 flex items-center space-x-4">
+            <button
+              onClick={() => onVote(comment.id, 'up')}
+              className={`${
+                comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-500'
+              } hover:text-blue-800`}
+              title="Upvote"
+            >
+              <HandThumbUpIcon className="h-5 w-5" />
+            </button>
+            <span className="text-sm text-gray-500">{comment.voteCount}</span>
+            <button
+              onClick={() => onVote(comment.id, 'down')}
+              className={`${
+                comment.userVote === 'down' ? 'text-red-600' : 'text-gray-500'
+              } hover:text-red-800`}
+              title="Downvote"
+            >
+              <HandThumbDownIcon className="h-5 w-5" />
+            </button>
+            {user?.id === comment.userId && (
+              <button
+                onClick={() => onDelete(comment.id)}
+                className="text-sm text-red-600 hover:text-red-800"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+
+          {/* Inline reply form */}
+          {isReplying && (
+            <div className="mt-4 space-y-3 relative">
+              <textarea
+                ref={textareaRef}
+                rows={2}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                placeholder={`Reply to ${comment.user.name}...`}
+                value={replyContent}
+                onChange={(e) => {
+                  setReplyContent(e.target.value);
+                  handleContentChange(e);
+                }}
+                onKeyDown={handleKeyDown}
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <div
+                  className="fixed z-50 mt-1 w-64 rounded-md bg-white shadow-lg"
+                  style={{
+                    top: `${mentionPosition.top}px`,
+                    left: `${mentionPosition.left}px`,
+                  }}
+                >
+                  <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                    {suggestions.map((user, index) => (
+                      <li
+                        key={user.id}
+                        className={`relative cursor-pointer select-none py-2 pl-3 pr-9 ${
+                          index === selectedIndex ? 'bg-blue-50' : 'hover:bg-gray-100'
+                        }`}
+                        onClick={() => handleSelectUser(user)}
+                      >
+                        <div className="flex items-center">
+                          <span className="ml-3 truncate">{user.name}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setIsReplying(false)}
+                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmitReply}
+                  disabled={isSubmitting}
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Posting...' : 'Post Reply'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {comment.replies?.map(reply => (
+        <CommentItem
+          key={reply.id}
+          comment={reply}
+          isReply={true}
+          onReplyAdded={onReplyAdded}
+          onVote={onVote}
+          onDelete={onDelete}
+          reviewId={reviewId}
+          user={user}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function CommentSection({ reviewId, onCommentAdded }: CommentSectionProps) {
+  const { user, loading: authLoading, session } = useAuth();
+  const [comments, setComments] = useState<CommentWithProfile[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  const {
+    showSuggestions,
+    suggestions,
+    mentionPosition,
+    selectedIndex,
+    handleKeyDown,
+    handleContentChange,
+    handleSelectUser
+  } = useMentionHandling(textareaRef, setNewComment);
+
+  // Fetch comments when the component mounts or reviewId changes
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchComments = async () => {
+      try {
+        const fetchedComments = await getCommentsByReviewId(reviewId);
+        if (isMounted) {
+          setComments(fetchedComments);
+        }
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+        if (isMounted) {
+          toast.error('Failed to fetch comments');
+        }
+      }
+    };
+
+    fetchComments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [reviewId]);
+
+  const handleReplyAdded = (parentId: string, reply: CommentWithProfile) => {
+    setComments(prevComments => 
+      prevComments.map(c => {
+        if (c.id === parentId) {
+          return {
+            ...c,
+            replies: [...(c.replies || []), reply]
+          };
+        }
+        return c;
+      })
+    );
+    onCommentAdded?.();
   };
 
   const handleVote = async (commentId: string, voteType: VoteType) => {
-    if (!user) return;
-    
-    // Prevent voting on own comments
-    const comment = comments.find(c => c.id === commentId);
-    if (comment?.userId === user.id) {
-      toast.error("You cannot vote on your own comments.");
+    if (!user) {
+      toast.error('Please sign in to vote');
       return;
     }
-    
+
+    const comment = comments.find(c => c.id === commentId);
+    if (comment?.userId === user.id) {
+      toast.error("You cannot vote on your own comments");
+      return;
+    }
+
     try {
-      setIsVoting(commentId);
-      
-      // If the user has already voted this way on this comment, remove the vote
       if (comment?.userVote === voteType) {
         await removeVote(commentId, user.id);
         setComments(prevComments => 
@@ -312,10 +496,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({
               : c
           )
         );
+        toast.success('Vote removed');
         return;
       }
       
-      // Otherwise, add or update the vote
       await voteOnComment(commentId, user.id, voteType);
       setComments(prevComments => 
         prevComments.map(c => 
@@ -339,16 +523,18 @@ const CommentSection: React.FC<CommentSectionProps> = ({
             : c
         )
       );
+      toast.success('Vote recorded');
     } catch (error) {
       console.error('Error voting on comment:', error);
       toast.error('Failed to vote on comment');
-    } finally {
-      setIsVoting(null);
     }
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!user) return;
+    if (!user) {
+      toast.error('Please sign in to delete comments');
+      return;
+    }
     
     try {
       const response = await fetch(`/api/comments/${commentId}`, {
@@ -365,12 +551,56 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         throw new Error(data.message || 'Failed to delete comment');
       }
 
-      // Remove comment from local state
-      setComments(prevComments => prevComments.filter(c => c.id !== commentId));
+      // Update the comments state to remove the deleted comment or reply
+      setComments(prevComments => {
+        // First check if it's a top-level comment
+        const isTopLevel = prevComments.some(c => c.id === commentId);
+        if (isTopLevel) {
+          return prevComments.filter(c => c.id !== commentId);
+        }
+        
+        // If not top-level, it's a reply - find and update the parent comment
+        return prevComments.map(comment => {
+          if (comment.replies?.some(reply => reply.id === commentId)) {
+            return {
+              ...comment,
+              replies: comment.replies.filter(reply => reply.id !== commentId)
+            };
+          }
+          return comment;
+        });
+      });
+
       toast.success('Comment deleted successfully');
     } catch (error) {
       console.error('Error deleting comment:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to delete comment');
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!user) {
+      toast.error('Please sign in to comment');
+      return;
+    }
+
+    if (!newComment.trim()) {
+      toast.error('Comment cannot be empty');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const comment = await addComment(reviewId, newComment, user.id);
+      setComments(prev => [comment, ...prev]);
+      setNewComment('');
+      onCommentAdded?.();
+      toast.success('Comment added successfully');
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Failed to add comment');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -389,126 +619,77 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   }
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Comments</h2>
-      
-      {error && (
-        <ErrorDisplay 
-          error={error} 
-          onDismiss={() => setError(null)} 
-          className="mb-4"
-        />
-      )}
-
-      {/* Comment Form */}
-      <div className="bg-gray-50 p-4 rounded-lg mb-6">
-        <Form onSubmit={form.handleSubmit}>
-          <TextArea
-            id="content"
-            name="content"
-            label="Add a comment"
-            placeholder="Type your comment here... Use @ to mention someone"
-            value={form.values.content}
-            onChange={handleContentChange}
-            onBlur={form.handleBlur('content')}
-            error={form.errors.content}
-            touched={form.touched.content}
-            rows={4}
-            disabled={isSubmitting}
-          />
-          
-          {/* Replace the old suggestions list with the new MentionAutocomplete */}
-          {showSuggestions && suggestions.length > 0 && (
-            <MentionAutocomplete
-              suggestions={suggestions}
-              onSelect={handleSelectUser}
-              onClose={() => setShowSuggestions(false)}
-              position={mentionPosition}
+    <div className="space-y-6">
+      <div className="bg-white shadow sm:rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <h3 className="text-lg font-medium leading-6 text-gray-900">Comments</h3>
+          <div className="mt-4 relative">
+            <textarea
+              ref={textareaRef}
+              rows={3}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              placeholder="Add a comment..."
+              value={newComment}
+              onChange={(e) => {
+                setNewComment(e.target.value);
+                handleContentChange(e);
+              }}
+              onKeyDown={handleKeyDown}
             />
-          )}
-          
-          <div className="mt-4 flex justify-end">
-            <SubmitButton
-              label="Post Comment"
-              submittingLabel="Posting..."
-              isSubmitting={isSubmitting}
-              disabled={isSubmitting || !form.values.content.trim()}
-            />
+            {showSuggestions && suggestions.length > 0 && (
+              <div
+                className="fixed z-50 mt-1 w-64 rounded-md bg-white shadow-lg"
+                style={{
+                  top: `${mentionPosition.top}px`,
+                  left: `${mentionPosition.left}px`,
+                }}
+              >
+                <ul className="max-h-60 overflow-auto rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+                  {suggestions.map((user, index) => (
+                    <li
+                      key={user.id}
+                      className={`relative cursor-pointer select-none py-2 pl-3 pr-9 ${
+                        index === selectedIndex ? 'bg-blue-50' : 'hover:bg-gray-100'
+                      }`}
+                      onClick={() => handleSelectUser(user)}
+                    >
+                      <div className="flex items-center">
+                        <span className="ml-3 truncate">{user.name}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="mt-3 flex justify-end">
+              <button
+                type="button"
+                onClick={handleAddComment}
+                disabled={isSubmitting}
+                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Posting...' : 'Post Comment'}
+              </button>
+            </div>
           </div>
-        </Form>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        {comments.length === 0 ? (
-          <p className="text-gray-500 text-center">No comments yet. Be the first to comment!</p>
-        ) : (
-          comments.map((comment) => (
-            <div key={comment.id} className="bg-white shadow rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                      <span className="text-gray-500 font-medium">
-                        {comment.user.name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{comment.user.name}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(comment.createdAt).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: 'numeric',
-                        second: 'numeric'
-                      })}
-                    </p>
-                  </div>
-                </div>
-                {comment.userId === user?.id && (
-                  <button 
-                    className="text-gray-400 hover:text-red-600 transition-colors duration-200"
-                    title="Delete comment"
-                    onClick={() => handleDeleteComment(comment.id)}
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              <div className="mt-2 text-sm text-gray-700">
-                {renderContentWithMentions(comment.content)}
-              </div>
-              <div className="mt-2 flex items-center space-x-2">
-                <button
-                  onClick={() => handleVote(comment.id, 'up')}
-                  className={`p-1 rounded-full ${
-                    comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-400 hover:text-blue-600'
-                  }`}
-                  title="Upvote"
-                >
-                  <HandThumbUpIcon className="h-5 w-5" />
-                </button>
-                <span className="text-sm text-gray-500">{comment.voteCount || 0}</span>
-                <button
-                  onClick={() => handleVote(comment.id, 'down')}
-                  className={`p-1 rounded-full ${
-                    comment.userVote === 'down' ? 'text-red-600' : 'text-gray-400 hover:text-red-600'
-                  }`}
-                  title="Downvote"
-                >
-                  <HandThumbDownIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-          ))
-        )}
+      <div className="space-y-6">
+        {comments.map(comment => (
+          <CommentItem
+            key={comment.id}
+            comment={comment}
+            onReplyAdded={handleReplyAdded}
+            onVote={handleVote}
+            onDelete={handleDeleteComment}
+            reviewId={reviewId}
+            user={user}
+          />
+        ))}
       </div>
     </div>
   );
-};
+}
 
 export default CommentSection;

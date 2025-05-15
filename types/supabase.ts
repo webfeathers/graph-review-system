@@ -38,6 +38,7 @@ export interface DbComment {
   review_id: string;
   user_id: string;
   created_at: string;
+  parent_id?: string;
 }
 
 export type VoteType = 'up' | 'down';
@@ -100,6 +101,7 @@ export interface Comment {
   reviewId: string;
   userId: string;
   createdAt: string;
+  parentId?: string;
 }
 
 // With joined relationships
@@ -114,6 +116,7 @@ export interface CommentWithProfile extends Comment {
   votes?: CommentVote[];
   voteCount?: number;
   userVote?: VoteType;
+  replies?: CommentWithProfile[];
 }
 
 export interface Task {
@@ -165,7 +168,8 @@ export function dbToFrontendComment(dbComment: DbComment): Comment {
     content: dbComment.content,
     reviewId: dbComment.review_id,
     userId: dbComment.user_id,
-    createdAt: dbComment.created_at
+    createdAt: dbComment.created_at,
+    parentId: dbComment.parent_id
   };
 }
 
