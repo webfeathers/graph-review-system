@@ -386,6 +386,7 @@ export async function createComment(
     content: commentData.content,
     review_id: commentData.reviewId,
     user_id: commentData.userId,
+    parent_id: commentData.parentId,
     created_at: new Date().toISOString()
   };
   
