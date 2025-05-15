@@ -23,6 +23,7 @@ interface User {
 
 interface CommentSectionProps {
   reviewId: string;
+  comments?: CommentWithProfile[];
   onCommentAdded?: (newComment: CommentWithProfile) => void;
 }
 
@@ -411,9 +412,9 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
   );
 }
 
-export function CommentSection({ reviewId, onCommentAdded }: CommentSectionProps) {
+export function CommentSection({ reviewId, comments: initialComments, onCommentAdded }: CommentSectionProps) {
   const { user, loading: authLoading, session } = useAuth();
-  const [comments, setComments] = useState<CommentWithProfile[]>([]);
+  const [comments, setComments] = useState<CommentWithProfile[]>(initialComments || []);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -428,6 +429,13 @@ export function CommentSection({ reviewId, onCommentAdded }: CommentSectionProps
     handleContentChange,
     handleSelectUser
   } = useMentionHandling(textareaRef, setNewComment);
+
+  // Update comments when initialComments changes
+  useEffect(() => {
+    if (initialComments) {
+      setComments(initialComments);
+    }
+  }, [initialComments]);
 
   // Fetch comments when the component mounts or reviewId changes
   useEffect(() => {
