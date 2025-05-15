@@ -4,6 +4,7 @@ import { withAdminAuth } from '../../../lib/apiHelpers';
 import { Role } from '../../../types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { EmailService } from '../../../lib/emailService';
+import { supabase } from '../../../lib/supabase';
 
 // Interface for validation result
 interface ValidationResult {
@@ -156,12 +157,22 @@ async function processReviewBatch(
 async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
-  userId: string,
-  supabaseClient: SupabaseClient,
+  userId?: string,
+  supabaseClient?: SupabaseClient,
   userRole?: Role
 ) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  // Check if this is a cron request
+  const isCronRequest = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+  
+  // If not a cron request, require admin auth
+  if (!isCronRequest) {
+    if (!userId || !supabaseClient || userRole !== 'Admin') {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
   }
 
   try {
@@ -170,9 +181,10 @@ async function handler(
       return res.status(500).json({ message: 'Kantata API token not configured' });
     }
 
-    const { data: reviews, error: reviewsError } = await supabaseClient
+    const { data: reviews, error: reviewsError } = await (supabaseClient || supabase)
       .from('reviews')
-      .select('*');
+      .select('*')
+      .neq('status', 'Archived');
       
     if (reviewsError) {
       throw new Error(`Error fetching reviews: ${reviewsError.message}`);
@@ -189,10 +201,18 @@ async function handler(
     const validationResults: ValidationResult[] = [];
     for (let i = 0; i < reviews.length; i += BATCH_SIZE) {
       const batch = reviews.slice(i, i + BATCH_SIZE);
-      const batchResults = await processReviewBatch(batch, kantataApiToken, supabaseClient);
+      const batchResults = await processReviewBatch(batch, kantataApiToken, supabaseClient || supabase);
       validationResults.push(...batchResults);
     }
 
+    // For cron requests, return a simpler response
+    if (isCronRequest) {
+      return res.status(200).json({
+        message: `Successfully validated ${validationResults.length} reviews.`
+      });
+    }
+
+    // For manual requests, return detailed results
     return res.status(200).json({
       message: `Validated ${validationResults.length} reviews.`,
       validationResults
@@ -207,4 +227,11 @@ async function handler(
   }
 }
 
-export default withAdminAuth(handler);
+// Only wrap with withAdminAuth if it's not a cron request
+export default function handlerWrapper(req: NextApiRequest, res: NextApiResponse) {
+  const authHeader = req.headers.authorization;
+  if (authHeader === `Bearer ${process.env.CRON_SECRET}`) {
+    return handler(req, res);
+  }
+  return withAdminAuth(handler)(req, res);
+}
