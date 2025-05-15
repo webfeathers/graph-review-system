@@ -603,6 +603,26 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
       setComments(prev => [comment, ...prev]);
       setNewComment('');
       onCommentAdded?.({ ...comment, replies: comment.replies || [] });
+      
+      // Notify mentioned users
+      const contentLower = newComment.toLowerCase();
+      const mentionedUsers = suggestions.filter(u =>
+        contentLower.includes(`@${u.name.toLowerCase()}`)
+      );
+      if (mentionedUsers.length > 0) {
+        fetch('/api/notifications/mention', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mentionedUsers: mentionedUsers.map(u => ({ email: u.email, name: u.name })),
+            commenterName: user.user_metadata?.name || user.email,
+            reviewId,
+            commentId: comment.id,
+            commentContent: comment.content
+          })
+        }).catch(err => console.error('Error sending mention notifications:', err));
+      }
+
       toast.success('Comment added successfully');
     } catch (error) {
       console.error('Error adding comment:', error);
