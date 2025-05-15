@@ -250,6 +250,8 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
         contentLower.includes(`@${u.name.toLowerCase()}`)
       );
       if (mentionedUsers.length > 0) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+        const commentUrl = `${baseUrl}/reviews/${reviewId}#comment-${reply.id}`;
         fetch('/api/notifications/mention', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -258,7 +260,8 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
             commenterName: user.user_metadata?.name || user.email,
             reviewId,
             commentId: reply.id,
-            commentContent: reply.content
+            commentContent: reply.content,
+            commentUrl
           })
         }).catch(err => console.error('Error sending mention notifications:', err));
       }
@@ -610,6 +613,8 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
         contentLower.includes(`@${u.name.toLowerCase()}`)
       );
       if (mentionedUsers.length > 0) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+        const commentUrl = `${baseUrl}/reviews/${reviewId}#comment-${comment.id}`;
         fetch('/api/notifications/mention', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -618,7 +623,8 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
             commenterName: user.user_metadata?.name || user.email,
             reviewId,
             commentId: comment.id,
-            commentContent: comment.content
+            commentContent: comment.content,
+            commentUrl
           })
         }).catch(err => console.error('Error sending mention notifications:', err));
       }
