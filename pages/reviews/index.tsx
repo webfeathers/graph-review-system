@@ -117,51 +117,31 @@ const ReviewsPage: NextPage = () => {
     return <LoadingState />;
   }
 
-  // Add navigation handler
-  const handleViewDiscussion = async (reviewId: string) => {
-    console.log('View Discussion clicked for review:', reviewId);
-    try {
-      await router.push(`/reviews/${reviewId}`);
-    } catch (error) {
-      console.error('Navigation failed:', error);
-      // Fallback to window.location if router.push fails
-      window.location.href = `/reviews/${reviewId}`;
-    }
-  };
-
   // List view component for a single review
   const ReviewListItem = ({ review, commentCount }: { review: ReviewWithProfile, commentCount: number }) => (
-    <div className="py-4 px-4 border-b border-gray-200 hover:bg-gray-50 transition-colors">
-      <div className="flex items-start justify-between">
-        <div className="flex-grow">
-          <div className="flex items-center space-x-3 mb-2">
-            <StatusBadge status={review.status} />
-            <button 
-              onClick={() => handleViewDiscussion(review.id)} 
-              className="text-lg font-semibold text-blue-600 hover:underline text-left"
+    <div className="py-6 px-6 border-b border-gray-200 hover:bg-gray-50 transition-colors">
+      <div className="flex items-start gap-6">
+        <div className="flex-shrink-0 w-28">
+          <StatusBadge status={review.status} />
+        </div>
+        
+        <div className="flex-grow min-w-0">
+          <div className="mb-3">
+            <Link 
+              href={`/reviews/${review.id}`}
+              className="text-xl font-semibold text-gray-900 hover:text-blue-600 truncate"
             >
               {review.title}
-            </button>
+            </Link>
           </div>
           
-          <div className="text-sm text-gray-600 mb-2">
-            {review.description.length > 150 
-              ? `${review.description.substring(0, 150)}...` 
-              : review.description}
+          <div className="text-sm text-gray-600 mb-4 line-clamp-2">
+            {review.description}
           </div>
           
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-500">
             <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <Link href={`/profile/${review.user.id}`} className="hover:text-blue-600">
-                {review.user.name}
-              </Link>
-            </div>
-            
-            <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               {new Date(review.createdAt).toLocaleDateString('en-US', { 
@@ -172,32 +152,25 @@ const ReviewsPage: NextPage = () => {
             </div>
             
             <div className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
               </svg>
-              <span>{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
+              <span className="font-medium">{commentCount} {commentCount === 1 ? 'comment' : 'comments'}</span>
             </div>
             
             {review.projectLead && (
               <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                <span>Lead: </span>
-                <Link href={`/profile/${review.projectLead.id}`} className="ml-1 hover:text-blue-600">
+                <span className="mr-1">Project Lead:</span>
+                <Link href={`/profile/${review.projectLead.id}`} className="hover:text-blue-600 font-medium">
                   {review.projectLead.name}
                 </Link>
               </div>
             )}
           </div>
         </div>
-        
-        <button 
-          onClick={() => handleViewDiscussion(review.id)}
-          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm whitespace-nowrap"
-        >
-          View Discussion
-        </button>
       </div>
     </div>
   );
