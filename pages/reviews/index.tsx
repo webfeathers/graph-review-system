@@ -106,6 +106,10 @@ const ReviewsPage: NextPage = () => {
 
   const filteredReviews = reviews
     .filter(review => {
+      // Always exclude Archived reviews unless explicitly filtered for them
+      if (filter !== 'Archived' && review.status === 'Archived') {
+        return false;
+      }
       // Filter by status
       if (filter !== 'All' && review.status !== filter) {
         return false;
