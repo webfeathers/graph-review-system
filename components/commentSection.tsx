@@ -23,7 +23,7 @@ interface User {
 
 interface CommentSectionProps {
   reviewId: string;
-  onCommentAdded?: () => void;
+  onCommentAdded?: (newComment: CommentWithProfile) => void;
 }
 
 interface CommentFormValues {
@@ -466,7 +466,7 @@ export function CommentSection({ reviewId, onCommentAdded }: CommentSectionProps
         return c;
       })
     );
-    onCommentAdded?.();
+    onCommentAdded?.({ ...reply, replies: reply.replies || [] });
   };
 
   const handleVote = async (commentId: string, voteType: VoteType) => {
@@ -594,7 +594,7 @@ export function CommentSection({ reviewId, onCommentAdded }: CommentSectionProps
       const comment = await addComment(reviewId, newComment, user.id);
       setComments(prev => [comment, ...prev]);
       setNewComment('');
-      onCommentAdded?.();
+      onCommentAdded?.({ ...comment, replies: comment.replies || [] });
       toast.success('Comment added successfully');
     } catch (error) {
       console.error('Error adding comment:', error);
