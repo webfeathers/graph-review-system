@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { EmailService } from '../../../lib/emailService';
+import { APP_URL } from '../../../lib/env';
 
 // POST /api/notifications/mention
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -19,8 +20,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       commentContent: string;
     };
 
-    // Determine the app URL (fallback to localhost for dev)
-    const origin = process.env.NEXT_PUBLIC_APP_URL || `http://${req.headers.host}`;
+    // Use APP_URL constant instead of direct env access
+    const origin = APP_URL;
 
     // Send emails to each mentioned user
     await Promise.all(

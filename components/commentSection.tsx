@@ -14,6 +14,7 @@ import { addComment, voteOnComment, removeVote, getCommentsByReviewId } from '..
 import { toast } from 'react-hot-toast';
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline';
 import MentionAutocomplete from './MentionAutocomplete';
+import { APP_URL } from '../lib/env';
 
 interface User {
   id: string;
@@ -250,7 +251,7 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
         contentLower.includes(`@${u.name.toLowerCase()}`)
       );
       if (mentionedUsers.length > 0) {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+        const baseUrl = APP_URL;
         const commentUrl = `${baseUrl}/reviews/${reviewId}#comment-${reply.id}`;
         fetch('/api/notifications/mention', {
           method: 'POST',
@@ -613,7 +614,7 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
         contentLower.includes(`@${u.name.toLowerCase()}`)
       );
       if (mentionedUsers.length > 0) {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+        const baseUrl = APP_URL;
         const commentUrl = `${baseUrl}/reviews/${reviewId}#comment-${comment.id}`;
         fetch('/api/notifications/mention', {
           method: 'POST',

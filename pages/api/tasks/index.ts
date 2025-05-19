@@ -3,6 +3,7 @@ import { withAuth } from '@/lib/apiHelpers';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Role } from '@/types/supabase';
 import { EmailService } from '@/lib/emailService';
+import { APP_URL } from '../../../lib/env';
 
 type ResponseData = {
   success: boolean;
@@ -181,13 +182,12 @@ async function handler(
 
         // Send email notification to the project lead if assigned
         if (task.assignedToUser) {
-          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
           await EmailService.sendTaskAssignedNotification(
             task.id,
             task.title,
             task.assignedToUser.email,
             task.assignedToUser.name,
-            appUrl
+            APP_URL
           );
         }
 

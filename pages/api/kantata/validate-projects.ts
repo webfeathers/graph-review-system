@@ -5,6 +5,7 @@ import { Role } from '../../../types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { EmailService } from '../../../lib/emailService';
 import { supabase } from '../../../lib/supabase';
+import { APP_URL } from '../../../lib/env';
 
 // Interface for validation result
 interface ValidationResult {
@@ -125,7 +126,6 @@ async function processReviewBatch(
             .single();
             
           if (projectLead?.email) {
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://graph-review-system-3a7t.vercel.app';
             await EmailService.sendValidationMismatchNotification(
               review.id,
               review.title,
@@ -133,7 +133,7 @@ async function processReviewBatch(
               projectLead.name || 'Project Lead',
               workspace.status.message,
               review.status,
-              appUrl
+              APP_URL
             );
           }
         }
