@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { LoadingState } from './LoadingState';
 import { ErrorDisplay } from './ErrorDisplay';
 import { ProfileService } from '../lib/profileService';
-import { supabase } from '../lib/supabase'; // Add this import
+import { supabase } from '../lib/supabase';
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -89,27 +89,13 @@ const UserManagement: React.FC = () => {
     return <LoadingState message="Loading users..." />;
   }
 
-  return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b">
-        <h2 className="text-lg font-semibold">User Management</h2>
-      </div>
-      
-      {error && <ErrorDisplay error={error} onDismiss={() => setError('')} />}
-      
-      {successMessage && (
-        <div className="bg-green-100 text-green-700 p-4 rounded-md mb-4 relative">
-          <p>{successMessage}</p>
-          <button 
-            onClick={() => setSuccessMessage(null)}
-            className="absolute top-2 right-2 text-green-700 hover:text-green-900"
-            aria-label="Dismiss success message"
-          >
-            ×
-          </button>
-        </div>
-      )}
-      
+  // Separate users by role
+  const admins = users.filter(user => user.role === 'Admin');
+  const members = users.filter(user => user.role === 'Member' || !user.role);
+
+  const renderUserTable = (users: Profile[], title: string) => (
+    <div className="mb-8">
+      <h3 className="text-lg font-semibold mb-4">{title}</h3>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -183,6 +169,34 @@ const UserManagement: React.FC = () => {
             )}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="p-4 border-b">
+        <h2 className="text-lg font-semibold">User Management</h2>
+      </div>
+      
+      {error && <ErrorDisplay error={error} onDismiss={() => setError('')} />}
+      
+      {successMessage && (
+        <div className="bg-green-100 text-green-700 p-4 rounded-md mb-4 relative">
+          <p>{successMessage}</p>
+          <button 
+            onClick={() => setSuccessMessage(null)}
+            className="absolute top-2 right-2 text-green-700 hover:text-green-900"
+            aria-label="Dismiss success message"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
+      <div className="p-4">
+        {renderUserTable(members, 'Members')}
+        {renderUserTable(admins, 'Administrators')}
       </div>
       
       <div className="p-4 border-t">
