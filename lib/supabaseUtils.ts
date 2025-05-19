@@ -639,26 +639,6 @@ export async function updateProjectLead(reviewId: string, newLeadId: string, use
  */
 export async function validateKantataProject(kantataProjectId: string, currentReviewId?: string) {
   try {
-    // First check if we already have a review with this Kantata ID, excluding the current review if provided
-    let query = supabase
-      .from('reviews')
-      .select('id, title, status')
-      .eq('kantata_project_id', kantataProjectId);
-
-    if (currentReviewId) {
-      query = query.neq('id', currentReviewId);
-    }
-
-    const { data: existingReview, error: reviewError } = await query.single();
-
-    if (existingReview) {
-      return {
-        isValid: false,
-        message: `A review already exists for this Kantata project (Review ID: ${existingReview.id})`,
-        existingReview
-      };
-    }
-
     // Check cache first
     const { data: cachedProject, error: cacheError } = await supabase
       .from('kantata_project_cache')
