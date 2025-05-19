@@ -52,7 +52,7 @@ async function handler(
         // Get the task to check permissions
         const { data: task, error: fetchError } = await supabaseClient
           .from('tasks')
-          .select('created_by, assigned_to')
+          .select('created_by, assigned_to, status')
           .eq('id', id)
           .single();
 
@@ -124,8 +124,9 @@ async function handler(
             task_id: updatedTask.id,
             user_id: userId,
             metadata: {
-              status: status,
-              title: updatedTask.title
+              title: updatedTask.title,
+              old_status: task.status,
+              new_status: status
             },
             created_at: new Date().toISOString()
           });
