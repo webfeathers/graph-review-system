@@ -101,8 +101,8 @@ const NewReview: NextPage = () => {
   const form = useForm<ReviewFormValues>({
     initialValues,
     validationSchema,
-    validateOnChange: false,
-    validateOnBlur: false,
+    validateOnChange: true,
+    validateOnBlur: true,
     onSubmit: async (values) => {
       // Check submission/validation status first
       if (isSubmitting || isValidatingKantata) return;
@@ -201,15 +201,22 @@ const NewReview: NextPage = () => {
     const errors = validateForm(values, validationSchema);
     form.setErrors(errors);
     
-    // Set general error if there are validation errors
-    if (Object.keys(errors).length > 0) {
-      setGeneralError('Please fill in all required fields');
-    } else {
-      setGeneralError(null);
+    // Only set general error if we're submitting or if fields have been touched
+    if (isSubmitting || Object.keys(form.touched).length > 0) {
+      if (Object.keys(errors).length > 0) {
+        setGeneralError('Please fill in all required fields');
+      } else {
+        setGeneralError(null);
+      }
     }
     
     return Object.keys(errors).length === 0;
-  }, [form.values, form.setErrors, validationSchema]);
+  }, [form.values, form.setErrors, validationSchema, form.touched, isSubmitting]);
+
+  // Add effect to validate form when values change
+  useEffect(() => {
+    validate();
+  }, [form.values, validate]);
 
   // Add effect to scroll to top when any error changes
   useEffect(() => {
