@@ -14,7 +14,6 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ValidationResponse>,
   userId: string // Provided by withAuth
-  // supabaseClient: SupabaseClient - Not needed here
 ) {
   if (req.method !== 'POST') {
     return res.status(405).json({ 
@@ -24,7 +23,7 @@ async function handler(
     });
   }
 
-  const { kantataProjectId, currentReviewId } = req.body;
+  const { kantataProjectId } = req.body;
 
   if (!kantataProjectId || typeof kantataProjectId !== 'string') {
     return res.status(400).json({ 
@@ -36,8 +35,8 @@ async function handler(
 
   try {
     console.log(`User ${userId} validating Kantata Project ID: ${kantataProjectId}`);
-    // Call the validation function with the current review ID if provided
-    const validationResult = await validateKantataProject(kantataProjectId, currentReviewId);
+    // Call the validation function
+    const validationResult = await validateKantataProject(kantataProjectId);
 
     if (validationResult.isValid) {
       return res.status(200).json({
@@ -46,26 +45,17 @@ async function handler(
         data: validationResult.projectData // Pass back any relevant data
       });
     } else {
-      // Project ID is invalid (not found, or already exists in a review)
-      return res.status(409).json({ // 409 Conflict might be appropriate for existing review
+      return res.status(400).json({
         success: false,
-        message: validationResult.message,
-        data: validationResult.existingReview // Include existing review info if applicable
+        message: validationResult.message
       });
     }
-
   } catch (error) {
-    console.error('Error in /api/kantata/validate-project:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during validation.';
-    // Avoid exposing detailed errors like "Kantata API token not configured"
-    const clientMessage = errorMessage.includes('Kantata API token not configured')
-      ? 'Server configuration error.'
-      : 'Failed to validate Kantata project.';
-      
+    console.error('Error validating Kantata project:', error);
     return res.status(500).json({ 
       success: false, 
-      message: clientMessage,
-      error: process.env.NODE_ENV !== 'production' ? errorMessage : undefined
+      message: 'Internal Server Error',
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
     });
   }
 }
