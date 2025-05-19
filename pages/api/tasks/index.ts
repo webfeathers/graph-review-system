@@ -187,7 +187,8 @@ async function handler(
             task.title,
             task.assignedToUser.email,
             task.assignedToUser.name,
-            APP_URL
+            APP_URL,
+            task.review_id
           );
         }
 

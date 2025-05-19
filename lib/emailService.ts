@@ -257,6 +257,7 @@ export class EmailService {
    * @param projectLeadEmail Email of the project lead
    * @param projectLeadName Name of the project lead
    * @param appUrl Base URL of the application
+   * @param reviewId Review ID
    * @returns Result of the email sending
    */
   static async sendTaskAssignedNotification(
@@ -264,10 +265,11 @@ export class EmailService {
     taskTitle: string,
     projectLeadEmail: string,
     projectLeadName: string,
-    appUrl: string
+    appUrl: string,
+    reviewId: string
   ): Promise<{ success: boolean; error?: any }> {
     try {
-      const taskUrl = `${appUrl}/reviews/${taskId}`;
+      const taskUrl = `${appUrl}/reviews/${reviewId}#task-${taskId}`;
       
       const emailHtml = `
         <h1>Task Assigned to You</h1>
