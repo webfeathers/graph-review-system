@@ -21,6 +21,31 @@ export default function TaskList({ reviewId, reviewTitle, review }: TaskListProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
 
+  // Handle hash navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#task-')) {
+        const taskId = hash.replace('#task-', '');
+        const taskElement = document.getElementById(`task-${taskId}`);
+        if (taskElement) {
+          taskElement.scrollIntoView({ behavior: 'smooth' });
+          taskElement.classList.add('bg-blue-50');
+          setTimeout(() => {
+            taskElement.classList.remove('bg-blue-50');
+          }, 2000);
+        }
+      }
+    };
+
+    // Check hash on initial load
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // Get auth token
   const getAuthToken = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -260,6 +285,7 @@ export default function TaskList({ reviewId, reviewTitle, review }: TaskListProp
               .map((task) => (
               <div
                 key={task.id}
+                id={`task-${task.id}`}
                 className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-start justify-between hover:shadow-md transition-shadow duration-200"
               >
                 <div className="flex-1">
