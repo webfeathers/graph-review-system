@@ -495,7 +495,7 @@ export class ProfileService {
       }
 
       // Check if user is an admin based on email domain
-      const isAdmin = email.endsWith('@leandata.com');
+      const isAdmin = false; // Removed automatic admin assignment
 
       console.log('User data:', {
         email,
@@ -510,7 +510,7 @@ export class ProfileService {
         firstName,
         lastName,
         email,
-        role: isAdmin ? 'Admin' : (profileData?.role || userData.role || 'Member')
+        role: profileData?.role || userData.role || 'Member'
       };
 
       console.log('Sending profile data to API:', payload);
