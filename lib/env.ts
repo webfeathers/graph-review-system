@@ -21,7 +21,7 @@ export const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 /**
  * Application URLs
  */
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (IS_DEV ? 'http://localhost:3000' : '');
+export const APP_URL = process.env.NEXT_PUBLIC_URL || (IS_DEV ? 'http://localhost:3000' : 'https://graph-review-system-3a7t.vercel.app');
 
 /**
  * Validate required environment variables
@@ -30,6 +30,7 @@ export function validateEnvironment(): void {
   const requiredVars = [
     { name: 'NEXT_PUBLIC_SUPABASE_URL', value: SUPABASE_URL },
     { name: 'NEXT_PUBLIC_SUPABASE_ANON_KEY', value: SUPABASE_ANON_KEY },
+    { name: 'NEXT_PUBLIC_URL', value: process.env.NEXT_PUBLIC_URL },
   ];
 
   // Only validate service role key on server side
@@ -62,4 +63,8 @@ if (!SUPABASE_URL) {
 
 if (!SUPABASE_ANON_KEY) {
   throw new Error('Missing environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY');
+}
+
+if (!process.env.NEXT_PUBLIC_URL) {
+  throw new Error('Missing environment variable: NEXT_PUBLIC_URL');
 }
