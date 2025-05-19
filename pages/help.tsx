@@ -466,32 +466,6 @@ const HelpPage: NextPage = () => {
             </div>
           </div>
         </section>
-
-        {/* Need Help? */}
-        <section id="need-help" className="scroll-mt-20">
-          <h2 className="text-2xl font-semibold mb-4">Need Help?</h2>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <div className="flex items-start space-x-4">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-gray-600 mb-4">
-                  If you need additional assistance or have questions about the system, please contact your system administrator.
-                </p>
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-medium text-blue-900 mb-2">Contact Information</h3>
-                  <p className="text-blue-800 text-sm">
-                    Email: support@example.com<br />
-                    Hours: Monday - Friday, 9:00 AM - 5:00 PM EST
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   );
