@@ -36,9 +36,13 @@ export const reviewValidationSchema: ValidationSchema = {
   kantataProjectId: createValidator(
     required('Kantata (Mavenlink) Project ID is required')
   ),
-  accountName: createValidator(),
+  accountName: createValidator(
+    required('Account Name is required')
+  ),
   graphName: createValidator(),
-  orgId: createValidator(),
+  orgId: createValidator(
+    required('Organization ID is required')
+  ),
   projectLeadId: createValidator(
     required('Project Lead is required')
   ),

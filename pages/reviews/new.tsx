@@ -79,7 +79,9 @@ const NewReview: NextPage = () => {
   const validationSchema = useMemo(() => ({
     title: reviewValidationSchema.title,
     description: createValidator(),
-    accountName: createValidator(),
+    accountName: createValidator(
+      required('Account Name is required')
+    ),
     customerFolder: reviewValidationSchema.customerFolder,
     handoffLink: reviewValidationSchema.handoffLink,
     projectLeadId: reviewValidationSchema.projectLeadId,
@@ -88,7 +90,9 @@ const NewReview: NextPage = () => {
     segment: createValidator(
       required('Please select a customer segment')
     ),
-    orgId: createValidator(),
+    orgId: createValidator(
+      required('Organization ID is required')
+    ),
     useCase: createValidator(
       (value: string) => {
         if (!value) return null;
@@ -106,6 +110,13 @@ const NewReview: NextPage = () => {
     onSubmit: async (values) => {
       // Check submission/validation status first
       if (isSubmitting || isValidatingKantata) return;
+
+      // Mark all fields as touched to show validation errors
+      const touchedFields = Object.keys(values).reduce((acc, key) => {
+        acc[key as keyof ReviewFormValues] = true;
+        return acc;
+      }, {} as Record<keyof ReviewFormValues, boolean>);
+      form.setTouched(touchedFields);
 
       // Validate form
       const errors = validateForm(values, validationSchema);
@@ -199,18 +210,28 @@ const NewReview: NextPage = () => {
     };
     
     const errors = validateForm(values, validationSchema);
-    form.setErrors(errors);
+    
+    // Only set errors for fields that have been touched or when submitting
+    const filteredErrors = Object.entries(errors).reduce((acc, [key, value]) => {
+      const fieldKey = key as keyof ReviewFormValues;
+      if (form.touched[fieldKey] || isSubmitting) {
+        acc[fieldKey] = value;
+      }
+      return acc;
+    }, {} as Record<keyof ReviewFormValues, string>);
+    
+    form.setErrors(filteredErrors);
     
     // Only set general error if we're submitting or if fields have been touched
     if (isSubmitting || Object.keys(form.touched).length > 0) {
-      if (Object.keys(errors).length > 0) {
+      if (Object.keys(filteredErrors).length > 0) {
         setGeneralError('Please fill in all required fields');
       } else {
         setGeneralError(null);
       }
     }
     
-    return Object.keys(errors).length === 0;
+    return Object.keys(filteredErrors).length === 0;
   }, [form.values, form.setErrors, validationSchema, form.touched, isSubmitting]);
 
   // Add effect to validate form when values change
@@ -535,7 +556,7 @@ const NewReview: NextPage = () => {
               
               <SubmitButton
                 isSubmitting={isSubmitting || isValidatingKantata}
-                label="Submit Review"
+                label="Submit Draft"
                 submittingLabel="Submitting..."
                 disabled={buttonShouldBeDisabled}
                 className="mt-6"
