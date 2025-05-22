@@ -245,6 +245,20 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
     try {
       const reply = await addComment(reviewId, replyContent, user.id, comment.id);
       
+      // Send reply notification
+      fetch('/api/notifications/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parentCommentId: comment.id,
+          replyCommentId: reply.id,
+          reviewId,
+          userId: user.id,
+          commenterName: user.user_metadata?.name || user.email,
+          commentContent: reply.content
+        })
+      }).catch(err => console.error('Error sending reply notification:', err));
+      
       // Notify mentioned users
       const contentLower = replyContent.toLowerCase();
       const mentionedUsers = suggestions.filter(u =>
