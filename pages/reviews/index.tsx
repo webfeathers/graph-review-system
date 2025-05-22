@@ -102,7 +102,7 @@ const ReviewsPage: NextPage = () => {
     };
 
     fetchReviewsWithCommentCounts();
-  }, [user, session, authLoading, router]);
+  }, [authLoading]);
 
   const filteredReviews = reviews
     .filter(review => {
