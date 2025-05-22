@@ -61,16 +61,25 @@ async function handler(
       currentUserId: userId
     });
 
-    if (!isAuthor && !isAdmin) {
-      console.error('Permission denied:', {
-        userId,
-        userRole,
-        reviewUserId: review.user_id
-      });
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to update this review'
-      });
+    // Check if user has permission to update to the requested status
+    if (!isAdmin) {
+      // Non-admin users can only update to Draft or Submitted
+      if (req.body.newStatus !== 'Draft' && req.body.newStatus !== 'Submitted') {
+        console.error('Permission denied: Non-admin user cannot set status to', req.body.newStatus);
+        return res.status(403).json({
+          success: false,
+          message: 'You can only set the status to Draft or Submitted'
+        });
+      }
+      
+      // Only authors can update the status
+      if (!isAuthor) {
+        console.error('Permission denied: Non-author user cannot update status');
+        return res.status(403).json({
+          success: false,
+          message: 'Only the review author can update the status'
+        });
+      }
     }
 
     const { newStatus } = req.body;
@@ -106,22 +115,6 @@ async function handler(
         success: false,
         message: 'Failed to fetch current review data'
       });
-    }
-
-    // If changing from Draft, validate required fields
-    if (currentReview.status === 'Draft' && newStatus !== 'Draft' && newStatus !== 'Archived') {
-      const missingFields = [];
-      if (!currentReview.description) missingFields.push('Description');
-      if (!currentReview.graph_name) missingFields.push('Graph Name');
-      if (!currentReview.account_name) missingFields.push('Account Name');
-      if (!currentReview.org_id) missingFields.push('Organization ID');
-
-      if (missingFields.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot change status from Draft. The following fields are required: ${missingFields.join(', ')}`
-        });
-      }
     }
 
     // Only admins can approve or archive reviews

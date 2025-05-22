@@ -313,103 +313,150 @@ const ReviewPage: NextPage = () => {
           <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
             <div className="flex items-center space-x-4">
               {(isAuthor || isAdmin()) ? (
-                <div className="flex items-center space-x-2">
-                  {isUpdating && (
-                    <span className="text-sm text-gray-500">Updating...</span>
-                  )}
-                  <div className="flex space-x-2 h-8">
-                    {(currentStatus === 'Draft' || isAdmin()) && (
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-2 h-8">
                       <button
                         onClick={() => handleStatusChange('Draft')}
-                        disabled={isUpdating}
+                        disabled={isUpdating || (!isAdmin() && !isAuthor)}
                         className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
                           currentStatus === 'Draft' 
                             ? 'bg-gray-100 text-gray-700' 
-                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
                         }`}
                       >
+                        {isUpdating && currentStatus === 'Draft' ? (
+                          <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : null}
                         Draft
                       </button>
-                    )}
-                    <button
-                      onClick={() => handleStatusChange('Submitted')}
-                      disabled={isUpdating}
-                      className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                        currentStatus === 'Submitted' 
-                          ? 'bg-purple-600 text-white' 
-                          : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                      }`}
+                      <button
+                        onClick={() => handleStatusChange('Submitted')}
+                        disabled={isUpdating || (!isAdmin() && !isAuthor)}
+                        className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          currentStatus === 'Submitted' 
+                            ? 'bg-purple-600 text-white' 
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        {isUpdating && currentStatus === 'Submitted' ? (
+                          <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : null}
+                        Submitted
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange('In Review')}
+                        disabled={isUpdating || !isAdmin()}
+                        className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          currentStatus === 'In Review' 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        {isUpdating && currentStatus === 'In Review' ? (
+                          <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : null}
+                        In Review
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange('Needs Work')}
+                        disabled={isUpdating || !isAdmin()}
+                        className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          currentStatus === 'Needs Work' 
+                            ? 'bg-orange-500 text-white' 
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        {isUpdating && currentStatus === 'Needs Work' ? (
+                          <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : null}
+                        Needs Work
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange('Approved')}
+                        disabled={isUpdating || !isAdmin()}
+                        className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          currentStatus === 'Approved' 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        {isUpdating && currentStatus === 'Approved' ? (
+                          <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : null}
+                        Approved
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange('Archived')}
+                        disabled={isUpdating || !isAdmin()}
+                        className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
+                          currentStatus === 'Archived' 
+                            ? 'bg-gray-600 text-white' 
+                            : 'bg-gray-50 text-gray-500 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        {isUpdating && currentStatus === 'Archived' ? (
+                          <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : null}
+                        Archived
+                      </button>
+                    </div>
+                    <Link 
+                      href="/help#review-process" 
+                      className="text-gray-400 hover:text-gray-600 ml-2"
+                      title="Learn more about review stages"
                     >
-                      Submitted
-                    </button>
-                    {isAdmin() && (
-                      <>
-                        <button
-                          onClick={() => handleStatusChange('In Review')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'In Review' 
-                              ? 'bg-blue-600 text-white' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          In Review
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange('Needs Work')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'Needs Work' 
-                              ? 'bg-orange-500 text-white' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          Needs Work
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange('Approved')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'Approved' 
-                              ? 'bg-green-600 text-white' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          Approved
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange('Archived')}
-                          disabled={isUpdating}
-                          className={`inline-flex items-center justify-center w-[100px] h-8 rounded-full text-sm font-medium transition-colors duration-200 ${
-                            currentStatus === 'Archived' 
-                              ? 'bg-gray-600 text-white' 
-                              : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                          }`}
-                        >
-                          Archived
-                        </button>
-                      </>
-                    )}
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </Link>
                   </div>
-                  <Link 
-                    href="/help#review-process" 
-                    className="text-gray-400 hover:text-gray-600 ml-2"
-                    title="Learn more about review stages"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </Link>
+                  {currentStatus === 'Needs Work' && (
+                    <div className="text-sm text-orange-600 flex items-center">
+                      <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      When the required fixes have been addressed, please reset the status to "Submitted"
+                    </div>
+                  )}
                 </div>
               ) : (
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  review.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                  review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
-                  review.status === 'In Review' ? 'bg-blue-100 text-blue-800' :
-                  'bg-gray-100 text-gray-800'
-                }`}>
-                  {review.status}
-                </span>
+                <div className="flex flex-col space-y-2">
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                    review.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                    review.status === 'Needs Work' ? 'bg-yellow-100 text-yellow-800' :
+                    review.status === 'In Review' ? 'bg-blue-100 text-blue-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {review.status}
+                  </span>
+                  {review.status === 'Needs Work' && (
+                    <div className="text-sm text-orange-600 flex items-center">
+                      <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      When the required fixes have been addressed, please reset the status to "Submitted"
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
