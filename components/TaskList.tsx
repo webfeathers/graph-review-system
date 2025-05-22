@@ -103,6 +103,13 @@ export default function TaskList({ reviewId, reviewTitle, review }: TaskListProp
         return;
       }
 
+      // Adjust the date to ensure it's set to noon UTC to avoid timezone issues
+      let adjustedDueDate = null;
+      if (newTaskDueDate) {
+        const [year, month, day] = newTaskDueDate.split('-').map(Number);
+        adjustedDueDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0)).toISOString();
+      }
+
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: {
@@ -113,7 +120,7 @@ export default function TaskList({ reviewId, reviewTitle, review }: TaskListProp
           reviewId,
           title: newTaskTitle.trim(),
           description: newTaskDescription.trim(),
-          dueDate: newTaskDueDate || null,
+          dueDate: adjustedDueDate,
           assignedTo: review.projectLeadId || null,
           priority: newTaskPriority,
           status: 'pending'
@@ -297,7 +304,11 @@ export default function TaskList({ reviewId, reviewTitle, review }: TaskListProp
                     <p>Assigned to: {task.assignedToUser?.name || 'Unassigned'}</p>
                     <p>Created by: {task.createdByUser?.name}</p>
                     {task.dueDate && (
-                      <p>Due: {new Date(task.dueDate).toLocaleDateString()}</p>
+                      <p>Due: {new Date(task.dueDate).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}</p>
                     )}
                     <p>Priority: {task.priority}</p>
                   </div>
