@@ -20,9 +20,11 @@ import TaskList from '../../components/TaskList';
 import { 
   getReviewById, 
   updateReviewStatus, 
-  updateProjectLead 
+  updateProjectLead, 
+  getCommentsByReviewId 
 } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
+import { nestComments } from '../../lib/apiHelpers';
 
 // Types
 import { ReviewWithProfile, CommentWithProfile, Profile } from '../../types/supabase';
@@ -139,7 +141,19 @@ const ReviewPage: NextPage = () => {
         
         // Set comments from the review data since they're now included
         if (reviewData.comments) {
-          setComments(reviewData.comments);
+          setComments(nestComments(reviewData.comments.map((comment: any) => ({
+            ...comment,
+            createdAt: comment.created_at,
+            userId: comment.user_id,
+            reviewId: reviewData.id,
+            user: comment.user ? {
+              ...comment.user,
+              createdAt: comment.user.created_at
+            } : undefined,
+            votes: comment.votes || [],
+            voteCount: comment.voteCount || 0,
+            userVote: comment.votes?.find((v: any) => v.user_id === user.id)?.vote_type
+          }))));
         }
 
         setHasInitialized(true);
@@ -221,6 +235,9 @@ const ReviewPage: NextPage = () => {
 
         setReview(transformedReview);
         setCurrentStatus(transformedReview.status);
+        // Re-fetch comments using the flat array API after status change
+        const freshComments = await getCommentsByReviewId(transformedReview.id);
+        setComments(freshComments);
         toast.success('Status updated successfully');
       }
     } catch (err) {
@@ -623,10 +640,10 @@ const ReviewPage: NextPage = () => {
               {/* Comments Section */}
               <div className="bg-white rounded-lg shadow-sm">
                 <CommentSection
-                  comments={review.comments || []}
+                  comments={comments}
                   reviewId={review.id}
                   onCommentAdded={(newComment) => {
-                    setComments(prevComments => [...prevComments, newComment]);
+                    setComments(prevComments => nestComments([...prevComments, newComment]));
                   }}
                 />
               </div>

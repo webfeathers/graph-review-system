@@ -197,66 +197,19 @@ export async function getCommentsByReviewId(reviewId: string): Promise<CommentWi
       user:profiles!fk_comments_user(id, name, email, created_at, role),
       votes:comment_votes(*)
     `)
-    .eq('review_id', reviewId)
-    .is('parent_id', null) // Only get top-level comments
-    .order('created_at', { ascending: false });
+    .eq('review_id', reviewId);
 
   if (error) throw error;
 
-  // Get all comments to build the reply tree
-  const { data: allComments, error: allCommentsError } = await supabase
-    .from('comments')
-    .select(`
-      *,
-      user:profiles!fk_comments_user(id, name, email, created_at, role),
-      votes:comment_votes(*)
-    `)
-    .eq('review_id', reviewId)
-    .not('parent_id', 'is', null);
-
-  if (allCommentsError) throw allCommentsError;
-
-  // Process top-level comments
-  const topLevelComments: CommentWithProfile[] = data.map(comment => ({
+  // Flatten all comments and transform
+  return data.map(comment => ({
     ...dbToFrontendComment(comment),
     user: dbToFrontendProfile(comment.user),
     votes: comment.votes?.map(dbToFrontendCommentVote),
     voteCount: comment.votes?.reduce((sum: number, vote: DbCommentVote) => 
       sum + (vote.vote_type === 'up' ? 1 : -1), 0) || 0,
-    replies: []
+    // Do not include replies property here; nestComments will build it
   }));
-
-  // Process replies
-  const replies: CommentWithProfile[] = allComments.map(comment => ({
-    ...dbToFrontendComment(comment),
-    user: dbToFrontendProfile(comment.user),
-    votes: comment.votes?.map(dbToFrontendCommentVote),
-    voteCount: comment.votes?.reduce((sum: number, vote: DbCommentVote) => 
-      sum + (vote.vote_type === 'up' ? 1 : -1), 0) || 0,
-    replies: []
-  }));
-
-  // Build reply tree
-  replies.forEach(reply => {
-    const parentComment = topLevelComments.find(c => c.id === reply.parentId);
-    if (parentComment) {
-      if (!parentComment.replies) {
-        parentComment.replies = [];
-      }
-      parentComment.replies.push(reply);
-    }
-  });
-
-  // Sort replies by creation date
-  topLevelComments.forEach(comment => {
-    if (comment.replies) {
-      comment.replies.sort((a, b) => 
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      );
-    }
-  });
-
-  return topLevelComments;
 }
 
 export const addComment = async (

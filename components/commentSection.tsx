@@ -15,6 +15,7 @@ import { toast } from 'react-hot-toast';
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline';
 import MentionAutocomplete from './MentionAutocomplete';
 import { APP_URL } from '../lib/env';
+import { nestComments } from '../lib/apiHelpers';
 
 interface User {
   id: string;
@@ -311,14 +312,12 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
                 {new Date(comment.createdAt).toLocaleDateString()}
               </p>
             </div>
-            {!isReply && (
-              <button
-                onClick={() => setIsReplying(!isReplying)}
-                className="text-sm text-blue-600 hover:text-blue-800"
-              >
-                {isReplying ? 'Cancel' : 'Reply'}
-              </button>
-            )}
+            <button
+              onClick={() => setIsReplying(!isReplying)}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              {isReplying ? 'Cancel' : 'Reply'}
+            </button>
           </div>
           <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
             {comment.content}
@@ -481,17 +480,7 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
   }, [reviewId]);
 
   const handleReplyAdded = (parentId: string, reply: CommentWithProfile) => {
-    setComments(prevComments => 
-      prevComments.map(c => {
-        if (c.id === parentId) {
-          return {
-            ...c,
-            replies: [...(c.replies || []), reply]
-          };
-        }
-        return c;
-      })
-    );
+    setComments(prevComments => [...prevComments, reply]);
     onCommentAdded?.({ ...reply, replies: reply.replies || [] });
   };
 
@@ -725,7 +714,7 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
       </div>
 
       <div className="space-y-6">
-        {comments.map(comment => (
+        {nestComments(comments).map(comment => (
           <CommentItem
             key={comment.id}
             comment={comment}

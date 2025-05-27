@@ -177,3 +177,35 @@ export function withAuth(
 export function withAdminAuth(handler: AuthenticatedHandler) {
   return withAuth(handler, ['Admin']);
 }
+
+/**
+ * Nests a flat array of comments into a threaded structure.
+ * Each comment with parentId is placed in the replies array of its parent.
+ * Only top-level comments (parentId == null) are returned at the root level.
+ */
+export function nestComments<T extends { id: string; parentId?: string; replies?: T[] }>(comments: T[]): T[] {
+  const commentMap: Record<string, T & { replies: T[] }> = {};
+  const roots: (T & { replies: T[] })[] = [];
+
+  // Initialize map and replies array
+  comments.forEach(comment => {
+    commentMap[comment.id] = { ...comment, replies: comment.replies || [] };
+  });
+
+  // Build the tree
+  comments.forEach(comment => {
+    if (comment.parentId) {
+      const parent = commentMap[comment.parentId];
+      if (parent) {
+        parent.replies.push(commentMap[comment.id]);
+      } else {
+        // Orphaned reply, treat as root
+        roots.push(commentMap[comment.id]);
+      }
+    } else {
+      roots.push(commentMap[comment.id]);
+    }
+  });
+
+  return roots;
+}
