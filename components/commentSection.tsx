@@ -16,6 +16,7 @@ import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline'
 import MentionAutocomplete from './MentionAutocomplete';
 import { APP_URL } from '../lib/env';
 import { nestComments } from '../lib/apiHelpers';
+import ReactMarkdown from 'react-markdown';
 
 interface User {
   id: string;
@@ -319,9 +320,11 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
               {isReplying ? 'Cancel' : 'Reply'}
             </button>
           </div>
-          <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
-            {comment.content}
-          </p>
+          <div className="prose mt-1 text-sm text-gray-700">
+            <ReactMarkdown>
+              {comment.content}
+            </ReactMarkdown>
+          </div>
           <div className="mt-2 flex items-center space-x-4">
             <button
               onClick={() => onVote(comment.id, 'up')}
@@ -436,6 +439,7 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const {
     showSuggestions,
@@ -642,6 +646,14 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
     }
   };
 
+  // Handle file upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    const filePath = `user-${user.id}/${Date.now()}-${file.name}`;
+    // ... (rest of your upload logic)
+  };
+
   // Show loading state while auth is initializing
   if (authLoading) {
     return <div className="animate-pulse">Loading comments...</div>;
@@ -662,6 +674,20 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
         <div className="px-4 py-5 sm:p-6">
           <h3 className="text-lg font-medium leading-6 text-gray-900">Comments</h3>
           <div className="mt-4 relative">
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+            />
+            <button
+              type="button"
+              className="mb-2 px-2 py-1 border rounded text-sm bg-gray-100 hover:bg-gray-200"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Attach Image
+            </button>
             <textarea
               ref={textareaRef}
               rows={3}
