@@ -740,7 +740,7 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
       </div>
 
       <div className="space-y-6">
-        {nestComments(comments).map(comment => (
+        {nestComments([...comments].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())).map(comment => (
           <CommentItem
             key={comment.id}
             comment={comment}

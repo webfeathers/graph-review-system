@@ -12,6 +12,7 @@ import {
   UserIcon,
   BellIcon
 } from '@heroicons/react/24/outline';
+import ReactMarkdown from 'react-markdown';
 
 interface Activity {
   id: string;
@@ -191,8 +192,8 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, allUsers }) => 
               {activity.review?.title || `#${activity.review_id}`}
             </Link>
             {activity.metadata?.content && (
-              <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                {renderContentWithMentions(activity.metadata.content, allUsers)}
+              <div className="mt-2 prose text-sm text-gray-700 bg-gray-50 p-2 rounded">
+                <ReactMarkdown>{activity.metadata.content}</ReactMarkdown>
               </div>
             )}
           </>
