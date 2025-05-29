@@ -21,10 +21,67 @@ import { supabase } from '../lib/supabase';
 
 // Types
 import { ReviewWithProfile, dbToFrontendProfile, dbToFrontendReview } from '../types/supabase';
+import { ProfileService } from '../lib/profileService';
 
 // Interface for review with comment count
 interface ReviewWithCommentCount extends ReviewWithProfile {
   commentCount: number;
+}
+
+// Minimal Leaderboard component for dashboard
+function MinimalLeaderboard({ currentUserId }: { currentUserId: string }) {
+  const [topUsers, setTopUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTopUsers = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name, points')
+        .order('points', { ascending: false })
+        .limit(10); // Fetch more in case points change after enrichment
+      if (!error && data) {
+        // Enrich with ProfileService.ensureProfile for accurate points
+        const enriched = await Promise.all(
+          data.map(async (user) => {
+            const enrichedProfile = await ProfileService.ensureProfile({ id: user.id });
+            return enrichedProfile ? { ...user, ...enrichedProfile } : user;
+          })
+        );
+        // Sort by recalculated points and take top 5
+        enriched.sort((a, b) => (b.points || 0) - (a.points || 0));
+        setTopUsers(enriched.slice(0, 5));
+      }
+      setLoading(false);
+    };
+    fetchTopUsers();
+  }, []);
+
+  if (loading) return <div className="p-4">Loading...</div>;
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm p-4 flex flex-col items-start min-w-[360px] border border-gray-200 bg-gray-50 mr-6">
+      <div className="font-semibold text-gray-700 mb-2 flex items-center">
+        <span className="mr-2">🏆</span> Leaderboard
+      </div>
+      <ol className="space-y-1 w-full">
+        {topUsers.map((user, idx) => (
+          <li
+            key={user.id}
+            className={`flex items-center text-sm rounded px-1 py-0.5 w-full ${user.id === currentUserId ? 'bg-blue-100 font-bold text-blue-700' : ''}`}
+          >
+            <span className="font-bold mr-2 text-gray-500">{idx + 1}.</span>
+            <span className="mr-2 bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
+              {user.name?.charAt(0) || '?'}
+            </span>
+            <span className="mr-2 truncate max-w-[200]" title={user.name}>{user.name}</span>
+            <span className="text-xs text-gray-400 ml-auto">{user.points ?? 0} pts</span>
+          </li>
+        ))}
+      </ol>
+      <Link href="/leaderboard" className="text-sm text-blue-600 hover:text-blue-800 mt-3 self-start">View Full Leaderboard</Link>
+    </div>
+  );
 }
 
 const Dashboard: NextPage = () => {
@@ -199,40 +256,41 @@ const Dashboard: NextPage = () => {
   return (
     <>
       <div className="mb-8">
-        <div className="flex justify-between items-start">
+        <div className="flex items-start justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
             <p className="text-gray-600">Welcome back, {profile?.name || user.user_metadata?.name || user.email}!</p>
           </div>
-          
-          {/* Stats and Badges Card */}
-          <div className="bg-white rounded-lg shadow-sm p-4 w-64 border border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center">
-                <h3 className="text-sm font-medium text-gray-900">Points</h3>
-                <Link
-                  href="/help#points-system"
-                  className="ml-1.5 text-gray-400 hover:text-gray-600"
-                  title="Learn more about points"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </Link>
+          <div className="flex items-start">
+            <MinimalLeaderboard currentUserId={user.id} />
+            {/* Stats and Badges Card */}
+            <div className="bg-white rounded-lg shadow-sm p-4 w-64 border border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <h3 className="text-sm font-medium text-gray-900">Points</h3>
+                  <Link
+                    href="/help#points-system"
+                    className="ml-1.5 text-gray-400 hover:text-gray-600"
+                    title="Learn more about points"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </Link>
+                </div>
+                <span className="text-xl font-bold text-blue-600">{profile?.points ?? 0}</span>
               </div>
-              <span className="text-xl font-bold text-blue-600">{profile?.points ?? 0}</span>
+              
+              {profile?.badges && profile.badges.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {profile.badges.map((badge) => (
+                    <BadgeDisplay key={badge} badge={badge} size="sm" />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-xs">No badges earned yet</p>
+              )}
             </div>
-            
-            {profile?.badges && profile.badges.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {profile.badges.map((badge) => (
-                  <BadgeDisplay key={badge} badge={badge} size="sm" />
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-xs">No badges earned yet</p>
-            )}
-            <a href="/leaderboard" className="text-sm text-blue-600 hover:text-blue-800 mt-2 block">View Leaderboard</a>
           </div>
         </div>
       </div>
