@@ -12,6 +12,8 @@ import { BadgeType } from '../../constants';
 import Link from 'next/link';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 
+const SYSTEM_LAUNCH_DATE = new Date('2025-05-01T00:00:00Z');
+
 const ProfilePage: NextPage = () => {
   const router = useRouter();
   const { id } = router.query;
@@ -154,7 +156,8 @@ const ProfilePage: NextPage = () => {
               case 'special':
                 switch (type) {
                   case 'Early Adopter':
-                    return monthsActive >= 1; // Joined in first month
+                    const joinedDate = userCreatedAt ? new Date(userCreatedAt.created_at) : null;
+                    return joinedDate && (joinedDate.getTime() <= SYSTEM_LAUNCH_DATE.getTime() + 14 * 24 * 60 * 60 * 1000);
                   case 'Team Player':
                     return uniqueReviewsCount >= threshold;
                   case 'Consistent Contributor':

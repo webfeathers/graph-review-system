@@ -186,7 +186,7 @@ const HelpPage: NextPage = () => {
                       <ul className="space-y-2">
                         <li className="flex items-start">
                           <BadgeDisplay badge={BadgeType.EARLY_ADOPTER} size="sm" />
-                          <span className="ml-2 text-gray-600">Join the system in its first month</span>
+                          <span className="ml-2 text-gray-600">Join the system in its first two months</span>
                         </li>
                         <li className="flex items-start">
                           <BadgeDisplay badge={BadgeType.TEAM_PLAYER} size="sm" />

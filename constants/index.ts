@@ -127,7 +127,7 @@ export const BADGE_THRESHOLDS: Array<{
   { type: BadgeType.INSIGHTFUL_COMMENTER, threshold: 5, description: 'Had 5+ comments marked as helpful', category: 'comments' },
   
   // Special achievement badges
-  { type: BadgeType.EARLY_ADOPTER, threshold: 1, description: 'Joined in the first month', category: 'special' },
+  { type: BadgeType.EARLY_ADOPTER, threshold: 1, description: 'Joined within 14 days of system launch (May 1, 2025)', category: 'special' },
   { type: BadgeType.TEAM_PLAYER, threshold: 5, description: 'Participated in 5+ different reviews', category: 'special' },
   { type: BadgeType.CONSISTENT_CONTRIBUTOR, threshold: 3, description: 'Maintained activity for 3+ months', category: 'special' },
   { type: BadgeType.ICE_BREAKER, threshold: 1, description: 'First to comment on a review', category: 'special' }

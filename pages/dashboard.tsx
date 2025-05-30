@@ -74,7 +74,9 @@ function MinimalLeaderboard({ currentUserId }: { currentUserId: string }) {
             <span className="mr-2 bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center text-xs font-medium">
               {user.name?.charAt(0) || '?'}
             </span>
-            <span className="mr-2 truncate max-w-[200]" title={user.name}>{user.name}</span>
+            <span className="mr-2 truncate max-w-[200]" title={user.name}>
+              <Link href={`/profile/${user.id}`} className="text-blue-600 hover:underline">{user.name}</Link>
+            </span>
             <span className="text-xs text-gray-400 ml-auto">{user.points ?? 0} pts</span>
           </li>
         ))}
