@@ -13,6 +13,8 @@ import {
   BellIcon
 } from '@heroicons/react/24/outline';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { useState } from 'react';
 
 interface Activity {
   id: string;
@@ -90,6 +92,33 @@ const renderContentWithMentions = (text: string, allUsers: UserForMentions[] | u
   });
 };
 
+// Simple modal for image preview (copied from commentSection)
+function ImageModal({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70" onClick={onClose}>
+      <div className="relative" onClick={e => e.stopPropagation()}>
+        <img src={src} alt={alt || ''} className="max-h-[80vh] max-w-[90vw] rounded shadow-lg" />
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 bg-white bg-opacity-80 rounded-full p-1 hover:bg-opacity-100"
+          aria-label="Close image preview"
+        >
+          <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
  * A component that displays a feed of recent activities in the system.
  * Shows various types of activities including review updates, comments,
@@ -113,6 +142,7 @@ const renderContentWithMentions = (text: string, allUsers: UserForMentions[] | u
  * ```
  */
 const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, allUsers }) => {
+  const [modalImage, setModalImage] = useState<string | null>(null);
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString(undefined, {
       year: 'numeric',
@@ -142,6 +172,19 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, allUsers }) => 
       default:
         return null;
     }
+  };
+
+  // Custom renderer for images: show as thumbnail, open modal on click
+  const renderers = {
+    img: ({ src = '', alt = '' }: { src?: string; alt?: string }) => (
+      <img
+        src={src}
+        alt={alt}
+        className="inline-block max-h-16 max-w-16 rounded border border-gray-300 cursor-pointer mr-2 mb-2 align-middle"
+        style={{ objectFit: 'cover' }}
+        onClick={() => setModalImage(src)}
+      />
+    )
   };
 
   const renderActivityContent = (activity: Activity) => {
@@ -193,7 +236,9 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, allUsers }) => 
             </Link>
             {activity.metadata?.content && (
               <div className="mt-2 prose text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                <ReactMarkdown>{activity.metadata.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers}>
+                  {activity.metadata.content}
+                </ReactMarkdown>
               </div>
             )}
           </>
@@ -251,6 +296,9 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, allUsers }) => 
                 <p className="text-xs text-gray-500 mt-1">
                   {formatDate(activity.created_at)}
                 </p>
+                {modalImage && (
+                  <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
+                )}
               </div>
             </div>
           </div>
