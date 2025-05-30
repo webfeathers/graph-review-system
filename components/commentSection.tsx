@@ -17,6 +17,9 @@ import MentionAutocomplete from './MentionAutocomplete';
 import { APP_URL } from '../lib/env';
 import { nestComments } from '../lib/apiHelpers';
 import ReactMarkdown from 'react-markdown';
+import { uploadFile } from '../lib/storageUtils';
+import { StorageBucket } from '../constants';
+import remarkGfm from 'remark-gfm';
 
 interface User {
   id: string;
@@ -216,11 +219,39 @@ function useMentionHandling(textareaRef: React.RefObject<HTMLTextAreaElement>, o
   };
 }
 
+// Simple modal for image preview
+function ImageModal({ src, alt, onClose }: { src: string; alt?: string; onClose: () => void }) {
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70" onClick={onClose}>
+      <div className="relative" onClick={e => e.stopPropagation()}>
+        <img src={src} alt={alt || ''} className="max-h-[80vh] max-w-[90vw] rounded shadow-lg" />
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 bg-white bg-opacity-80 rounded-full p-1 hover:bg-opacity-100"
+          aria-label="Close image preview"
+        >
+          <svg className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete, reviewId, user }: CommentItemProps) {
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [modalImage, setModalImage] = useState<string | null>(null);
   
   const {
     showSuggestions,
@@ -295,6 +326,19 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
     }
   };
 
+  // Custom renderer for images: show as thumbnail, open modal on click
+  const renderers = {
+    img: ({ src = '', alt = '' }: { src?: string; alt?: string }) => (
+      <img
+        src={src}
+        alt={alt}
+        className="inline-block max-h-20 max-w-20 rounded border border-gray-300 cursor-pointer mr-2 mb-2 align-middle"
+        style={{ objectFit: 'cover' }}
+        onClick={() => setModalImage(src)}
+      />
+    )
+  };
+
   return (
     <div className={`space-y-4 ${isReply ? 'ml-8 border-l-2 border-gray-200 pl-4' : ''}`}>
       <div className="flex items-start space-x-4">
@@ -321,10 +365,13 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
             </button>
           </div>
           <div className="prose mt-1 text-sm text-gray-700">
-            <ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={renderers}>
               {comment.content}
             </ReactMarkdown>
           </div>
+          {modalImage && (
+            <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
+          )}
           <div className="mt-2 flex items-center space-x-4">
             <button
               onClick={() => onVote(comment.id, 'up')}
@@ -438,6 +485,8 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [newCommentImageUrls, setNewCommentImageUrls] = useState<string[]>([]);
+  const [newCommentImageUploading, setNewCommentImageUploading] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -597,26 +646,95 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
     }
   };
 
+  // Handle file upload (multiple)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !user) return;
+    setNewCommentImageUploading(true);
+    try {
+      const urls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileUrl = await uploadFile(file, StorageBucket.COMMENTS, {
+          path: `user-${user.id}`
+        });
+        urls.push(fileUrl);
+      }
+      setNewCommentImageUrls(prev => [...prev, ...urls]);
+      toast.success(urls.length > 1 ? 'Images uploaded successfully' : 'Image uploaded successfully');
+    } catch (error) {
+      toast.error('Failed to upload image(s)');
+      console.error('Image upload error:', error);
+    } finally {
+      setNewCommentImageUploading(false);
+    }
+  };
+
+  // Handle paste event for image upload (multiple)
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (!user) return;
+    const items = e.clipboardData.items;
+    const files: File[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+    if (files.length === 0) return;
+    setNewCommentImageUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of files) {
+        const fileUrl = await uploadFile(file, StorageBucket.COMMENTS, {
+          path: `user-${user.id}`
+        });
+        urls.push(fileUrl);
+      }
+      setNewCommentImageUrls(prev => [...prev, ...urls]);
+      toast.success(urls.length > 1 ? 'Images pasted and uploaded' : 'Image pasted and uploaded');
+    } catch (error) {
+      toast.error('Failed to upload pasted image(s)');
+      console.error('Paste image upload error:', error);
+    } finally {
+      setNewCommentImageUploading(false);
+    }
+  };
+
+  // Remove attached image
+  const handleRemoveImage = (url: string) => {
+    setNewCommentImageUrls(prev => prev.filter(u => u !== url));
+  };
+
   const handleAddComment = async () => {
     if (!user) {
       toast.error('Please sign in to comment');
       return;
     }
 
-    if (!newComment.trim()) {
+    if (!newComment.trim() && newCommentImageUrls.length === 0) {
       toast.error('Comment cannot be empty');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const comment = await addComment(reviewId, newComment, user.id);
+      // Append image markdown for all images
+      let commentContent = newComment;
+      if (newCommentImageUrls.length > 0) {
+        const markdown = newCommentImageUrls.map(url => `![](${url})`).join('\n\n');
+        commentContent = commentContent.trim() + (commentContent.trim() ? '\n\n' : '') + markdown;
+      }
+      const comment = await addComment(reviewId, commentContent, user.id);
       setComments(prev => [comment, ...prev]);
       setNewComment('');
+      setNewCommentImageUrls([]);
       onCommentAdded?.({ ...comment, replies: comment.replies || [] });
       
       // Notify mentioned users
-      const contentLower = newComment.toLowerCase();
+      const contentLower = commentContent.toLowerCase();
       const mentionedUsers = suggestions.filter(u =>
         contentLower.includes(`@${u.name.toLowerCase()}`)
       );
@@ -646,14 +764,6 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
     }
   };
 
-  // Handle file upload
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    const filePath = `user-${user.id}/${Date.now()}-${file.name}`;
-    // ... (rest of your upload logic)
-  };
-
   // Show loading state while auth is initializing
   if (authLoading) {
     return <div className="animate-pulse">Loading comments...</div>;
@@ -680,6 +790,7 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
               style={{ display: 'none' }}
               ref={fileInputRef}
               onChange={handleFileUpload}
+              multiple
             />
             <button
               type="button"
@@ -699,7 +810,31 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
                 handleContentChange(e);
               }}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
             />
+            {/* Image previews and remove buttons */}
+            {newCommentImageUploading && (
+              <div className="mt-2 text-sm text-gray-500">Uploading image...</div>
+            )}
+            {newCommentImageUrls.length > 0 && !newCommentImageUploading && (
+              <div className="mt-2 flex flex-wrap gap-4">
+                {newCommentImageUrls.map(url => (
+                  <div key={url} className="relative inline-block">
+                    <img src={url} alt="Attached" className="max-h-32 rounded border border-gray-300" />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(url)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600"
+                      aria-label="Remove image"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             {showSuggestions && suggestions.length > 0 && (
               <div
                 className="fixed z-50 mt-1 w-64 rounded-md bg-white shadow-lg"

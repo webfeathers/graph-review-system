@@ -57,24 +57,6 @@ export async function uploadFile(
   const fileName = path 
     ? `${path}/${timestamp}_${safeFileName}`
     : `${timestamp}_${safeFileName}`;
-    
-  // Check if the bucket exists
-  try {
-    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-    
-    if (bucketError) {
-      throw new Error(`Failed to check storage buckets: ${bucketError.message}`);
-    }
-    
-    const bucketExists = buckets.some(b => b.name === bucket);
-    
-    if (!bucketExists) {
-      throw new Error(`Storage bucket "${bucket}" not found. Please create it in your Supabase dashboard.`);
-    }
-  } catch (error) {
-    console.error('Bucket verification error:', error);
-    throw error;
-  }
   
   // Upload the file
   try {

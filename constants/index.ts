@@ -19,7 +19,8 @@ export const REVIEW_STATUSES = Object.values(ReviewStatus);
  */
 export enum StorageBucket {
   AVATARS = 'avatars',
-  USER_AVATARS = 'user-avatars'
+  USER_AVATARS = 'user-avatars',
+  COMMENTS = 'comments'
 }
 
 /**
@@ -79,7 +80,8 @@ export const AUTH = {
 
 export const STORAGE_BUCKETS = {
   AVATARS: StorageBucket.AVATARS,
-  USER_AVATARS: StorageBucket.USER_AVATARS
+  USER_AVATARS: StorageBucket.USER_AVATARS,
+  COMMENTS: StorageBucket.COMMENTS
 } as const;
 
 // Points and badges configuration
