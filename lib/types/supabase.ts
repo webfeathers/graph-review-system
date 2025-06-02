@@ -27,6 +27,8 @@ export interface Review {
   useCase?: string;
   customerFolder?: string;
   handoffLink?: string;
+  reviewType: 'customer' | 'template';
+  fileLink?: string;
 }
 
 export interface ReviewWithProfile extends Review {
@@ -74,6 +76,8 @@ export interface DbReview {
   use_case?: string;
   customer_folder?: string;
   handoff_link?: string;
+  review_type: 'customer' | 'template';
+  file_link?: string;
 }
 
 export interface DbComment {
@@ -111,7 +115,9 @@ export const dbToFrontendReview = (review: DbReview): Review => ({
   graphName: review.graph_name,
   useCase: review.use_case,
   customerFolder: review.customer_folder,
-  handoffLink: review.handoff_link
+  handoffLink: review.handoff_link,
+  reviewType: review.review_type,
+  fileLink: review.file_link
 });
 
 export const dbToFrontendComment = (comment: DbComment): Comment => ({

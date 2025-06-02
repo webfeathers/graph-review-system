@@ -30,6 +30,8 @@ export interface DbReview {
   customer_folder?: string;
   handoff_link?: string;
   project_lead_id?: string;
+  review_type: 'customer' | 'template';
+  file_link?: string;
 }
 
 export interface DbComment {
@@ -93,6 +95,8 @@ export interface Review {
   customerFolder?: string;
   handoffLink?: string;
   projectLeadId?: string;
+  reviewType: 'customer' | 'template';
+  fileLink?: string;
 }
 
 export interface Comment {
@@ -158,7 +162,9 @@ export function dbToFrontendReview(dbReview: DbReview): Review {
     useCase: dbReview.use_case,
     customerFolder: dbReview.customer_folder,
     handoffLink: dbReview.handoff_link,
-    projectLeadId: dbReview.project_lead_id
+    projectLeadId: dbReview.project_lead_id,
+    reviewType: dbReview.review_type,
+    fileLink: dbReview.file_link
   };
 }
 

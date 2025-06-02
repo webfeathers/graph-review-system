@@ -35,6 +35,8 @@ import Link from 'next/link';
 // Extending the existing ReviewWithProfile type to include kantataProjectId
 interface ExtendedReviewWithProfile extends ReviewWithProfile {
   kantataProjectId?: string;
+  reviewType: 'customer' | 'template';
+  fileLink?: string;
 }
 
 /*
@@ -171,6 +173,8 @@ const EditReview: NextPage = () => {
           handoffLink: reviewData.handoff_link || '',
           kantataProjectId: reviewData.kantata_project_id || '',
           projectLeadId: reviewData.project_lead_id || '',
+          reviewType: reviewData.review_type ?? 'customer',
+          fileLink: reviewData.file_link ?? undefined,
           // Use the correct Role type for the user object
           user: {
             id: reviewData.user_id,

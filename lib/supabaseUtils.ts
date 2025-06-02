@@ -78,7 +78,9 @@ export async function getReviews(userId?: string) {
         useCase: review.use_case,
         customerFolder: review.customer_folder,
         handoffLink: review.handoff_link,
-        projectLeadId: review.project_lead_id
+        projectLeadId: review.project_lead_id,
+        reviewType: review.review_type,
+        fileLink: review.file_link,
       };
       
       // Construct the review with profile
@@ -193,6 +195,8 @@ export async function getReviewById(id: string) {
       customerFolder: review.customer_folder,
       handoffLink: review.handoff_link,
       projectLeadId: review.project_lead_id,
+      reviewType: review.review_type,
+      fileLink: review.file_link,
       // Add user profile with proper null checks
       user: review.user ? {
         id: review.user.id,
@@ -320,7 +324,9 @@ export async function createReview(
     use_case: reviewData.useCase,
     customer_folder: reviewData.customerFolder,
     handoff_link: reviewData.handoffLink,
-    project_lead_id: reviewData.projectLeadId
+    project_lead_id: reviewData.projectLeadId,
+    review_type: reviewData.reviewType,
+    file_link: reviewData.fileLink,
   };
 
   // Use the PASSED-IN, request-scoped client for the insert operation

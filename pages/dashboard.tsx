@@ -26,6 +26,8 @@ import { ProfileService } from '../lib/profileService';
 // Interface for review with comment count
 interface ReviewWithCommentCount extends ReviewWithProfile {
   commentCount: number;
+  reviewType: 'customer' | 'template';
+  fileLink?: string;
 }
 
 // Minimal Leaderboard component for dashboard
@@ -136,7 +138,7 @@ const Dashboard: NextPage = () => {
         // For each review, fetch comment count
         try {
           const reviewsWithCounts = await Promise.all(
-            filteredReviews.map(async (review) => {
+            filteredReviews.map(async (review: any) => {
               try {
                 const { count, error } = await supabase
                   .from('comments')
@@ -186,7 +188,9 @@ const Dashboard: NextPage = () => {
                     createdAt: projectLeadData.created_at,
                     role: projectLeadData.role
                   } : undefined,
-                  commentCount: count || 0
+                  commentCount: count || 0,
+                  reviewType: (review as any).reviewType ?? 'customer',
+                  fileLink: (review as any).fileLink ?? undefined,
                 };
                 
                 return transformedReview;

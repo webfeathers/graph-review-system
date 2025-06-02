@@ -26,7 +26,7 @@ import { createReview } from '../../lib/supabaseUtils';
 import ProjectLeadSelector from '../../components/ProjectLeadSelector';
 import { withRoleProtection } from '../../components/withRoleProtection';
 import React from 'react';
-import { createValidator, required, minLength, maxLength, validateForm } from '../../lib/validationUtils';
+import { createValidator, required, minLength, maxLength, validateForm, url } from '../../lib/validationUtils';
 
 interface ReviewFormValues {
   title: string;
@@ -42,6 +42,8 @@ interface ReviewFormValues {
   handoffLink: string;
   projectLeadId: string;
   status: string;
+  reviewType: 'customer' | 'template';
+  fileLink?: string;
 }
 
 const NewReview: NextPage = () => {
@@ -58,8 +60,12 @@ const NewReview: NextPage = () => {
   const [kantataValidationStatus, setKantataValidationStatus] = useState<'idle' | 'valid' | 'invalid' | 'validating'>('idle');
   // --- END: Kantata Validation State ---
 
+  // Add state for uploaded file and file URL
+  const [templateFile, setTemplateFile] = useState<File | null>(null);
+  const [templateFileUrl, setTemplateFileUrl] = useState<string>('');
+
   // Memoize initial values
-  const initialValues = useMemo(() => ({
+  const initialValues: ReviewFormValues = {
     title: '',
     description: '',
     accountName: '',
@@ -72,34 +78,16 @@ const NewReview: NextPage = () => {
     customerFolder: '',
     handoffLink: '',
     projectLeadId: router.query.projectLeadId as string || user?.id || '',
-    status: 'Draft'
-  }), [router.query.kantataProjectId, router.query.projectLeadId, user?.id]);
+    status: 'Draft',
+    reviewType: 'customer',
+    fileLink: '',
+  };
 
   // Memoize the validation schema (excluding Kantata)
-  const validationSchema = useMemo(() => ({
-    title: reviewValidationSchema.title,
-    description: createValidator(),
-    accountName: createValidator(
-      required('Account Name is required')
-    ),
-    customerFolder: reviewValidationSchema.customerFolder,
-    handoffLink: reviewValidationSchema.handoffLink,
-    projectLeadId: reviewValidationSchema.projectLeadId,
-    kantataProjectId: reviewValidationSchema.kantataProjectId,
-    graphName: createValidator(),
-    segment: createValidator(
-      required('Please select a customer segment')
-    ),
-    orgId: createValidator(
-      required('Organization ID is required')
-    ),
-    useCase: createValidator(
-      (value: string) => {
-        if (!value) return null;
-        return value.length >= 10 ? null : 'Use case must be at least 10 characters if provided';
-      }
-    )
-  }), []);
+  const [validationSchema, setValidationSchema] = useState({});
+
+  // Remove the dropdown and add two buttons for review type selection
+  const [selectedType, setSelectedType] = useState<'customer' | 'template' | null>(null);
 
   // --- Initialize useForm BEFORE handlers are defined ---
   const form = useForm<ReviewFormValues>({
@@ -166,12 +154,34 @@ const NewReview: NextPage = () => {
           throw new Error('Invalid Project Lead selected or not found');
         }
         
+        let uploadedFileUrl = '';
+        if (values.reviewType === 'template') {
+          if (!templateFile) {
+            setGeneralError('Please upload a .txt file for the template.');
+            setIsSubmitting(false);
+            return;
+          }
+          const sanitizedFileName = sanitizeFileName(templateFile.name);
+          const filePath = `templates/${user!.id}/${Date.now()}_${sanitizedFileName}`;
+          const { data, error } = await supabase.storage.from('template-files').upload(filePath, templateFile);
+          if (error) {
+            setGeneralError('Failed to upload file: ' + error.message);
+            setIsSubmitting(false);
+            return;
+          }
+          const { data: publicUrlData } = supabase.storage.from('template-files').getPublicUrl(filePath);
+          uploadedFileUrl = publicUrlData?.publicUrl || '';
+          setTemplateFileUrl(uploadedFileUrl);
+        }
+        
         const reviewData = {
           ...values,
-          userId: user!.id, // Use user from useAuth context directly
+          userId: user!.id,
           status: (values.status || 'Draft') as 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
-          projectLeadId: projectLead.id, 
-          segment: values.segment as 'Enterprise' | 'MidMarket'
+          projectLeadId: projectLead.id,
+          segment: values.segment as 'Enterprise' | 'MidMarket',
+          reviewType: values.reviewType,
+          fileLink: uploadedFileUrl || undefined,
         };
 
         // <<< Pass the supabaseClient from context to createReview >>>
@@ -192,6 +202,42 @@ const NewReview: NextPage = () => {
       }
     },
   });
+
+  useEffect(() => {
+    if (form.values.reviewType === 'template') {
+      setValidationSchema({
+        title: reviewValidationSchema.title,
+        description: createValidator(),
+        graphName: createValidator(),
+        projectLeadId: reviewValidationSchema.projectLeadId,
+      });
+    } else {
+      setValidationSchema({
+        title: reviewValidationSchema.title,
+        description: createValidator(),
+        accountName: createValidator(
+          required('Account Name is required')
+        ),
+        customerFolder: reviewValidationSchema.customerFolder,
+        handoffLink: reviewValidationSchema.handoffLink,
+        projectLeadId: reviewValidationSchema.projectLeadId,
+        kantataProjectId: reviewValidationSchema.kantataProjectId,
+        graphName: createValidator(),
+        segment: createValidator(
+          required('Please select a customer segment')
+        ),
+        orgId: createValidator(
+          required('Organization ID is required')
+        ),
+        useCase: createValidator(
+          (value: string) => {
+            if (!value) return null;
+            return value.length >= 10 ? null : 'Use case must be at least 10 characters if provided';
+          }
+        )
+      });
+    }
+  }, [form.values.reviewType]);
 
   // Handle form validation
   const validate = useCallback(() => {
@@ -323,6 +369,11 @@ const NewReview: NextPage = () => {
     }
   }, [router.isReady, router.query, form.setFieldValue]);
 
+  // Add a function to sanitize file names for Supabase Storage
+  function sanitizeFileName(name: string) {
+    return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
   if (authLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
@@ -360,191 +411,213 @@ const NewReview: NextPage = () => {
             key={formKey} 
             onSubmit={(e) => {
               e.preventDefault();
-              // Force scroll to top on submit attempt
               window.scrollTo({ top: 0, behavior: 'smooth' });
-              // Force a re-render
               setFormKey(prev => prev + 1);
               form.handleSubmit(e);
             }}
           >
-            <div className="mb-4">
-              <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
-                Project Lead
-              </label>
-              <ProjectLeadSelector
-                value={form.values.projectLeadId}
-                onChange={(value) => form.setFieldValue('projectLeadId', value)}
-                disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && user?.id !== form.values.projectLeadId}
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                The person responsible for this graph review.
-                {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can assign to someone else."}
-              </p>
+            <div className="mb-6 flex gap-4">
+              <button
+                type="button"
+                className={`px-4 py-2 rounded border font-semibold ${selectedType === 'customer' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50'}`}
+                onClick={() => {
+                  setSelectedType('customer');
+                  form.setFieldValue('reviewType', 'customer');
+                }}
+              >
+                Customer Graph Review
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 rounded border font-semibold ${selectedType === 'template' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50'}`}
+                onClick={() => {
+                  setSelectedType('template');
+                  form.setFieldValue('reviewType', 'template');
+                }}
+              >
+                Template/Snippet Review
+              </button>
             </div>
 
-            <TextInput
-              id="title"
-              name="title"
-              label="Title"
-              placeholder="Enter a descriptive title"
-              value={form.values.title}
-              onChange={form.handleChange('title')}
-              onBlur={form.handleBlur('title')}
-              error={form.errors.title}
-              touched={form.touched.title}
-              required
-              helpText={`Maximum ${FIELD_LIMITS.TITLE_MAX_LENGTH} characters`}
-            />
-    
-            <TextInput
-              id="accountName"
-              name="accountName"
-              label="Account Name"
-              placeholder="Enter customer's account name"
-              value={form.values.accountName}
-              onChange={form.handleChange('accountName')}
-              onBlur={form.handleBlur('accountName')}
-              error={form.errors.accountName}
-              touched={form.touched.accountName}
-              maxLength={FIELD_LIMITS.ACCOUNT_NAME_MAX_LENGTH}
-            />
+            {/* Only show the form fields after a type is selected */}
+            {selectedType && (
+              <>
+                {/* Conditionally render fields based on reviewType */}
+                {selectedType === 'customer' && (
+                  <>
+                    <TextInput
+                      id="accountName"
+                      name="accountName"
+                      label="Account Name"
+                      placeholder="Enter customer's account name"
+                      value={form.values.accountName}
+                      onChange={form.handleChange('accountName')}
+                      onBlur={form.handleBlur('accountName')}
+                      error={form.errors.accountName}
+                      touched={form.touched.accountName}
+                      maxLength={FIELD_LIMITS.ACCOUNT_NAME_MAX_LENGTH}
+                    />
+                    <TextInput
+                      id="orgId"
+                      name="orgId"
+                      label="Organization ID"
+                      placeholder="Enter organization ID"
+                      value={form.values.orgId}
+                      onChange={form.handleChange('orgId')}
+                      onBlur={form.handleBlur('orgId')}
+                      error={form.errors.orgId}
+                      touched={form.touched.orgId}
+                      required
+                    />
+                    <TextInput
+                      id="kantataProjectId"
+                      name="kantataProjectId"
+                      label="Kantata Project ID"
+                      placeholder="Enter Kantata Project ID"
+                      value={form.values.kantataProjectId}
+                      onChange={form.handleChange('kantataProjectId')}
+                      onBlur={form.handleBlur('kantataProjectId')}
+                      error={form.errors.kantataProjectId}
+                      touched={form.touched.kantataProjectId}
+                      required
+                    />
+                    <SelectInput
+                      id="segment"
+                      name="segment"
+                      label="Segment"
+                      value={form.values.segment}
+                      onChange={form.handleChange('segment')}
+                      onBlur={form.handleBlur('segment')}
+                      error={form.errors.segment}
+                      touched={form.touched.segment}
+                      options={[
+                        { value: '', label: 'Please Select' },
+                        { value: 'MidMarket', label: 'MidMarket' },
+                        { value: 'Enterprise', label: 'Enterprise' }
+                      ]}
+                      required
+                      helpText="Select the customer segment"
+                    />
+                    <TextInput
+                      id="customerFolder"
+                      name="customerFolder"
+                      label="Customer Folder"
+                      placeholder="Enter Google Drive folder URL"
+                      value={form.values.customerFolder}
+                      onChange={form.handleChange('customerFolder')}
+                      onBlur={form.handleBlur('customerFolder')}
+                      error={form.errors.customerFolder}
+                      touched={form.touched.customerFolder}
+                      maxLength={FIELD_LIMITS.CUSTOMER_FOLDER_MAX_LENGTH}
+                      type="url"
+                    />
+                    <TextInput
+                      id="handoffLink"
+                      name="handoffLink"
+                      label="Handoff Link"
+                      placeholder="Enter Salesforce handoff record URL"
+                      value={form.values.handoffLink}
+                      onChange={form.handleChange('handoffLink')}
+                      onBlur={form.handleBlur('handoffLink')}
+                      error={form.errors.handoffLink}
+                      touched={form.touched.handoffLink}
+                      maxLength={FIELD_LIMITS.HANDOFF_LINK_MAX_LENGTH}
+                      type="url"
+                    />
+                  </>
+                )}
+                {selectedType === 'template' && (
+                  <div className="mb-4">
+                    <label htmlFor="templateFile" className="block text-sm font-medium text-gray-700 mb-1">
+                      Upload Template File (.txt)
+                    </label>
+                    <input
+                      id="templateFile"
+                      name="templateFile"
+                      type="file"
+                      accept=".txt"
+                      onChange={e => {
+                        const file = e.target.files && e.target.files[0];
+                        setTemplateFile(file || null);
+                      }}
+                      className="block w-full text-sm text-gray-700 border border-gray-300 rounded-md"
+                    />
+                    {templateFile && <p className="mt-1 text-sm text-gray-500">Selected: {templateFile.name}</p>}
+                  </div>
+                )}
+                <div className="mb-4">
+                  <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
+                    Project Lead
+                  </label>
+                  <ProjectLeadSelector
+                    value={form.values.projectLeadId}
+                    onChange={(value) => form.setFieldValue('projectLeadId', value)}
+                    disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && user?.id !== form.values.projectLeadId}
+                  />
+                  <p className="mt-1 text-sm text-gray-500">
+                    The person responsible for this graph review.
+                    {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can assign to someone else."}
+                  </p>
+                </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <TextInput
-                id="kantataProjectId"
-                name="kantataProjectId"
-                label="Kantata Project ID"
-                placeholder="Enter associated Kantata (Mavenlink) project ID"
-                value={form.values.kantataProjectId || ''}
-                onChange={form.handleChange('kantataProjectId')}
-                onBlur={form.handleBlur('kantataProjectId')}
-                error={form.errors.kantataProjectId}
-                touched={form.touched.kantataProjectId}
-                maxLength={FIELD_LIMITS.KANTATA_PROJECT_ID_MAX_LENGTH}
-                helpText="Link this review to a Kantata (Mavenlink) project"
-                required
-                className={
-                  kantataValidationStatus === 'validating' ? 'border-yellow-500' : 
-                  kantataValidationStatus === 'invalid' ? 'border-red-500' : 
-                  kantataValidationStatus === 'valid' ? 'border-green-500' : ''
-                }
-              />
-
-              <TextInput
-                id="orgId"
-                name="orgId"
-                label="OrgID"
-                placeholder="Enter the organization ID"
-                value={form.values.orgId}
-                onChange={form.handleChange('orgId')}
-                onBlur={form.handleBlur('orgId')}
-                error={form.errors.orgId}
-                touched={form.touched.orgId}
-                maxLength={FIELD_LIMITS.ORG_ID_MAX_LENGTH}
-                helpText="The customer's organization identifier"
-                required
-              />
-
-              <div className="pt-6">
-                <Checkbox
-                  id="remoteAccess"
-                  label="Remote Access Granted"
-                  checked={form.values.remoteAccess}
-                  onChange={form.handleChange('remoteAccess')}
-                  helpText="Check if remote access has been granted"
+                <TextInput
+                  id="title"
+                  name="title"
+                  label="Title"
+                  placeholder="Enter a descriptive title"
+                  value={form.values.title}
+                  onChange={form.handleChange('title')}
+                  onBlur={form.handleBlur('title')}
+                  error={form.errors.title}
+                  touched={form.touched.title}
+                  required
+                  helpText={`Maximum ${FIELD_LIMITS.TITLE_MAX_LENGTH} characters`}
                 />
-              </div>
-            </div>
-    
-            <SelectInput
-              id="segment"
-              name="segment"
-              label="Segment"
-              value={form.values.segment}
-              onChange={form.handleChange('segment')}
-              onBlur={form.handleBlur('segment')}
-              error={form.errors.segment}
-              touched={form.touched.segment}
-              options={[
-                { value: '', label: 'Please Select' },
-                { value: 'MidMarket', label: 'MidMarket' },
-                { value: 'Enterprise', label: 'Enterprise' }
-              ]}
-              required
-              helpText="Select the customer segment"
-            />
-    
-            <TextInput
-              id="graphName"
-              name="graphName"
-              label="Graph Name"
-              placeholder="e.g., Lead Router Graph, Contact Router Graph"
-              value={form.values.graphName}
-              onChange={form.handleChange('graphName')}
-              onBlur={form.handleBlur('graphName')}
-              error={form.errors.graphName}
-              touched={form.touched.graphName}
-              maxLength={FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH}
-              required
-              helpText="A descriptive name to help identify the specific graph in the customer's organization"
-            />
-    
-            <TextArea
-              id="description"
-              name="description"
-              label="Description"
-              placeholder="Provide a detailed description of your graph"
-              value={form.values.description}
-              onChange={form.handleChange('description')}
-              onBlur={form.handleBlur('description')}
-              error={form.errors.description}
-              touched={form.touched.description}
-              rows={6}
-              helpText={`Maximum ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`}
-            />
-    
-            <TextArea
-              id="useCase"
-              name="useCase"
-              label="Use Case"
-              placeholder="Describe the customer's use case or pain points"
-              value={form.values.useCase}
-              onChange={form.handleChange('useCase')}
-              onBlur={form.handleBlur('useCase')}
-              error={form.errors.useCase}
-              touched={form.touched.useCase}
-              rows={4}
-              maxLength={FIELD_LIMITS.USE_CASE_MAX_LENGTH}
-            />
-    
-            <TextInput
-              id="customerFolder"
-              name="customerFolder"
-              label="Customer Folder"
-              placeholder="Enter Google Drive folder URL"
-              value={form.values.customerFolder}
-              onChange={form.handleChange('customerFolder')}
-              onBlur={form.handleBlur('customerFolder')}
-              error={form.errors.customerFolder}
-              touched={form.touched.customerFolder}
-              maxLength={FIELD_LIMITS.CUSTOMER_FOLDER_MAX_LENGTH}
-              type="url"
-            />
-    
-            <TextInput
-              id="handoffLink"
-              name="handoffLink"
-              label="Handoff Link"
-              placeholder="Enter Salesforce handoff record URL"
-              value={form.values.handoffLink}
-              onChange={form.handleChange('handoffLink')}
-              onBlur={form.handleBlur('handoffLink')}
-              error={form.errors.handoffLink}
-              touched={form.touched.handoffLink}
-              maxLength={FIELD_LIMITS.HANDOFF_LINK_MAX_LENGTH}
-              type="url"
-            />
-    
+        
+                <TextInput
+                  id="graphName"
+                  name="graphName"
+                  label="Graph Name"
+                  placeholder="e.g., Lead Router Graph, Contact Router Graph"
+                  value={form.values.graphName}
+                  onChange={form.handleChange('graphName')}
+                  onBlur={form.handleBlur('graphName')}
+                  error={form.errors.graphName}
+                  touched={form.touched.graphName}
+                  maxLength={FIELD_LIMITS.GRAPH_NAME_MAX_LENGTH}
+                  required
+                  helpText="A descriptive name to help identify the specific graph in the customer's organization"
+                />
+        
+                <TextArea
+                  id="description"
+                  name="description"
+                  label="Description"
+                  placeholder="Provide a detailed description of your graph"
+                  value={form.values.description}
+                  onChange={form.handleChange('description')}
+                  onBlur={form.handleBlur('description')}
+                  error={form.errors.description}
+                  touched={form.touched.description}
+                  rows={6}
+                  helpText={`Maximum ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`}
+                />
+        
+                <TextArea
+                  id="useCase"
+                  name="useCase"
+                  label="Use Case"
+                  placeholder="Describe the customer's use case or pain points"
+                  value={form.values.useCase}
+                  onChange={form.handleChange('useCase')}
+                  onBlur={form.handleBlur('useCase')}
+                  error={form.errors.useCase}
+                  touched={form.touched.useCase}
+                  rows={4}
+                  maxLength={FIELD_LIMITS.USE_CASE_MAX_LENGTH}
+                />
+              </>
+            )}
             <div className="flex items-center justify-between mt-8">
               <button
                 type="button"
