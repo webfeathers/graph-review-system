@@ -51,7 +51,6 @@ async function getUserRoleWithCache(userId: string, supabaseClient: SupabaseClie
       .single();
       
     if (error || !data) {
-      console.error('Error fetching user role:', error);
       return null;
     }
     
@@ -62,7 +61,6 @@ async function getUserRoleWithCache(userId: string, supabaseClient: SupabaseClie
     
     return role;
   } catch (error) {
-    console.error('Unexpected error fetching user role:', error);
     return null;
   }
 }
@@ -78,9 +76,9 @@ function getAuthToken(req: NextApiRequest): string | null {
   // Check for Authorization header
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7);
+    const token = authHeader.substring(7);
+    return token;
   }
-  
   return null;
 }
 
@@ -96,13 +94,10 @@ export function withAuth(
   requiredRoles?: Role[]
 ) {
   return async (req: NextApiRequest, res: NextApiResponse) => {
-    console.log('API request received:', req.method, req.url);
-    
     // Get the token from request
     const token = getAuthToken(req);
     
     if (!token) {
-      console.error('No valid authorization token provided');
       return res.status(401).json({ 
         success: false, 
         message: 'Authentication required' 
@@ -115,39 +110,30 @@ export function withAuth(
         global: { headers: { Authorization: `Bearer ${token}` } },
       });
       
-      console.log('[withAuth] Created supabaseClient:', typeof supabaseClient, Object.keys(supabaseClient || {}));
-
       // Verify the token with Supabase using the request-scoped client
       const { data: { user }, error } = await supabaseClient.auth.getUser();
       
       if (error || !user) {
-        console.error('[withAuth] supabaseClient.auth.getUser failed:', error);
         return res.status(401).json({ 
           success: false, 
           message: 'Invalid or expired authentication token' 
         });
       }
       
-      console.log('Authenticated user:', user.id);
-      
       // Always get user's role
       const userRole = await getUserRoleWithCache(user.id, supabaseClient);
       
       if (!userRole) {
-        console.error('Error fetching user profile or role not assigned');
         return res.status(500).json({ 
           success: false, 
           message: 'Failed to verify user role' 
         });
       }
       
-      console.log('User role:', userRole);
-      
       // If role check is required, verify the role
       if (requiredRoles && requiredRoles.length > 0) {
         // Check if the user's role is in the required roles array
         if (!requiredRoles.includes(userRole)) {
-          console.error('Insufficient permissions. Required roles:', requiredRoles, 'User role:', userRole);
           return res.status(403).json({ 
             success: false, 
             message: 'You do not have permission to access this resource' 
@@ -159,7 +145,6 @@ export function withAuth(
       return await handler(req, res, user.id, supabaseClient, userRole);
     } catch (error) {
       // Sanitize error details before sending to client
-      console.error('Error in authentication middleware:', error);
       return res.status(500).json({ 
         success: false, 
         message: 'Authentication failed. Please try again.' 

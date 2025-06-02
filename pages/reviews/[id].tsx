@@ -120,6 +120,8 @@ const ReviewPage: NextPage = () => {
           customerFolder: reviewData.customer_folder,
           handoffLink: reviewData.handoff_link,
           projectLeadId: reviewData.project_lead_id,
+          reviewType: reviewData.review_type ?? 'customer',
+          fileLink: reviewData.file_link ?? undefined,
           comments: reviewData.comments?.map((comment: any) => ({
             ...comment,
             createdAt: comment.created_at,
@@ -218,6 +220,8 @@ const ReviewPage: NextPage = () => {
           customerFolder: responseData.data.customer_folder,
           handoffLink: responseData.data.handoff_link,
           projectLeadId: responseData.data.project_lead_id,
+          reviewType: responseData.data.review_type ?? 'customer',
+          fileLink: responseData.data.file_link ?? undefined,
           comments: responseData.data.comments?.map((comment: any) => ({
             ...comment,
             createdAt: comment.created_at,
@@ -534,101 +538,142 @@ const ReviewPage: NextPage = () => {
             <div className="mb-4">
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <h2 className="text-lg font-medium text-gray-900 mb-2">Description</h2>
-                  <div className="prose max-w-none text-gray-900 text-sm mb-6">{review.description || 'Not Added'}</div>
+                  {review.reviewType === 'template' ? (
+                    <>
+                      <h2 className="text-lg font-medium text-gray-900 mb-2">Description</h2>
+                      <div className="prose max-w-none text-gray-900 text-sm mb-6">{review.description || 'Not Added'}</div>
 
-                  <h2 className="text-lg font-medium text-gray-900 mb-2">Use Case</h2>
-                  <div className="prose max-w-none text-gray-900 text-sm mb-6">{review.useCase || 'Not Added'}</div>
+                      <h2 className="text-lg font-medium text-gray-900 mb-2">Graph Name</h2>
+                      <div className="prose max-w-none text-gray-900 text-sm mb-6">{review.graphName || 'Not Added'}</div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <label className="w-1/3 text-sm font-medium text-gray-700">Account Name</label>
-                        <div className="w-2/3 text-gray-900">{review.accountName || 'Not Added'}</div>
-                      </div>
+                      {/* Template File Versioning UI */}
+                      <h2 className="text-lg font-medium text-gray-900 mb-2">Template File Versions</h2>
+                      {review.templateFileVersions && review.templateFileVersions.length > 0 ? (
+                        <table className="min-w-full border text-sm mt-2">
+                          <thead>
+                            <tr>
+                              <th className="border px-2 py-1">Version</th>
+                              <th className="border px-2 py-1">Date Uploaded</th>
+                              <th className="border px-2 py-1">Uploaded by</th>
+                              <th className="border px-2 py-1">Download</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {review.templateFileVersions?.map((v, idx) => (
+                              <tr key={v.id}>
+                                <td className="border px-2 py-1">{review.templateFileVersions?.length ? review.templateFileVersions.length - idx : ''}</td>
+                                <td className="border px-2 py-1">{v.uploadedAt ? new Date(v.uploadedAt).toLocaleString() : ''}</td>
+                                <td className="border px-2 py-1">{v.uploaderName || v.uploadedBy || 'Unknown'}</td>
+                                <td className="border px-2 py-1">
+                                  <a href={v.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Download</a>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <div className="text-gray-500">No file versions uploaded yet.</div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-lg font-medium text-gray-900 mb-2">Description</h2>
+                      <div className="prose max-w-none text-gray-900 text-sm mb-6">{review.description || 'Not Added'}</div>
 
-                      <div className="flex items-center">
-                        <label className="w-1/3 text-sm font-medium text-gray-700">Kantata Project ID</label>
-                        <div className="w-2/3">
-                          <a 
-                            href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}?tab=project-workspace`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center"
-                          >
-                            <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            {review.kantataProjectId}
-                          </a>
+                      <h2 className="text-lg font-medium text-gray-900 mb-2">Use Case</h2>
+                      <div className="prose max-w-none text-gray-900 text-sm mb-6">{review.useCase || 'Not Added'}</div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center">
+                            <label className="w-1/3 text-sm font-medium text-gray-700">Account Name</label>
+                            <div className="w-2/3 text-gray-900">{review.accountName || 'Not Added'}</div>
+                          </div>
+
+                          <div className="flex items-center">
+                            <label className="w-1/3 text-sm font-medium text-gray-700">Kantata Project ID</label>
+                            <div className="w-2/3">
+                              <a 
+                                href={`https://leandata.mavenlink.com/workspaces/${review.kantataProjectId}?tab=project-workspace`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 flex items-center"
+                              >
+                                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                                {review.kantataProjectId}
+                              </a>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center">
+                            <label className="w-1/3 text-sm font-medium text-gray-700">OrgID</label>
+                            <div className="w-2/3 text-gray-900">{review.orgId || 'Not Added'}</div>
+                          </div>
+
+                          <div className="flex items-center">
+                            <label className="w-1/3 text-sm font-medium text-gray-700">Remote Access</label>
+                            <div className="w-2/3 text-gray-900">{review.remoteAccess ? 'Yes' : 'No'}</div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center">
+                            <label className="w-1/3 text-sm font-medium text-gray-700">Segment</label>
+                            <div className="w-2/3 text-gray-900">{review.segment || 'Not Added'}</div>
+                          </div>
+
+                          <div className="flex items-center">
+                            <label className="w-1/3 text-sm font-medium text-gray-700">Graph Name</label>
+                            <div className="w-2/3 text-gray-900">{review.graphName || 'Not Added'}</div>
+                          </div>
+
+                          <div className="flex items-center">
+                            <label className="w-1/3 text-sm font-medium text-gray-700">Customer Folder</label>
+                            <div className="w-2/3">
+                              {review.customerFolder ? (
+                                <a 
+                                  href={review.customerFolder}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 flex items-center"
+                                >
+                                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                  Open Customer Folder
+                                </a>
+                              ) : (
+                                <span className="text-gray-500">Not Added</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center">
+                            <label className="w-1/3 text-sm font-medium text-gray-700">Sales to PS Handoff</label>
+                            <div className="w-2/3">
+                              {review.handoffLink ? (
+                                <a 
+                                  href={review.handoffLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 flex items-center"
+                                >
+                                  <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                  Open Handoff Form
+                                </a>
+                              ) : (
+                                <span className="text-gray-500">Not Added</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="flex items-center">
-                        <label className="w-1/3 text-sm font-medium text-gray-700">OrgID</label>
-                        <div className="w-2/3 text-gray-900">{review.orgId || 'Not Added'}</div>
-                      </div>
-
-                      <div className="flex items-center">
-                        <label className="w-1/3 text-sm font-medium text-gray-700">Remote Access</label>
-                        <div className="w-2/3 text-gray-900">{review.remoteAccess ? 'Yes' : 'No'}</div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center">
-                        <label className="w-1/3 text-sm font-medium text-gray-700">Segment</label>
-                        <div className="w-2/3 text-gray-900">{review.segment || 'Not Added'}</div>
-                      </div>
-
-                      <div className="flex items-center">
-                        <label className="w-1/3 text-sm font-medium text-gray-700">Graph Name</label>
-                        <div className="w-2/3 text-gray-900">{review.graphName || 'Not Added'}</div>
-                      </div>
-
-                      <div className="flex items-center">
-                        <label className="w-1/3 text-sm font-medium text-gray-700">Customer Folder</label>
-                        <div className="w-2/3">
-                          {review.customerFolder ? (
-                            <a 
-                              href={review.customerFolder}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 flex items-center"
-                            >
-                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                              Open Customer Folder
-                            </a>
-                          ) : (
-                            <span className="text-gray-500">Not Added</span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center">
-                        <label className="w-1/3 text-sm font-medium text-gray-700">Sales to PS Handoff</label>
-                        <div className="w-2/3">
-                          {review.handoffLink ? (
-                            <a 
-                              href={review.handoffLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 flex items-center"
-                            >
-                              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                              Open Handoff Form
-                            </a>
-                          ) : (
-                            <span className="text-gray-500">Not Added</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

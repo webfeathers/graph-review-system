@@ -8,6 +8,15 @@ export interface Profile {
   role: Role;
 }
 
+export interface TemplateFileVersion {
+  id: string;
+  reviewId: string;
+  fileUrl: string;
+  uploadedAt: string;
+  uploadedBy?: string;
+  uploaderName?: string | null;
+}
+
 export interface Review {
   id: string;
   title: string;
@@ -29,6 +38,7 @@ export interface Review {
   handoffLink?: string;
   reviewType: 'customer' | 'template';
   fileLink?: string;
+  templateFileVersions?: TemplateFileVersion[];
 }
 
 export interface ReviewWithProfile extends Review {

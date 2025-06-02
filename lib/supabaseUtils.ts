@@ -260,6 +260,27 @@ export async function getReviewById(id: string) {
       }));
     }
 
+    // Add template file versions if this is a template review
+    if (frontendReview.reviewType === 'template') {
+      const { data: versions, error: versionError } = await supabase
+        .from('template_file_versions')
+        .select('*, uploader:profiles!uploaded_by(id, name, email)')
+        .eq('review_id', id)
+        .order('uploaded_at', { ascending: false });
+      if (versionError) {
+        console.error('Error fetching template file versions:', versionError);
+      } else {
+        frontendReview.templateFileVersions = (versions || []).map(v => ({
+          id: v.id,
+          reviewId: v.review_id,
+          fileUrl: v.file_url,
+          uploadedAt: v.uploaded_at,
+          uploadedBy: v.uploaded_by,
+          uploaderName: v.uploader?.name || null,
+        }));
+      }
+    }
+
     return frontendReview;
   } catch (err) {
     console.error('Error in getReviewById:', err);
@@ -361,6 +382,21 @@ export async function createReview(
       if (activityError) {
         console.error('Error creating activity record:', activityError);
         // Don't throw error here, as the review was created successfully
+      }
+      
+      // If this is a template review and fileLink is provided, insert a template_file_versions row
+      if (reviewData.reviewType === 'template' && reviewData.fileLink) {
+        const { error: versionError } = await client
+          .from('template_file_versions')
+          .insert({
+            review_id: newReview.id,
+            file_url: reviewData.fileLink,
+            uploaded_by: reviewData.userId
+          });
+        if (versionError) {
+          console.error('Error creating template file version:', versionError);
+          // Don't throw, as review was created
+        }
       }
       
       return dbToFrontendReview(newReview);

@@ -116,6 +116,24 @@ const reviewHandler: AuthenticatedHandler = async (
           })
         };
 
+        // Add template file versions if this is a template review
+        if (review.review_type === 'template') {
+          const { data: versions, error: versionError } = await supabaseClient
+            .from('template_file_versions')
+            .select('*')
+            .eq('review_id', id)
+            .order('uploaded_at', { ascending: false });
+          if (!versionError && versions) {
+            transformedReview.templateFileVersions = versions.map((v: any) => ({
+              id: v.id,
+              reviewId: v.review_id,
+              fileUrl: v.file_url,
+              uploadedAt: v.uploaded_at,
+              uploadedBy: v.uploaded_by,
+            }));
+          }
+        }
+
         return res.status(200).json({
           success: true,
           data: transformedReview

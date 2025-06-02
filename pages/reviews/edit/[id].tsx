@@ -27,6 +27,7 @@ import { validateForm } from '../../../lib/validationUtils';
 import ProjectLeadSelector from '../../../components/ProjectLeadSelector';
 import { validateKantataProject } from '../../../lib/supabaseUtils';
 import Link from 'next/link';
+import dayjs from 'dayjs';
 
 
 
@@ -80,18 +81,21 @@ const EditReview: NextPage = () => {
 
   const [newLeadId, setNewLeadId] = useState<string>('');
 
+  // Add state for file upload and upload progress
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
+
   // Load review data on mount
   useEffect(() => {
     // Only run once on mount
     const fetchReview = async () => {
       // Skip if no id, still loading auth, or no user
       if (!id || authLoading || !user) {
-        console.log('Skipping fetch - missing requirements:', { id, authLoading, hasUser: !!user });
         return;
       }
      
       try {
-        console.log('Fetching review data for ID:', id);
         setLoading(true);
         
         // Get token for authentication
@@ -99,7 +103,6 @@ const EditReview: NextPage = () => {
         const token = sessionData.session?.access_token;
         
         if (!token) {
-          console.error('No authentication token available');
           throw new Error('No authentication token available');
         }
         
@@ -112,7 +115,6 @@ const EditReview: NextPage = () => {
         });
         
         const data = await response.json();
-        console.log('API Response:', data);
         
         if (!response.ok) {
           if (response.status === 403) {
@@ -128,23 +130,10 @@ const EditReview: NextPage = () => {
         }
         
         const reviewData = data.data;
-        console.log('Review data loaded successfully:', {
-          id: reviewData.id,
-          title: reviewData.title,
-          userId: reviewData.user_id,
-          currentUser: user.id
-        });
         
         // Check authorization
         const isAuthor = reviewData.user_id === user.id;
         const userIsAdmin = isAdmin ? isAdmin() : false;
-        
-        console.log('Authorization check:', {
-          isAuthor,
-          userIsAdmin,
-          reviewUserId: reviewData.user_id,
-          currentUserId: user.id
-        });
         
         if (!isAuthor && !userIsAdmin) {
           setError('You are not authorized to edit this review');
@@ -175,6 +164,7 @@ const EditReview: NextPage = () => {
           projectLeadId: reviewData.project_lead_id || '',
           reviewType: reviewData.review_type ?? 'customer',
           fileLink: reviewData.file_link ?? undefined,
+          templateFileVersions: reviewData.templateFileVersions || [],
           // Use the correct Role type for the user object
           user: {
             id: reviewData.user_id,
@@ -203,7 +193,6 @@ const EditReview: NextPage = () => {
         // Set the project lead ID
         setNewLeadId(transformedReview.projectLeadId || '');
       } catch (err) {
-        console.error('Error loading review:', err);
         setError(err instanceof Error ? err.message : 'Failed to load review');
       } finally {
         setLoading(false);
@@ -289,7 +278,6 @@ const EditReview: NextPage = () => {
         return { isValid: true, message: result.message };
       }
     } catch (error) {
-      console.error('Kantata validation API call failed:', error);
       const message = error instanceof Error ? error.message : 'Network error';
       setKantataValidationError(message);
       setKantataValidationStatus('invalid');
@@ -321,7 +309,6 @@ const EditReview: NextPage = () => {
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submission started');
     
     // Mark all fields as touched
     const allTouched = Object.keys(touched).reduce((acc, key) => ({ ...acc, [key]: true }), {});
@@ -329,7 +316,6 @@ const EditReview: NextPage = () => {
     
     // Validate form
     const errors = validate();
-    console.log('Validation errors:', errors);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       // Show error message at the top of the form
@@ -338,7 +324,6 @@ const EditReview: NextPage = () => {
     }
     
     try {
-      console.log('Starting submission process');
       setSubmitting(true);
       setError(null);
       setFormErrors({});
@@ -368,8 +353,6 @@ const EditReview: NextPage = () => {
         status: review?.status
       };
       
-      console.log('Sending review data:', reviewData);
-      
       // Update the review
       const response = await fetch(`/api/reviews/${id}`, {
         method: 'PUT',
@@ -379,10 +362,7 @@ const EditReview: NextPage = () => {
         },
         body: JSON.stringify(reviewData)
       });
-      
       const data = await response.json();
-      console.log('API response:', data);
-      
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update review');
       }
@@ -390,10 +370,68 @@ const EditReview: NextPage = () => {
       // Redirect to the review page
       router.push(`/reviews/${id}`);
     } catch (err) {
-      console.error('Error updating review:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while updating the review');
     } finally {
       setSubmitting(false);
+    }
+  };
+  
+  // Helper to refresh review data (for version list)
+  const refreshReview = async () => {
+    if (!id || !user) return;
+    setLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('No authentication token available');
+      const response = await fetch(`/api/reviews/${id}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok && data.success && data.data) {
+        setReview(data.data);
+      }
+    } catch (err) {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle file version upload
+  const handleFileVersionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUploadError(null);
+    setUploadSuccess(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'text/plain') {
+      setUploadError('Only .txt files are allowed');
+      return;
+    }
+    setUploading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('No authentication token available');
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch(`/api/reviews/${id}/template-file-version`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        setUploadError(data.error || 'Failed to upload file version');
+      } else {
+        setUploadSuccess('File version uploaded successfully');
+        await refreshReview();
+      }
+    } catch (err: any) {
+      setUploadError(err.message || 'Failed to upload file version');
+    } finally {
+      setUploading(false);
     }
   };
   
@@ -451,83 +489,87 @@ const EditReview: NextPage = () => {
             helpText={`Maximum ${FIELD_LIMITS.TITLE_MAX_LENGTH} characters`}
           />
 
-          <TextInput
-            id="accountName"
-            name="accountName"
-            label="Account Name"
-            placeholder="Enter customer's account name"
-            value={accountName}
-            onChange={(e) => setAccountName(e.target.value)}
-            onBlur={() => handleBlur('accountName')}
-            error={formErrors.accountName}
-            touched={touched.accountName}
-            maxLength={FIELD_LIMITS.ACCOUNT_NAME_MAX_LENGTH}
-          />
-
-          <div className="grid grid-cols-3 gap-4">
-            <TextInput
-              id="kantataProjectId"
-              name="kantataProjectId"
-              label="Kantata Project ID"
-              placeholder="Enter associated Kantata (Mavenlink) project ID"
-              value={kantataProjectId}
-              onChange={(e) => setKantataProjectId(e.target.value)}
-              onBlur={() => handleBlur('kantataProjectId')}
-              error={formErrors.kantataProjectId || kantataValidationError}
-              touched={touched.kantataProjectId}
-              maxLength={FIELD_LIMITS.KANTATA_PROJECT_ID_MAX_LENGTH}
-              helpText="Link this review to a Kantata (Mavenlink) project"
-              required
-              className={
-                kantataValidationStatus === 'validating' ? 'border-yellow-500' : 
-                kantataValidationStatus === 'invalid' ? 'border-red-500' : 
-                kantataValidationStatus === 'valid' ? 'border-green-500' : ''
-              }
-            />
-
-            <TextInput
-              id="orgId"
-              name="orgId"
-              label="OrgID"
-              placeholder="Enter the organization ID"
-              value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
-              onBlur={() => handleBlur('orgId')}
-              error={formErrors.orgId}
-              touched={touched.orgId}
-              maxLength={FIELD_LIMITS.ORG_ID_MAX_LENGTH}
-              helpText="The customer's organization identifier"
-              required
-            />
-
-            <div className="pt-6">
-              <Checkbox
-                id="remoteAccess"
-                label="Remote Access Granted"
-                checked={remoteAccess}
-                onChange={(e) => setRemoteAccess(e.target.checked)}
-                helpText="Check if remote access has been granted"
+          {review.reviewType === 'customer' && (
+            <>
+              <TextInput
+                id="accountName"
+                name="accountName"
+                label="Account Name"
+                placeholder="Enter customer's account name"
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                onBlur={() => handleBlur('accountName')}
+                error={formErrors.accountName}
+                touched={touched.accountName}
+                maxLength={FIELD_LIMITS.ACCOUNT_NAME_MAX_LENGTH}
               />
-            </div>
-          </div>
 
-          <SelectInput
-            id="segment"
-            name="segment"
-            label="Segment"
-            value={segment}
-            onChange={(e) => setSegment(e.target.value)}
-            onBlur={() => handleBlur('segment')}
-            error={formErrors.segment}
-            touched={touched.segment}
-            options={[
-              { value: '', label: 'Please Select' },
-              { value: 'MidMarket', label: 'MidMarket' },
-              { value: 'Enterprise', label: 'Enterprise' }
-            ]}
-            required
-            helpText="Select the customer segment"
-          />
+              <div className="grid grid-cols-3 gap-4">
+                <TextInput
+                  id="kantataProjectId"
+                  name="kantataProjectId"
+                  label="Kantata Project ID"
+                  placeholder="Enter associated Kantata (Mavenlink) project ID"
+                  value={kantataProjectId}
+                  onChange={(e) => setKantataProjectId(e.target.value)}
+                  onBlur={() => handleBlur('kantataProjectId')}
+                  error={formErrors.kantataProjectId || kantataValidationError}
+                  touched={touched.kantataProjectId}
+                  maxLength={FIELD_LIMITS.KANTATA_PROJECT_ID_MAX_LENGTH}
+                  helpText="Link this review to a Kantata (Mavenlink) project"
+                  required
+                  className={
+                    kantataValidationStatus === 'validating' ? 'border-yellow-500' : 
+                    kantataValidationStatus === 'invalid' ? 'border-red-500' : 
+                    kantataValidationStatus === 'valid' ? 'border-green-500' : ''
+                  }
+                />
+
+                <TextInput
+                  id="orgId"
+                  name="orgId"
+                  label="OrgID"
+                  placeholder="Enter the organization ID"
+                  value={orgId}
+                  onChange={(e) => setOrgId(e.target.value)}
+                  onBlur={() => handleBlur('orgId')}
+                  error={formErrors.orgId}
+                  touched={touched.orgId}
+                  maxLength={FIELD_LIMITS.ORG_ID_MAX_LENGTH}
+                  helpText="The customer's organization identifier"
+                  required
+                />
+
+                <div className="pt-6">
+                  <Checkbox
+                    id="remoteAccess"
+                    label="Remote Access Granted"
+                    checked={remoteAccess}
+                    onChange={(e) => setRemoteAccess(e.target.checked)}
+                    helpText="Check if remote access has been granted"
+                  />
+                </div>
+              </div>
+
+              <SelectInput
+                id="segment"
+                name="segment"
+                label="Segment"
+                value={segment}
+                onChange={(e) => setSegment(e.target.value)}
+                onBlur={() => handleBlur('segment')}
+                error={formErrors.segment}
+                touched={touched.segment}
+                options={[
+                  { value: '', label: 'Please Select' },
+                  { value: 'MidMarket', label: 'MidMarket' },
+                  { value: 'Enterprise', label: 'Enterprise' }
+                ]}
+                required
+                helpText="Select the customer segment"
+              />
+            </>
+          )}
 
           <TextInput
             id="graphName"
@@ -558,47 +600,94 @@ const EditReview: NextPage = () => {
             helpText={`Maximum ${FIELD_LIMITS.DESCRIPTION_MAX_LENGTH} characters`}
           />
 
-          <TextArea
-            id="useCase"
-            name="useCase"
-            label="Use Case"
-            placeholder="Describe the customer's use case or pain points"
-            value={useCase}
-            onChange={(e) => setUseCase(e.target.value)}
-            onBlur={() => handleBlur('useCase')}
-            error={formErrors.useCase}
-            touched={touched.useCase}
-            rows={4}
-            maxLength={FIELD_LIMITS.USE_CASE_MAX_LENGTH}
-          />
+          {review.reviewType === 'customer' && (
+            <>
+              <TextArea
+                id="useCase"
+                name="useCase"
+                label="Use Case"
+                placeholder="Describe the customer's use case or pain points"
+                value={useCase}
+                onChange={(e) => setUseCase(e.target.value)}
+                onBlur={() => handleBlur('useCase')}
+                error={formErrors.useCase}
+                touched={touched.useCase}
+                rows={4}
+                maxLength={FIELD_LIMITS.USE_CASE_MAX_LENGTH}
+              />
 
-          <TextInput
-            id="customerFolder"
-            name="customerFolder"
-            label="Customer Folder"
-            placeholder="Enter Google Drive folder URL"
-            value={customerFolder}
-            onChange={(e) => setCustomerFolder(e.target.value)}
-            onBlur={() => handleBlur('customerFolder')}
-            error={formErrors.customerFolder}
-            touched={touched.customerFolder}
-            maxLength={FIELD_LIMITS.CUSTOMER_FOLDER_MAX_LENGTH}
-            type="url"
-          />
+              <TextInput
+                id="customerFolder"
+                name="customerFolder"
+                label="Customer Folder"
+                placeholder="Enter Google Drive folder URL"
+                value={customerFolder}
+                onChange={(e) => setCustomerFolder(e.target.value)}
+                onBlur={() => handleBlur('customerFolder')}
+                error={formErrors.customerFolder}
+                touched={touched.customerFolder}
+                maxLength={FIELD_LIMITS.CUSTOMER_FOLDER_MAX_LENGTH}
+                type="url"
+              />
 
-          <TextInput
-            id="handoffLink"
-            name="handoffLink"
-            label="Handoff Link"
-            placeholder="Enter Salesforce handoff record URL"
-            value={handoffLink}
-            onChange={(e) => setHandoffLink(e.target.value)}
-            onBlur={() => handleBlur('handoffLink')}
-            error={formErrors.handoffLink}
-            touched={touched.handoffLink}
-            maxLength={FIELD_LIMITS.HANDOFF_LINK_MAX_LENGTH}
-            type="url"
-          />
+              <TextInput
+                id="handoffLink"
+                name="handoffLink"
+                label="Handoff Link"
+                placeholder="Enter Salesforce handoff record URL"
+                value={handoffLink}
+                onChange={(e) => setHandoffLink(e.target.value)}
+                onBlur={() => handleBlur('handoffLink')}
+                error={formErrors.handoffLink}
+                touched={touched.handoffLink}
+                maxLength={FIELD_LIMITS.HANDOFF_LINK_MAX_LENGTH}
+                type="url"
+              />
+            </>
+          )}
+
+          {/* Template Review File Versioning UI */}
+          {review.reviewType === 'template' && (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-2">Template File Versions</h2>
+              {uploadError && <ErrorDisplay error={uploadError} onDismiss={() => setUploadError(null)} />}
+              {uploadSuccess && <div className="text-green-600 mb-2">{uploadSuccess}</div>}
+              <input
+                type="file"
+                accept=".txt"
+                onChange={handleFileVersionUpload}
+                disabled={uploading}
+                className="mb-2"
+              />
+              {uploading && <div className="text-blue-600 mb-2">Uploading...</div>}
+              {review.templateFileVersions && review.templateFileVersions.length > 0 ? (
+                <table className="min-w-full border text-sm mt-2">
+                  <thead>
+                    <tr>
+                      <th className="border px-2 py-1">Version</th>
+                      <th className="border px-2 py-1">Date Uploaded</th>
+                      <th className="border px-2 py-1">Uploaded by</th>
+                      <th className="border px-2 py-1">Download</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {review.templateFileVersions?.map((v, idx) => (
+                      <tr key={v.id}>
+                        <td className="border px-2 py-1">{review.templateFileVersions?.length ? review.templateFileVersions.length - idx : ''}</td>
+                        <td className="border px-2 py-1">{v.uploadedAt ? dayjs(v.uploadedAt).format('YYYY-MM-DD HH:mm') : ''}</td>
+                        <td className="border px-2 py-1">{v.uploaderName || v.uploadedBy || 'Unknown'}</td>
+                        <td className="border px-2 py-1">
+                          <a href={v.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Download</a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="text-gray-500">No file versions uploaded yet.</div>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-between mt-8">
             <button
