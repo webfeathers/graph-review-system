@@ -120,7 +120,7 @@ const reviewHandler: AuthenticatedHandler = async (
         if (review.review_type === 'template') {
           const { data: versions, error: versionError } = await supabaseClient
             .from('template_file_versions')
-            .select('*')
+            .select('*, uploader:profiles!uploaded_by(id, name, email)')
             .eq('review_id', id)
             .order('uploaded_at', { ascending: false });
           if (!versionError && versions) {
@@ -130,6 +130,7 @@ const reviewHandler: AuthenticatedHandler = async (
               fileUrl: v.file_url,
               uploadedAt: v.uploaded_at,
               uploadedBy: v.uploaded_by,
+              uploaderName: v.uploader?.name || null,
             }));
           }
         }
