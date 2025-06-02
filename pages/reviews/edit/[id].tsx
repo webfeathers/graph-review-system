@@ -426,7 +426,32 @@ const EditReview: NextPage = () => {
         setUploadError(data.error || 'Failed to upload file version');
       } else {
         setUploadSuccess('File version uploaded successfully');
-        await refreshReview();
+        if (data.review) {
+          // Normalize templateFileVersions for consistency
+          let templateFileVersions = [];
+          if (data.review.template_file_versions) {
+            templateFileVersions = (data.review.template_file_versions || []).map((v: any) => ({
+              id: v.id,
+              reviewId: v.review_id,
+              fileUrl: v.file_url,
+              uploadedAt: v.uploaded_at,
+              uploadedBy: v.uploaded_by,
+              uploaderName: v.uploader?.name || null,
+            }));
+          } else if (data.review.templateFileVersions) {
+            templateFileVersions = data.review.templateFileVersions;
+          }
+          setReview((prev) => prev ? {
+            ...prev,
+            ...data.review,
+            templateFileVersions,
+          } : {
+            ...data.review,
+            templateFileVersions,
+          });
+        } else {
+          await refreshReview();
+        }
       }
     } catch (err: any) {
       setUploadError(err.message || 'Failed to upload file version');
