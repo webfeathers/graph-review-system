@@ -67,7 +67,35 @@ const handler = async (
       if (insertError) {
         return res.status(500).json({ error: 'Failed to record file version: ' + insertError.message });
       }
-      return res.status(200).json({ success: true, version });
+
+      // Log activity for file upload
+      const { error: activityError } = await supabase
+        .from('activities')
+        .insert({
+          type: 'template_file_uploaded',
+          review_id: reviewId,
+          user_id: userId,
+          metadata: { file_url: fileUrl },
+          created_at: new Date().toISOString()
+        });
+      if (activityError) {
+        console.error('Error logging template_file_uploaded activity:', activityError);
+      }
+
+      // Fetch latest review data (including new file version)
+      const { data: reviewData, error: reviewFetchError } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          template_file_versions:template_file_versions(*, uploader:profiles!uploaded_by(id, name, email))
+        `)
+        .eq('id', reviewId)
+        .single();
+      if (reviewFetchError) {
+        return res.status(200).json({ success: true, version });
+      }
+
+      return res.status(200).json({ success: true, version, review: reviewData });
     } catch (e: any) {
       return res.status(500).json({ error: 'Unexpected error: ' + (e.message || e) });
     }

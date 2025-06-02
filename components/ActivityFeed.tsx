@@ -18,7 +18,7 @@ import { useState } from 'react';
 
 interface Activity {
   id: string;
-  type: 'task_created' | 'task_updated' | 'task_completed' | 'comment_added' | 'review_created' | 'review_updated' | 'review_status_changed';
+  type: 'task_created' | 'task_updated' | 'task_completed' | 'comment_added' | 'review_created' | 'review_updated' | 'review_status_changed' | 'template_file_uploaded';
   review_id: string;
   task_id?: string;
   comment_id?: string;
@@ -29,6 +29,7 @@ interface Activity {
     priority?: string;
     old_status?: string;
     new_status?: string;
+    file_url?: string;
   };
   created_at: string;
   user: {
@@ -169,6 +170,8 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, allUsers }) => 
         return <PencilSquareIcon className="h-5 w-5 text-yellow-500" />;
       case 'review_status_changed':
         return <ArrowPathIcon className="h-5 w-5 text-indigo-500" />;
+      case 'template_file_uploaded':
+        return <DocumentTextIcon className="h-5 w-5 text-pink-500" />;
       default:
         return null;
     }
@@ -268,6 +271,29 @@ const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities, allUsers }) => 
             <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
               {activity.review?.title || `#${activity.review_id}`}
             </Link>
+          </>
+        );
+      case 'template_file_uploaded':
+        return (
+          <>
+            uploaded a new template file version to review{' '}
+            <Link href={`/reviews/${activity.review_id}`} className="text-blue-600 hover:underline">
+              {activity.review?.title || `#${activity.review_id}`}
+            </Link>
+            {activity.metadata?.file_url && (
+              <>
+                {' '}[
+                <a
+                  href={activity.metadata.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-pink-600 hover:underline"
+                >
+                  Download
+                </a>
+                ]
+              </>
+            )}
           </>
         );
       default:
