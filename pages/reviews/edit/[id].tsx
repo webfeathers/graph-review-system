@@ -428,7 +428,7 @@ const EditReview: NextPage = () => {
         setUploadSuccess('File version uploaded successfully');
         if (data.review) {
           // Normalize templateFileVersions for consistency
-          let templateFileVersions = [];
+          let templateFileVersions: any[] = [];
           if (data.review.template_file_versions) {
             templateFileVersions = (data.review.template_file_versions || []).map((v: any) => ({
               id: v.id,
