@@ -187,6 +187,13 @@ async function handler(
           created_at,
           user_id,
           user:profiles!fk_comments_user(id, name, email, created_at, role)
+        ),
+        templateFileVersions:template_file_versions (
+          id,
+          fileUrl:file_url,
+          uploadedAt:created_at,
+          uploadedBy:user_id,
+          uploaderName:uploader_name
         )
       `)
       .eq('id', id)
