@@ -25,6 +25,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "20.6.0",
     "@types/nodemailer": "^6.4.14",
     "@types/react": "18.2.21",
