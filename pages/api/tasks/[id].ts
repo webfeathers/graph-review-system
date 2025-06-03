@@ -120,6 +120,8 @@ async function handler(
           .from('activities')
           .insert({
             type: 'task_updated',
+            action: 'updated task',
+            description: `Task status changed from ${task.status} to ${status}`,
             review_id: updatedTask.review_id,
             task_id: updatedTask.id,
             user_id: userId,

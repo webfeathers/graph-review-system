@@ -375,6 +375,8 @@ export async function createReview(
         .from('activities')
         .insert({
           type: 'review_created',
+          action: 'created review',
+          description: 'A new review was created',
           user_id: reviewData.userId,
           review_id: newReview.id
         });
@@ -462,6 +464,8 @@ export async function createComment(
       .from('activities')
       .insert({
         type: 'comment_added',
+        action: 'added comment',
+        description: 'A comment was added to a review',
         review_id: commentData.reviewId,
         user_id: commentData.userId,
         metadata: {

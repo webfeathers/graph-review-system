@@ -73,6 +73,8 @@ const handler = async (
         .from('activities')
         .insert({
           type: 'template_file_uploaded',
+          action: 'uploaded file',
+          description: 'A template file was uploaded',
           review_id: reviewId,
           user_id: userId,
           metadata: { file_url: fileUrl },

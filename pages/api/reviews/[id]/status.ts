@@ -159,12 +159,16 @@ async function handler(
     const { error: activityError } = await supabaseAdmin
       .from('activities')
       .insert({
-        type: 'review',
+        type: 'review_status_changed',
         action: 'updated status',
-        description: `Review status changed to ${newStatus}`,
+        description: `Review status changed from ${currentReview.status} to ${newStatus}`,
         user_id: userId,
         review_id: id,
-        link: `/reviews/${id}`
+        link: `/reviews/${id}`,
+        metadata: {
+          old_status: currentReview.status,
+          new_status: newStatus
+        }
       });
 
     if (activityError) {
