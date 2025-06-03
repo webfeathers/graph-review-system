@@ -28,6 +28,9 @@
     "@types/node": "20.6.0",
     "@types/nodemailer": "^6.4.14",
     "@types/react": "18.2.21",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.4",
+    "tailwindcss": "^4.1.8",
     "typescript": "5.2.2"
   }
 }
