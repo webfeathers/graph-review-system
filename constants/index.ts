@@ -10,11 +10,6 @@ export enum ReviewStatus {
 }
 
 /**
- * Array of all possible review statuses
- */
-export const REVIEW_STATUSES = Object.values(ReviewStatus);
-
-/**
  * Storage bucket names in Supabase
  */
 export enum StorageBucket {
@@ -56,33 +51,6 @@ export const FIELD_LIMITS = {
   CUSTOMER_FOLDER_MAX_LENGTH: 255,
   HANDOFF_LINK_MAX_LENGTH: 255,
 };
-
-/**
- * Routes configuration
- */
-export const ROUTES = {
-  HOME: '/',
-  LOGIN: '/login',
-  REGISTER: '/register',
-  DASHBOARD: '/dashboard',
-  REVIEWS: '/reviews',
-  NEW_REVIEW: '/reviews/new',
-  getReviewDetails: (id: string) => `/reviews/${id}`,
-};
-
-/**
- * Authentication related constants
- */
-export const AUTH = {
-  TOKEN_STORAGE_KEY: 'graph-review-auth-token',
-  SESSION_EXPIRY: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
-};
-
-export const STORAGE_BUCKETS = {
-  AVATARS: StorageBucket.AVATARS,
-  USER_AVATARS: StorageBucket.USER_AVATARS,
-  COMMENTS: StorageBucket.COMMENTS
-} as const;
 
 // Points and badges configuration
 export const POINTS_PER_REVIEW = 10;

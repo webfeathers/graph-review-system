@@ -67,18 +67,6 @@ export function hasErrors<T extends FormValues>(errors: FormErrors<T>): boolean 
   return Object.keys(errors).length > 0;
 }
 
-/**
- * Throws a ValidationError if a form has errors
- */
-export function throwIfErrors<T extends FormValues>(
-  errors: FormErrors<T>,
-  message: string = 'Form validation failed'
-): void {
-  if (hasErrors(errors)) {
-    throw new ValidationError(message, undefined, 'form_validation', errors);
-  }
-}
-
 // Common validation rules - migrated from validation.ts where needed
 
 export const required = (message: string = 'This field is required'): ValidationRule<any> => 

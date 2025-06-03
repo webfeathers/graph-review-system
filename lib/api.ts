@@ -280,31 +280,6 @@ export const getProfileById = async (id: string) => {
   return data as Profile;
 };
 
-export async function getCommentVotes(commentId: string): Promise<CommentVote[]> {
-  const { data, error } = await supabase
-    .from('comment_votes')
-    .select('*')
-    .eq('comment_id', commentId);
-
-  if (error) throw error;
-  return data.map(dbToFrontendCommentVote);
-}
-
-export async function getUserVote(commentId: string, userId: string): Promise<VoteType | null> {
-  const { data, error } = await supabase
-    .from('comment_votes')
-    .select('vote_type')
-    .eq('comment_id', commentId)
-    .eq('user_id', userId)
-    .single();
-
-  if (error) {
-    if (error.code === 'PGRST116') return null; // No rows returned
-    throw error;
-  }
-  return data.vote_type;
-}
-
 export async function voteOnComment(commentId: string, userId: string, voteType: VoteType): Promise<void> {
   const now = new Date().toISOString();
   const { error } = await supabase
