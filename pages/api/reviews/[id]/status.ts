@@ -191,9 +191,9 @@ async function handler(
         templateFileVersions:template_file_versions (
           id,
           fileUrl:file_url,
-          uploadedAt:created_at,
-          uploadedBy:user_id,
-          uploaderName:uploader_name
+          uploadedAt:uploaded_at,
+          uploadedBy:uploaded_by,
+          uploader:profiles!uploaded_by(id, name, email)
         )
       `)
       .eq('id', id)
@@ -219,10 +219,11 @@ async function handler(
     });
 
   } catch (error) {
-    console.error('Error in status update:', error);
+    console.error('[StatusUpdateAPI] Error:', error instanceof Error ? error.message : error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: error instanceof Error ? error.message : 'Internal server error',
+      error: error instanceof Error ? error.stack : error
     });
   }
 }
