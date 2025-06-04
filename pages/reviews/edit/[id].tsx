@@ -212,24 +212,33 @@ const EditReview: NextPage = () => {
   // Handle form validation
   const validate = () => {
     const errors: Record<string, string> = {};
-    
-    // Required fields
+    if (!review) return errors;
+
+    // Always required
     if (!title) errors.title = 'Title is required';
-    if (!newLeadId) errors.projectLeadId = 'Project Lead is required';
-    if (!kantataProjectId) errors.kantataProjectId = 'Kantata Project ID is required';
-    if (!segment) errors.segment = 'Please select a customer segment';
-    
-    // Optional fields with validation
-    if (customerFolder && !customerFolder.startsWith('http')) {
-      errors.customerFolder = 'Please enter a valid URL for the customer folder';
+    if (!graphName) errors.graphName = 'Graph Name is required';
+    // Only require description if shown (always shown)
+    // Only require projectLeadId if admin and field is shown
+    if (isAdmin && typeof isAdmin === 'function' && isAdmin() && !newLeadId) {
+      errors.projectLeadId = 'Project Lead is required';
     }
-    if (handoffLink && !handoffLink.startsWith('http')) {
-      errors.handoffLink = 'Please enter a valid URL for the handoff link';
+
+    if (review.reviewType === 'customer') {
+      if (!accountName) errors.accountName = 'Account Name is required';
+      if (!kantataProjectId) errors.kantataProjectId = 'Kantata Project ID is required';
+      if (!orgId) errors.orgId = 'OrgID is required';
+      if (!segment) errors.segment = 'Please select a customer segment';
+      if (customerFolder && !customerFolder.startsWith('http')) {
+        errors.customerFolder = 'Please enter a valid URL for the customer folder';
+      }
+      if (handoffLink && !handoffLink.startsWith('http')) {
+        errors.handoffLink = 'Please enter a valid URL for the handoff link';
+      }
+      if (useCase && useCase.length < 10) {
+        errors.useCase = 'Use case must be at least 10 characters if provided';
+      }
     }
-    if (useCase && useCase.length < 10) {
-      errors.useCase = 'Use case must be at least 10 characters if provided';
-    }
-    
+    // For template reviews, do not require customer-specific fields
     return errors;
   };
   
@@ -460,20 +469,22 @@ const EditReview: NextPage = () => {
         )}
 
         <Form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
-              Project Lead
-            </label>
-            <ProjectLeadSelector
-              value={newLeadId}
-              onChange={setNewLeadId}
-              disabled={!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && user?.id !== review?.userId}
-            />
-            <p className="mt-1 text-sm text-gray-500">
-              The person responsible for this graph review.
-              {!(isAdmin && typeof isAdmin === 'function' && isAdmin()) && " Only admins can assign to someone else."}
-            </p>
-          </div>
+          {/* Only show Project Lead field for admins */}
+          {isAdmin && typeof isAdmin === 'function' && isAdmin() && (
+            <div className="mb-4">
+              <label htmlFor="projectLeadId" className="block text-sm font-medium text-gray-700 mb-1">
+                Project Lead
+              </label>
+              <ProjectLeadSelector
+                value={newLeadId}
+                onChange={setNewLeadId}
+                disabled={false}
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                The person responsible for this graph review.
+              </p>
+            </div>
+          )}
 
           <TextInput
             id="title"
