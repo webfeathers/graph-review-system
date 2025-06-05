@@ -6,6 +6,7 @@ import { validateForm, FormErrors } from '../../../lib/validationUtils';
 import { createReview } from '../../../lib/supabaseUtils'; // Assuming createReview handles DB interaction
 import { Role } from '../../../types/supabase';
 import { SupabaseClient } from '@supabase/supabase-js'; // Import type
+import { sendSlackNotification } from '../../../lib/slack';
 
 // Define response data type (can be shared or defined here)
 type ResponseData = {
@@ -32,9 +33,21 @@ async function handler(
       console.log('Processing POST /api/reviews request');
       
       const formData = req.body;
-      
+      // Determine review type
+      const isTemplate = formData.reviewType === 'template';
+      // Dynamically build validation schema
+      const schema = isTemplate
+        ? {
+            title: reviewValidationSchema.title,
+            description: reviewValidationSchema.description,
+            graphName: reviewValidationSchema.graphName,
+            projectLeadId: reviewValidationSchema.projectLeadId,
+            status: reviewValidationSchema.status,
+            // Add any other template-specific fields if needed
+          }
+        : reviewValidationSchema; // full schema for customer reviews
       // Validate the incoming data
-      const validationErrors = validateForm(formData, reviewValidationSchema);
+      const validationErrors = validateForm(formData, schema);
       
       // If validation fails, return errors
       if (Object.keys(validationErrors).length > 0) {
@@ -59,6 +72,28 @@ async function handler(
       const newReview = await createReview(reviewDataToCreate, supabaseClient);
       
       console.log('Review created successfully:', newReview.id);
+      
+      // Fetch the user's real name for the Slack notification
+      let userName = userId;
+      try {
+        const { data: userProfile, error: userProfileError } = await supabaseClient
+          .from('profiles')
+          .select('name')
+          .eq('id', userId)
+          .single();
+        if (userProfile && userProfile.name) {
+          userName = userProfile.name;
+        }
+      } catch (profileErr) {
+        console.error('Failed to fetch user profile for Slack notification:', profileErr);
+      }
+      // Send Slack notification
+      try {
+        const reviewUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/reviews/${newReview.id}`;
+        await sendSlackNotification(`A new graph review was created by ${userName}: <${reviewUrl}|${newReview.title || 'Untitled Review'}>`);
+      } catch (slackError) {
+        console.error('Failed to send Slack notification:', slackError);
+      }
       
       return res.status(201).json({
         success: true,

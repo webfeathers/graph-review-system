@@ -174,7 +174,7 @@ const NewReview: NextPage = () => {
           setTemplateFileUrl(uploadedFileUrl);
         }
         
-        const reviewData = {
+        const reviewPayload = {
           ...values,
           userId: user!.id,
           status: (values.status || 'Draft') as 'Draft' | 'Submitted' | 'In Review' | 'Needs Work' | 'Approved',
@@ -184,15 +184,23 @@ const NewReview: NextPage = () => {
           fileLink: uploadedFileUrl || undefined,
         };
 
-        // <<< Pass the supabaseClient from context to createReview >>>
-        const newReview = await createReview(reviewData, supabaseClient);
-        if (!newReview?.id) {
-          throw new Error('Failed to create review - no ID returned');
+        // Use the API route for review creation with Supabase Auth token
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        const response = await fetch('/api/reviews', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(reviewPayload),
+        });
+        const result = await response.json();
+        if (result.success) {
+          window.location.href = `/reviews/${result.data.id}?success=true&message=${encodeURIComponent('Review created successfully')}`;
+        } else {
+          setGeneralError(result.message || 'Failed to create review');
         }
-        
-        // Use window.location.href for full page transition
-        window.location.href = `/reviews/${newReview.id}?success=true&message=${encodeURIComponent('Review created successfully')}`;
-
       } catch (error: any) {
         console.error('Error creating review:', error);
         setGeneralError(error.message || 'Failed to create review');
