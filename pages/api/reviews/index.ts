@@ -89,7 +89,7 @@ async function handler(
       }
       // Send Slack notification
       try {
-        const reviewUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/reviews/${newReview.id}`;
+        const reviewUrl = `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/reviews/${newReview.id}`;
         await sendSlackNotification(`A new graph review was created by ${userName}: <${reviewUrl}|${newReview.title || 'Untitled Review'}>`);
       } catch (slackError) {
         console.error('Failed to send Slack notification:', slackError);
