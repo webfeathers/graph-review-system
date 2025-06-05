@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/router';
 import { Profile } from '../types';
-import { Comment, CommentWithProfile, VoteType } from '../types/supabase';
+import { Comment, CommentWithProfile, VoteType, CommentVote } from '../types/supabase';
 import { useAuth } from '../components/AuthProvider';
 import { supabase } from '../lib/supabase';
 import { ErrorDisplay } from './ErrorDisplay';
@@ -246,6 +246,24 @@ function ImageModal({ src, alt, onClose }: { src: string; alt?: string; onClose:
   );
 }
 
+// Add VoteTooltip component
+function VoteTooltip({ votes, voteType }: { votes: (CommentVote & { user?: Profile })[], voteType: VoteType }) {
+  const filteredVotes = votes.filter(vote => vote.voteType === voteType);
+  
+  if (filteredVotes.length === 0) return null;
+  
+  return (
+    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-50">
+      {filteredVotes.map((vote, index) => (
+        <div key={vote.id}>
+          {vote.user?.name || 'Unknown User'}
+          {index < filteredVotes.length - 1 ? ', ' : ''}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete, reviewId, user }: CommentItemProps) {
   const [isReplying, setIsReplying] = useState(false);
   const [replyContent, setReplyContent] = useState('');
@@ -373,25 +391,35 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
             <ImageModal src={modalImage} onClose={() => setModalImage(null)} />
           )}
           <div className="mt-2 flex items-center space-x-4">
-            <button
-              onClick={() => onVote(comment.id, 'up')}
-              className={`${
-                comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-500'
-              } hover:text-blue-800`}
-              title="Upvote"
-            >
-              <HandThumbUpIcon className="h-5 w-5" />
-            </button>
+            <div className="relative group">
+              <button
+                onClick={() => onVote(comment.id, 'up')}
+                className={`${
+                  comment.userVote === 'up' ? 'text-blue-600' : 'text-gray-500'
+                } hover:text-blue-800`}
+                title="Upvote"
+              >
+                <HandThumbUpIcon className="h-5 w-5" />
+              </button>
+              <div className="hidden group-hover:block">
+                <VoteTooltip votes={comment.votes || []} voteType="up" />
+              </div>
+            </div>
             <span className="text-sm text-gray-500">{comment.voteCount}</span>
-            <button
-              onClick={() => onVote(comment.id, 'down')}
-              className={`${
-                comment.userVote === 'down' ? 'text-red-600' : 'text-gray-500'
-              } hover:text-red-800`}
-              title="Downvote"
-            >
-              <HandThumbDownIcon className="h-5 w-5" />
-            </button>
+            <div className="relative group">
+              <button
+                onClick={() => onVote(comment.id, 'down')}
+                className={`${
+                  comment.userVote === 'down' ? 'text-red-600' : 'text-gray-500'
+                } hover:text-red-800`}
+                title="Downvote"
+              >
+                <HandThumbDownIcon className="h-5 w-5" />
+              </button>
+              <div className="hidden group-hover:block">
+                <VoteTooltip votes={comment.votes || []} voteType="down" />
+              </div>
+            </div>
             {user?.id === comment.userId && (
               <button
                 onClick={() => onDelete(comment.id)}

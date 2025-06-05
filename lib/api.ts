@@ -190,7 +190,8 @@ export const updateProjectLead = async (reviewId: string, newLeadId: string, rol
 
 // Comments
 export async function getCommentsByReviewId(reviewId: string): Promise<CommentWithProfile[]> {
-  const { data, error } = await supabase
+  // First get all comments with their votes
+  const { data: comments, error: commentsError } = await supabase
     .from('comments')
     .select(`
       *,
@@ -199,13 +200,35 @@ export async function getCommentsByReviewId(reviewId: string): Promise<CommentWi
     `)
     .eq('review_id', reviewId);
 
-  if (error) throw error;
+  if (commentsError) throw commentsError;
 
-  // Flatten all comments and transform
-  return data.map(comment => ({
+  // Get all unique user IDs from votes
+  const userIds = new Set<string>();
+  comments.forEach(comment => {
+    comment.votes?.forEach((vote: any) => {
+      userIds.add(vote.user_id);
+    });
+  });
+
+  // Fetch all user profiles
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', Array.from(userIds));
+
+  if (profilesError) throw profilesError;
+
+  // Create a map of user profiles for quick lookup
+  const profileMap = new Map(profiles.map(profile => [profile.id, profile]));
+
+  // Transform comments with votes and user profiles
+  return comments.map(comment => ({
     ...dbToFrontendComment(comment),
     user: dbToFrontendProfile(comment.user),
-    votes: comment.votes?.map(dbToFrontendCommentVote),
+    votes: comment.votes?.map((vote: any) => ({
+      ...dbToFrontendCommentVote(vote),
+      user: profileMap.get(vote.user_id) ? dbToFrontendProfile(profileMap.get(vote.user_id)) : undefined
+    })),
     voteCount: comment.votes?.reduce((sum: number, vote: DbCommentVote) => 
       sum + (vote.vote_type === 'up' ? 1 : -1), 0) || 0,
     // Do not include replies property here; nestComments will build it

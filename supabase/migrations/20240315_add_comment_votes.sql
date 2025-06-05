@@ -12,6 +12,13 @@ CREATE TABLE comment_votes (
     UNIQUE(comment_id, user_id)
 );
 
+-- Add foreign key to profiles table
+ALTER TABLE comment_votes
+ADD CONSTRAINT fk_comment_votes_user
+FOREIGN KEY (user_id)
+REFERENCES profiles(id)
+ON DELETE CASCADE;
+
 -- Add RLS policies
 ALTER TABLE comment_votes ENABLE ROW LEVEL SECURITY;
 
