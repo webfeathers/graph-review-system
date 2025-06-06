@@ -47,12 +47,16 @@ const handler = async (
         return res.status(404).json({ error: 'File not found' });
       }
 
+      // Convert Blob to Buffer
+      const arrayBuffer = await data.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
       // Set headers for file download
       res.setHeader('Content-Type', 'text/plain');
       res.setHeader('Content-Disposition', `attachment; filename="template-${reviewId}.txt"`);
       
       // Send the file
-      return res.send(data);
+      return res.send(buffer);
     } catch (error) {
       console.error('Error downloading file:', error);
       return res.status(500).json({ error: 'Failed to download file' });
