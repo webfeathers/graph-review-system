@@ -20,6 +20,45 @@ const handler = async (
   res: NextApiResponse,
   userId: string
 ) => {
+  if (req.method === 'GET') {
+    const reviewId = req.query.id as string;
+    const fileUrl = req.query.fileUrl as string;
+    
+    if (!reviewId || !fileUrl) {
+      return res.status(400).json({ error: 'Missing review ID or file URL' });
+    }
+
+    try {
+      // Extract the file path from the Supabase storage URL
+      const url = new URL(fileUrl);
+      const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/template-files\/(.+)/);
+      if (!pathMatch) {
+        return res.status(400).json({ error: 'Invalid file URL format' });
+      }
+      const filePath = pathMatch[1];
+
+      // Get the file from Supabase storage
+      const { data, error } = await supabase.storage
+        .from('template-files')
+        .download(filePath);
+
+      if (error) {
+        console.error('Supabase storage error:', error);
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="template-${reviewId}.txt"`);
+      
+      // Send the file
+      return res.send(data);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      return res.status(500).json({ error: 'Failed to download file' });
+    }
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

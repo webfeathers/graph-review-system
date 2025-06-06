@@ -32,3 +32,4 @@ yarn-error.log*
 .vercel/output
 *storybook.log
 .env.local
+/supabase/migrations

@@ -30,7 +30,7 @@ import { nestComments } from '../../lib/apiHelpers';
 import { ReviewWithProfile, CommentWithProfile, Profile } from '../../types/supabase';
 
 const ReviewPage: NextPage = () => {
-  const { user, loading: authLoading, isAdmin } = useAuth();
+  const { user, loading: authLoading, isAdmin, supabaseClient } = useAuth();
   const router = useRouter();
   const { id } = router.query;
   const [review, setReview] = useState<ReviewWithProfile | null>(null);
@@ -295,6 +295,50 @@ const ReviewPage: NextPage = () => {
     }
   };
 
+  const handleDownload = async (fileUrl: string) => {
+    if (!review) {
+      console.error('Review not found');
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        console.error('No authentication token available');
+        return;
+      }
+
+      const response = await fetch(`/api/reviews/${review.id}/template-file-version?fileUrl=${encodeURIComponent(fileUrl)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error('Download failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `template-${review.id}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    }
+  };
+
   // Loading/Auth/Error checks
   if (loading || authLoading) {
     return <LoadingState message="Loading review..." />;
@@ -552,20 +596,25 @@ const ReviewPage: NextPage = () => {
                         <table className="min-w-full border text-sm mt-2">
                           <thead>
                             <tr>
-                              <th className="border px-2 py-1">Version</th>
-                              <th className="border px-2 py-1">Date Uploaded</th>
-                              <th className="border px-2 py-1">Uploaded by</th>
-                              <th className="border px-2 py-1">Download</th>
+                              <th className="border px-2 py-1 text-center">Version</th>
+                              <th className="border px-2 py-1 text-left">Date Uploaded</th>
+                              <th className="border px-2 py-1 text-left">Uploaded by</th>
+                              <th className="border px-2 py-1 text-left">Download</th>
                             </tr>
                           </thead>
                           <tbody>
                             {review.templateFileVersions?.map((v, idx) => (
                               <tr key={v.id}>
-                                <td className="border px-2 py-1">{review.templateFileVersions?.length ? review.templateFileVersions.length - idx : ''}</td>
+                                <td className="border px-2 py-1 text-center">{review.templateFileVersions?.length ? review.templateFileVersions.length - idx : ''}</td>
                                 <td className="border px-2 py-1">{v.uploadedAt ? new Date(v.uploadedAt).toLocaleString() : ''}</td>
                                 <td className="border px-2 py-1">{v.uploaderName || v.uploadedBy || 'Unknown'}</td>
                                 <td className="border px-2 py-1">
-                                  <a href={v.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Download</a>
+                                  <button 
+                                    onClick={() => handleDownload(v.fileUrl)}
+                                    className="text-blue-600 hover:underline"
+                                  >
+                                    Download
+                                  </button>
                                 </td>
                               </tr>
                             ))}
