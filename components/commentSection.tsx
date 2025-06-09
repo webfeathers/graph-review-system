@@ -294,48 +294,10 @@ function CommentItem({ comment, isReply = false, onReplyAdded, onVote, onDelete,
 
     setIsSubmitting(true);
     try {
-      const reply = await addComment(reviewId, replyContent, user.id, comment.id);
-      
-      // Send reply notification
-      fetch('/api/notifications/reply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentCommentId: comment.id,
-          replyCommentId: reply.id,
-          reviewId,
-          userId: user.id,
-          commenterName: user.user_metadata?.name || user.email,
-          commentContent: reply.content
-        })
-      }).catch(err => console.error('Error sending reply notification:', err));
-      
-      // Notify mentioned users
-      const contentLower = replyContent.toLowerCase();
-      const mentionedUsers = suggestions.filter(u =>
-        contentLower.includes(`@${u.name.toLowerCase()}`)
-      );
-      if (mentionedUsers.length > 0) {
-        const baseUrl = APP_URL;
-        const commentUrl = `${baseUrl}/reviews/${reviewId}#comment-${reply.id}`;
-        fetch('/api/notifications/mention', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mentionedUsers: mentionedUsers.map(u => ({ email: u.email, name: u.name })),
-            commenterName: user.user_metadata?.name || user.email,
-            reviewId,
-            commentId: reply.id,
-            commentContent: reply.content,
-            commentUrl
-          })
-        }).catch(err => console.error('Error sending mention notifications:', err));
-      }
-
-      onReplyAdded(comment.id, reply);
-      setReplyContent('');
-      setIsReplying(false);
+      await addComment(reviewId, replyContent, user.id, comment.id);
       toast.success('Reply added successfully');
+      // Reload the page to get fresh state
+      window.location.reload();
     } catch (error) {
       console.error('Error adding reply:', error);
       toast.error('Failed to add reply');
@@ -755,35 +717,10 @@ export function CommentSection({ reviewId, comments: initialComments, onCommentA
         const markdown = newCommentImageUrls.map(url => `![](${url})`).join('\n\n');
         commentContent = commentContent.trim() + (commentContent.trim() ? '\n\n' : '') + markdown;
       }
-      const comment = await addComment(reviewId, commentContent, user.id);
-      setComments(prev => [comment, ...prev]);
-      setNewComment('');
-      setNewCommentImageUrls([]);
-      onCommentAdded?.({ ...comment, replies: comment.replies || [] });
-      
-      // Notify mentioned users
-      const contentLower = commentContent.toLowerCase();
-      const mentionedUsers = suggestions.filter(u =>
-        contentLower.includes(`@${u.name.toLowerCase()}`)
-      );
-      if (mentionedUsers.length > 0) {
-        const baseUrl = APP_URL;
-        const commentUrl = `${baseUrl}/reviews/${reviewId}#comment-${comment.id}`;
-        fetch('/api/notifications/mention', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mentionedUsers: mentionedUsers.map(u => ({ email: u.email, name: u.name })),
-            commenterName: user.user_metadata?.name || user.email,
-            reviewId,
-            commentId: comment.id,
-            commentContent: comment.content,
-            commentUrl
-          })
-        }).catch(err => console.error('Error sending mention notifications:', err));
-      }
-
+      await addComment(reviewId, commentContent, user.id);
       toast.success('Comment added successfully');
+      // Reload the page to get fresh state
+      window.location.reload();
     } catch (error) {
       console.error('Error adding comment:', error);
       toast.error('Failed to add comment');
