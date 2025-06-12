@@ -85,6 +85,52 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const impersonateUser = async (userId: string) => {
+    setError('');
+    setSuccessMessage(null);
+    
+    try {
+      // Get current token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+      
+      // Call the impersonation API endpoint
+      const response = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ targetUserId: userId })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to impersonate user');
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to impersonate user');
+      }
+
+      // Redirect to the magic link URL
+      if (result.session?.properties?.action_link) {
+        window.location.href = result.session.properties.action_link;
+      } else {
+        throw new Error('No impersonation link received');
+      }
+    } catch (err: any) {
+      console.error('Error impersonating user:', err);
+      setError(err.message || 'Failed to impersonate user');
+    }
+  };
+
   if (loading) {
     return <LoadingState message="Loading users..." />;
   }
@@ -156,6 +202,14 @@ const UserManagement: React.FC = () => {
                       Remove Admin
                     </Button>
                   )}
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    className="ml-2"
+                    onClick={() => impersonateUser(user.id)}
+                  >
+                    Impersonate
+                  </Button>
                 </td>
               </tr>
             ))}
