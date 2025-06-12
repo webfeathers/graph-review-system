@@ -132,6 +132,8 @@ const Dashboard: NextPage = () => {
         const filteredReviews = reviewsData.filter(review => {
           // Only filter out archived reviews unless showArchived is true
           if (!showArchived && review.status === 'Archived') return false;
+          // Apply status filter
+          if (filter !== 'All' && review.status !== filter) return false;
           return true;
         });
         
