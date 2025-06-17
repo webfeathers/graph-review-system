@@ -37,20 +37,21 @@ function MinimalLeaderboard({ currentUserId }: { currentUserId: string }) {
 
   useEffect(() => {
     const fetchTopUsers = async () => {
+      // Get all profiles first (like the full leaderboard page)
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, points')
-        .order('points', { ascending: false })
-        .limit(10); // Fetch more in case points change after enrichment
+        .select('*')
+        .order('name');
+      
       if (!error && data) {
-        // Enrich with ProfileService.ensureProfile for accurate points
+        // Calculate points for each profile using ProfileService (like the full leaderboard page)
         const enriched = await Promise.all(
-          data.map(async (user) => {
-            const enrichedProfile = await ProfileService.ensureProfile({ id: user.id });
-            return enrichedProfile ? { ...user, ...enrichedProfile } : user;
+          data.map(async (profile) => {
+            const enrichedProfile = await ProfileService.ensureProfile({ id: profile.id });
+            return enrichedProfile || profile;
           })
         );
-        // Sort by recalculated points and take top 5
+        // Sort by points and take top 5
         enriched.sort((a, b) => (b.points || 0) - (a.points || 0));
         setTopUsers(enriched.slice(0, 5));
       }
