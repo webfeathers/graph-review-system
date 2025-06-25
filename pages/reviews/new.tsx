@@ -489,23 +489,34 @@ const NewReview: NextPage = () => {
                       touched={form.touched.kantataProjectId}
                       required
                     />
-                    <SelectInput
-                      id="segment"
-                      name="segment"
-                      label="Segment"
-                      value={form.values.segment}
-                      onChange={form.handleChange('segment')}
-                      onBlur={form.handleBlur('segment')}
-                      error={form.errors.segment}
-                      touched={form.touched.segment}
-                      options={[
-                        { value: '', label: 'Please Select' },
-                        { value: 'MidMarket', label: 'MidMarket' },
-                        { value: 'Enterprise', label: 'Enterprise' }
-                      ]}
-                      required
-                      helpText="Select the customer segment"
-                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <SelectInput
+                        id="segment"
+                        name="segment"
+                        label="Segment"
+                        value={form.values.segment}
+                        onChange={form.handleChange('segment')}
+                        onBlur={form.handleBlur('segment')}
+                        error={form.errors.segment}
+                        touched={form.touched.segment}
+                        options={[
+                          { value: '', label: 'Please Select' },
+                          { value: 'MidMarket', label: 'MidMarket' },
+                          { value: 'Enterprise', label: 'Enterprise' }
+                        ]}
+                        required
+                        helpText="Select the customer segment"
+                      />
+                      <div className="pt-6">
+                        <Checkbox
+                          id="remoteAccess"
+                          label="Remote Access Granted"
+                          checked={form.values.remoteAccess}
+                          onChange={(e) => form.setFieldValue('remoteAccess', e.target.checked)}
+                          helpText="Check if remote access has been granted"
+                        />
+                      </div>
+                    </div>
                     <TextInput
                       id="customerFolder"
                       name="customerFolder"
